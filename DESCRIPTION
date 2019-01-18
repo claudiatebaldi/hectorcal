@@ -1,0 +1,15 @@
+Package: hectorcal
+Title: Support code for the Hector calibration project
+Version: 0.0.0.9000
+Authors@R: c(person("Robert", "Link", email="robert.link@pnnl.gov", role = "aut"),
+          person("Kalyn", "Dorheim", 
+          email = "kalyn.dorheim@pnnl.gov", 
+          role = c("cre", "aut"), comment = c(ORCID = "0000-0001-8093-8397")))
+Description: Support code for the Hector calibration project
+Depends: R (>= 3.3.3)
+Imports:
+    hector (>= 0.2.0),
+    metrosamp (>= 0.1.0),
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
