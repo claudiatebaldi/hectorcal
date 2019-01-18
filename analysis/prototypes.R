@@ -1,6 +1,6 @@
 library('hectorcal')
 library('ggplot2')
-
+library('dplyr')
 
 #### More functions that will come in handy later.
 

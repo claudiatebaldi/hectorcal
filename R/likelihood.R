@@ -32,7 +32,7 @@ errhandler <- function(e)
 #' variable.
 #' @param cal_mean If true calibrate to mean; otherwise calibrate to range
 #' @param use_c_cycle If true, include carbon cycle parameters; if not, don't.
-#'
+#' @export
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
                             cal_mean = TRUE, use_c_cycle=TRUE)
