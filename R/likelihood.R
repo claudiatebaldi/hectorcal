@@ -1,27 +1,3 @@
-## initial guess
-pv0 <- c(3, 1, 2.3, 0.3, 2, 285, 1.0, 10.0)
-## mcmc scale for carbon cycle + mean (seems to be effective when scaled by a factor of 0.25)
-mcmc_scale <- c(0.2, 0.2, 0.2, 0.1, 0.2, 2.0, 0.1, 2.0)
-
-## set the seed for reproducibility
-#set.seed(8675309)
-
-## Create a truncated normal log density function
-## a: lower bound
-## b: upper bound
-## mu: normal function mean
-## sig: normal function sigma
-mktruncnorm <- function(a, b, mu, sig)
-{
-    ftmp <- function(x) {dnorm(x, mu, sig)}
-    lnfac <- log(integrate(ftmp, a, b)$value)     # normalization factor
-    ## create the function to return
-    function(x) {
-        ifelse(x>=a & x<=b,
-               dnorm(x,mu,sig, log=TRUE) - lnfac,
-               -Inf)
-    }
-}
 
 #### Error handler for hector errors
 errhandler <- function(e)
@@ -30,16 +6,38 @@ errhandler <- function(e)
     NULL
 }
 
-## comp_data:  table of esm summary statistics (mean, min, max) by year
-## inifile:  input file to initialize hector core
-## years: years to use in the likelihood function
-## cal_mean: If true calibrate to mean; otherwise calibrate to consensus
-## use_c_cycle: If true, include carbon cycle parameters; if not, don't.
+#' Construct a log posterior probability function for Bayesian calibration
+#'
+#' The function constructed by this call will be suitable for passing to either
+#' a markov chain sampler or an optimizer.  (Though the optimizer will need to
+#' be configured to find a maximum, rather than a minimum.)
+#'
+#' Note that the \code{use_c_cycle} argument only controls whether carbon cycle
+#' parameters are sampled and whether the co2 variable is considered in the
+#' likelihood function.  Whether Hector's carbon cycle runs is controled by the
+#' input file \code{inifile}.  It is the user's responsibility to supply a
+#' compatible input file, as well as comparison data that was run with the
+#' desired carbon cycle settings.
+#'
+#' @section Notes:
+#'
+#' For some reason we have made the mesa function's \code{sig} parameter
+#' settable for co2, but fixed at 0.4 for temperature.
+#'
+#' @param comp_data Table of esm summary statistics (mean, min, max) by year.
+#' @param inifile Input file to initialize hector core.
+#' @param years Years to use in the likelihood calculation.  Other years in the
+#' comparison data and the Hector output will be ignored.
+#' @param smooth_co2 Sig parameter to use in \code{\link{mesa}} for the CO2
+#' variable.
+#' @param cal_mean If true calibrate to mean; otherwise calibrate to range
+#' @param use_c_cycle If true, include carbon cycle parameters; if not, don't.
+#'
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
                             cal_mean = TRUE, use_c_cycle=TRUE)
 {
-    ## indices in the parameter vector for the various parameters.  We have several 
+    ## indices in the parameter vector for the various parameters.  We have several
     ## combinations of run parameters, so we have to sort them out here.
     iecs <- 1
     iaero <- 2
@@ -56,7 +54,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
         ilast <- ikappa
         compvars <- c(tas=hector::GLOBAL_TEMP())
     }
-    
+
     if(cal_mean) {
         ## We have a sigmat and possibly a sigmaco2 parameter
         isigt <- ilast+1
@@ -68,7 +66,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     else {
         isigt <- isigco2 <- NA
     }
-    
+
     #### Filter the comparison data to just what we are supposed to be using
     comp_data <- comp_data[comp_data$variable %in% names(compvars) & comp_data$year %in% years,]
     ## order by year and extract the values
@@ -81,10 +79,10 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     else {
         esmco2 <- NA
     }
-    
+
     #### Set up the hector core
     hcore <- hector::newcore(inifile, suppresslogging = TRUE)
-    
+
     ### Some hyperparameters
     ## Prior hyperparameters
     ecsmu   <- 3.0; ecssig   <- 3.0
@@ -97,7 +95,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     sigco2scale <- 10.0
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
-    
+
     #### construct a function to return the log prior
     logprior <- function(p)
     {
@@ -128,11 +126,11 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
         ## return lp value
         lp
     }
-    
+
     #### Construct the likelihood function
-    loglik <- function(p) 
+    loglik <- function(p)
     {
-        ## Protect all of these hector calls.  Any error will result in a 
+        ## Protect all of these hector calls.  Any error will result in a
         ## -Inf result
         hdata <- tryCatch({
             ## Set the model parameters
@@ -153,7 +151,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
         if(is.null(hdata)) {
             return(-Inf)
         }
-        
+
         htemps <- hdata[hdata$variable==hector::GLOBAL_TEMP(), 'value']
         if(cal_mean) {
             ll <- sum(dnorm(htemps, mean=esmtemps$cmean, sd=p[isigt], log=TRUE))
@@ -170,17 +168,16 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                 ll <- ll + sum(log(mesa(hco2, esmco2$mina, esmco2$maxb, smooth_co2)))
             }
         }
-        
+
         ## return the log of the likelihood
         ll
     }
-    
+
     #### Finally, return a function that evaluates the prior and the likelihood
     function(p)
     {
-        #message('random seed: ', paste(.Random.seed, collapse=', '))
         lp <- logprior(p)
-        lpost <- 
+        lpost <-
             if(is.finite(lp)) {
                 lp + loglik(p)
             }
