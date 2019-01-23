@@ -98,17 +98,17 @@ global_avg_nc <- lapply(input,annual_global_avg, cdo_dir = CDO_DIR, temp_dir = T
 
 
 # Format the output into a single data frame
-#files <- list.files(OUTPUT, '.nc', full.names = TRUE)
+files <- list.files(OUTPUT, '.nc', full.names = TRUE)
 
 # For all of the final output netcdfs extract the data and concatenate together.
-lapply(global_annual_avg_nc, function(file){
+lapply(files, function(file){
 
   if(file.exists(file)){
 
     name             <- gsub(x = basename(file), pattern = '.nc', replacement = '')
-    cmip_info        <- unlist(strsplit(gsub(x = name, pattern = 'global_annual_avg-', replacement = ''), '_'))
+    cmip_info        <- unlist(strsplit(gsub(x = name, pattern = 'global_annual_avg-|globalAvg_', replacement = ''), '_'))
     names(cmip_info) <- c('variable', 'model', 'experiment', 'ensemble')
-
+    print(cmip_info)
     # Extract from nc file
     nc   <- ncdf4::nc_open(file)
     data <- ncdf4::ncvar_get(nc, cmip_info[['variable']])
