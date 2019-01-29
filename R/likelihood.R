@@ -95,6 +95,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     sigco2scale <- 10.0
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
+    q10prior   <- mktruncnorm(0, Inf, q10mu, q10sig)
 
 
     #### construct a function to return the log prior
@@ -111,11 +112,14 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                          log(ecssig),
                          log = TRUE))
         if(use_c_cycle) {
-            lp <- lp + sum(dnorm(p[c(iq10, ic0)],
-                                 c(q10mu, c0mu),
-                                 c(q10sig, c0sig),
-                                 log=TRUE)) +
-                           betalprior(p[ibeta])
+            lp <- lp + sum(dnorm(p[ic0],
+                                 c0mu,
+                                 c0sig,
+                                 log=TRUE),
+                           betalprior(p[ibeta]),
+                           q10prior(p[iq10]))
+
+
         }
         if(cal_mean) {
             if(use_c_cycle) {
