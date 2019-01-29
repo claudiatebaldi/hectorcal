@@ -1,8 +1,18 @@
+# Select and format the ESM comparison data that will be used in the Bayesian calibration of
+# Hector, we are calibrating to the full range and the multi model mean for serveral experiments.
+# Because of our experimental design we decided to exclude a number of models from our analysis.
+# See comments for reasons why particular models were removed.
+
+# Load the required R pacakges
 library('readr')
 library('dplyr')
+library('tidyr')
 
+# Import the csv of the CMIP5 annual global average values for tas and co2. Some of these
+# models will need to be removed and some units will need to be converted.
 alldata <- read_csv('CMIP5_annual_global_average.csv')
-## Some models need their units corrected.
+
+# Convert CO2 units when applicable.
 fixdata <- mutate(alldata, value = if_else(variable=='co2' & value < 1, value*1e6, value))
 
 ## Any models for which the values here are dramatically different from the values reported
@@ -15,12 +25,27 @@ bogustime <- c('GFDL-ESM2M', "bcc-csm1-1",   "bcc-csm1-1-m", "IPSL-CM5A-LR", 'MI
 ## Hadley models have squirrelly formatting.  Drop them for now
 bogushadley <- c('HadCM3', 'HadGEM2-AO', 'HadGEM2-CC', 'HadGEM2-ES')
 
+## Make sure that all of the models have BOTH emission driven historical and rcp85 results
+## for a variable.
+fixdata %>%
+    filter(!model %in% c(bogusco2, bogustime, bogushadley),
+           grepl('esm', experiment)) %>%
+    select(model, experiment, variable) %>%
+    distinct %>%
+    mutate(data = TRUE) %>%
+    spread(experiment, data) %>%
+    filter_all(any_vars(is.na(.))) %>%
+    pull(model) ->
+    incomplete_esm_runs
+
 ## NB: some of the models seems to have bogus data in 1850 (over the whole
 ## ensemble, min(co2) = 7.5 ppm, max(co2) = 991,012 ppm).  Everything seems to
 ## be in order in 1851, so we just drop 1850.
-gooddata <- filter(fixdata, !(model %in% c(bogusco2, bogustime, bogushadley)),
+gooddata1 <- filter(fixdata, !(model %in% c(bogusco2, bogustime, bogushadley)),
                    year > 1850,
                    experiment %in% c('rcp26', 'rcp45', 'rcp60', 'rcp85', 'esmrcp85', 'historical', 'esmHistorical'))
+## Remove the models that have the incomplete emission driven runs for the emission driven experiments only.
+gooddata <- filter(gooddata1, !(model %in% incomplete_esm_runs & grepl('esm', experiment)))
 
 
 ## calculate 1850s baseline temperature for historical and esmHistorical runs.
@@ -53,19 +78,47 @@ greatdata <- mutate(gooddata,
                             if_else(variable=='tas', value-conc1850,      # concentration runs temperature
                             value)))                                   # not temperature
 
+## Make sure that all of the data starts at the same time for each experiment
+## Start by finiding the start year for each experiment.
+greatdata %>%
+    group_by(experiment) %>%
+    summarise(start_year = min(year)) ->
+    experiment_start
+
+## Subset the great data so that the final cmip5 data only includes years which
+## all the model reported datat for.
+greatdata %>%
+    left_join(experiment_start, by = 'experiment') %>%
+    filter(year >= start_year) %>%
+    select(-start_year) ->
+    final_cmip5_data
+
 
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
 ## consensus calibration), 10 and 90 percentiles (an alternate definition of
-## consensus calibration), mean (for traditional calibration), and median
-## (because, why not?) of all the model runs that performed that experiment.
-esm_comparison <-
-    group_by(greatdata, year, variable, experiment) %>%
-    summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1), b90=quantile(value, 0.9),
-              cmean=mean(value), cmedian=median(value)) %>%
+## consensus calibration), of all the model runs that performed that experiment.
+## (The multi model mean and median will be calculated below).
+esm_comparison_range <-
+    group_by(final_cmip5_data, year, variable, experiment) %>%
+    summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1), b90=quantile(value, 0.9)) %>%
     ungroup
 
+## In order to prevent unequal weights of models in the multimodel mean find the model
+## ensemble average for each of the model to use to calculate the multimodel mean
+## and median.
+final_cmip5_data %>%
+    ## Calculate the model ensemble mean
+    group_by(year, model, variable, experiment, unit) %>%
+    dplyr::summarise(value = mean(value)) %>%
+    ungroup %>%
+    ## Calculate the multi model mean and median
+    group_by(year, variable, experiment) %>%
+    dplyr::summarise(cmean = mean(value), cmedian = median(value)) ->
+    esm_comaprison_mean
 
+## Combine the esm comparion range and the mulit model mean information into one tibble.
+esm_comparison <- left_join(esm_comparison_range,  esm_comaprison_mean, by = c('year', 'variable', 'experiment'))
 devtools::use_data(esm_comparison, overwrite=TRUE, compress='xz')
 
 ## Save the full table of model data for use in producing parameters for
