@@ -14,8 +14,7 @@ BASE        <- '/pic/projects/GCAM/Dorheim/hector_calibration' # Directory on pi
 INPUT       <- BASE                                            # Define the place that contains the to process csv file.
 OUTPUT      <- file.path(BASE, 'output'); dir.create(OUTPUT)   # Define a place to store the final output netcdfs created.
 TEMP        <- '/people/dorh012/scratch'; dir.create(TEMP, showWarnings = FALSE)
-CDO_DIR     <- "/share/apps/netcdf/4.3.2/gcc/4.4.7/bin/cdo"  # Define the cdo directory.
-
+CDO_EXE     <- "/share/apps/netcdf/4.3.2/gcc/4.4.7/bin/cdo"  # Define the path to the CDO executable.
 
 # Import the csv containing the information about the CMIP 5 monthly nc files to process.
 to_process <- read.csv(file.path(INPUT, 'CMIP_to_process.csv'), stringsAsFactors = FALSE)
@@ -46,15 +45,16 @@ check_names <- function(object, req_names, object_name = NULL){
 #
 # Args:
 #   df: the data frame of the cmip5 files to process
-#   cdo_dir: the directory of the cdo
+#   CDO_EXE: the directory of the cdo
 #   temp_dir: the location to save all of the intermediate netcds to
 #   output_dir: the locaiton where to save the final netcdf files to
 #   showMessages: an optional argument that will show messgaes if set to TRUE
 #   cleanUp: an optional argument that default set to TRUE delets all of the intermediate netcds
-annual_global_avg <- function(df, cdo_dir = CDO_DIR, temp_dir = TEMP, output_dir = OUTPUT, showMessages = FALSE, cleanUp = TRUE){
+annual_global_avg <- function(df, CDO_EXE = CDO_EXE, temp_dir = TEMP, output_dir = OUTPUT,
+                              showMessages = FALSE, cleanUp = TRUE){
 
   # Check inputs
-  stopifnot(file.exists(cdo_dir))
+  stopifnot(file.exists(CDO_EXE))
   stopifnot(dir.exists(temp_dir))
   stopifnot(dir.exists(output_dir))
 
@@ -66,7 +66,7 @@ annual_global_avg <- function(df, cdo_dir = CDO_DIR, temp_dir = TEMP, output_dir
   if(nrow(cmip_info) == 1){
     # Create the intermediate output files
     file_basename        <- paste(cmip_info, collapse = '_')
-    concat_nc            <- file.path(temp_dir, paste0('concate_', file_basename, '.nc')); concat_nc
+    concat_nc            <- file.path(temp_dir, paste0('concate_', file_basename, '.nc'))
     global_annual_avg_nc <- file.path(output_dir, paste0('global_annual_avg-', file_basename, '.nc'))
 
     # Remove files
@@ -75,13 +75,13 @@ annual_global_avg <- function(df, cdo_dir = CDO_DIR, temp_dir = TEMP, output_dir
 
     # Concatenate the netcdf files together
     if(showMessages) message("Concatenating files and converting to absolute time ", concat_nc)
-    system2(CDO_DIR, args = c("-a", "cat", df[['path']], concat_nc), stdout = TRUE, stderr = TRUE)
+    cdo_cat_msg <- system2(CDO_EXE, args = c("-a", "cat", df[['path']], concat_nc), stdout = TRUE, stderr = TRUE)
 
     # Calculate the annual global average
     if(showMessages) message('Calculating the global annual average ', global_annual_avg_nc)
-    system2(CDO_DIR, args = c('fldmean', 'yearmean', concat_nc, global_annual_avg_nc))
+    cdo_pipe_msg <- system2(CDO_EXE, args = c('yearmean', '-fldmean', concat_nc, global_annual_avg_nc), stdout = TRUE, stderr = TRUE)
 
-    if(cleanUp){ remove(concat_nc) }
+    if(cleanUp){ unlink(concat_nc) }
 
     # Return the path to the output file
     global_annual_avg_nc
@@ -94,7 +94,7 @@ annual_global_avg <- function(df, cdo_dir = CDO_DIR, temp_dir = TEMP, output_dir
 
 # Calculate the annual global average.
 input         <- split(to_process, interaction(to_process$model, to_process$variable, to_process$ensemble, to_process$experiment))
-global_avg_nc <- lapply(input,annual_global_avg, cdo_dir = CDO_DIR, temp_dir = TEMP, output_dir = OUTPUT, showMessages = TRUE, cleanUp = TRUE)
+global_avg_nc <- lapply(input, annual_global_avg, CDO_EXE = CDO_EXE, temp_dir = TEMP, output_dir = OUTPUT, showMessages = TRUE, cleanUp = TRUE)
 
 
 # Format the output into a single data frame
