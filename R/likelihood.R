@@ -96,15 +96,20 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
 
+
     #### construct a function to return the log prior
     logprior <- function(p)
     {
         ## Get the normally distributed priors for the parameters that are
         ## always present.
-        lp <- sum(dnorm(p[c(iecs, iaero, ikappa)],
-                        c(ecsmu, aeromu, kappamu),
-                        c(ecssig, aerosig, kappasig),
-                        log=TRUE))
+        lp <- sum(dnorm(p[c(iaero, ikappa)],
+                        c(aeromu, kappamu),
+                        c(aerosig, kappasig),
+                        log=TRUE),
+                  dlnorm(p[iecs],
+                         log(ecsmu),
+                         log(ecssig),
+                         log = TRUE))
         if(use_c_cycle) {
             lp <- lp + sum(dnorm(p[c(iq10, ic0)],
                                  c(q10mu, c0mu),
