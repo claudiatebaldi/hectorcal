@@ -1,0 +1,85 @@
+---
+title: "PCA exploratory analysis"
+output: html_notebook
+---
+
+```{r setup}
+library(hector)
+library(hectorcal)
+library(foreach)
+
+set.seed(867-5309)
+
+ncore <- parallel::detectCores()
+doParallel::registerDoParallel(cores=ncore)
+
+default_dists <- list(function(n) {rlnorm(n, log(3), log(3))},
+                      function(n) {rnorm(n, 1.0, 1.4)},
+                      function(n) {rnorm(n, 2.3, 2.0)})
+names(default_dists) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY())
+
+setup_cores <- function(baseconfig) 
+{
+    lapply(1:ncore, function(i) {newcore(baseconfig, suppresslogging=TRUE)})
+}
+
+run_sample <- function(core, idx, param_vals, keeptimes, keepvars)
+{
+    for(param in names(param_vals)) {
+        setvar(core, NA, param, param_vals[[param]][idx], getunits(param))
+    }
+    reset(core)
+    stat <- tryCatch(
+        run(core, max(keeptimes)),
+        error = function(e){NULL})
+    
+    if(is.null(stat)) {
+        ## Hector run failed, probably due to excessively high or low temperature.
+        rep(NA, length(keeptimes)*length(keepvars))
+    }
+    else {
+        rslt <- fetchvars(core, keeptimes, keepvars)
+        rslt$value
+    }    
+}
+
+hectorsamp <- function(n, hcores, keeptimes=c(1900, 2000, 2100), keepvars=c(GLOBAL_TEMP()),
+                       dists=default_dists) {
+    ## Generate matrix of outputs for hector runs sampled from the supplied distribution
+    param_vals <- lapply(dists, function(f){f(n)})
+    
+    ## Organize the runs into batches that will be run in parallel
+    stopifnot(length(hcores) == ncore)
+    nbatch <- as.integer(floor(n/ncore))
+    nextra <- as.integer(n%%ncore)
+    
+    rslt1 <-
+        foreach(k=1:nbatch, .combine=rbind) %do% {
+                    ## Run a parallel batch
+                    foreach(i=1:ncore, .combine=rbind) %dopar% {
+                                core <- hcores[[i]]
+                                idx <- (k-1)*ncore + i
+                                run_sample(core, idx, param_vals, keeptimes, keepvars)
+                            }
+                }
+    ## Get the left over values
+    if(nextra > 0) {
+        rslt2 <- foreach(i=1:nextra, .combine=rbind) %dopar% {
+            core <- hcores[[i]]
+            idx <- nbatch*ncore + i
+            run_sample(core, idx, param_vals, keeptimes, keepvars)
+        }
+        rslt <- rbind(rslt1, rslt2)
+    }
+    else {
+        rslt <- rslt1
+    }
+    row.names(rslt) <- NULL
+    list(rslt=rslt, params=do.call(cbind, param_vals))
+}
+```
+
+```{r run_hector}
+indir <- system.file('input',package = 'hector')
+hcores <- setup_cores(file.path(indir, 'hector_rcp85.ini'))
+```
