@@ -2,9 +2,15 @@
 % Please edit documentation in R/priors.R
 \name{mktruncnorm}
 \alias{mktruncnorm}
+\alias{rtruncnorm}
+\alias{ptruncnorm}
 \title{Create a truncated normal log density function}
 \usage{
 mktruncnorm(a, b, mu, sig)
+
+rtruncnorm(n, a, b, mu, sig)
+
+ptruncnorm(x, a, b, mu, sig, lower.tail = TRUE, log.p = FALSE)
 }
 \arguments{
 \item{a}{Lower bound for the truncated normal distribution}
@@ -16,6 +22,15 @@ derived from.}
 
 \item{sig}{Standard deviation for the untruncated normal distribution the
 distribution is derived from.}
+
+\item{n}{Number of samples to generate}
+
+\item{x}{Vector of x values}
+
+\item{lower.tail}{If true, probabilities are P(X<x); if false, probabilities
+are P(X>x).}
+
+\item{log.p}{If true, return log probabilities}
 }
 \value{
 A function that computes the log density, suitably normalized.
@@ -24,3 +39,10 @@ A function that computes the log density, suitably normalized.
 Given the mean, standard deviation, and cutoffs for a truncated normal PDF,
 produce a function that calculates the normalized log density.
 }
+\section{Functions}{
+\itemize{
+\item \code{rtruncnorm}: Sample from a truncated normal log density function
+
+\item \code{ptruncnorm}: CDF for truncated normal distribution
+}}
+

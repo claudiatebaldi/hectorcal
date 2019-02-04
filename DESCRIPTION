@@ -11,6 +11,7 @@ Imports:
     hector (>= 0.2.0),
 Suggests:
     metrosamp (>= 0.1.0),
+    testthat,
 License: GPL-2
 Encoding: UTF-8
 LazyData: true

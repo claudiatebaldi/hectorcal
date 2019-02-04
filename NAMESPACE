@@ -3,3 +3,5 @@
 export(build_mcmc_post)
 export(mesa)
 export(mktruncnorm)
+export(ptruncnorm)
+export(rtruncnorm)
