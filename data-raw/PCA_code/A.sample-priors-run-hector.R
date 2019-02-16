@@ -4,12 +4,12 @@
 # 0. Set Up --------------------------------------------------------------------------------
 Sys.time()
 
-pic_dir <- '/pic/projects/GCAM/Dorheim/hectorcal'
+pic_dir <- '.'
 
 # Load the required pacakges
 library(hector)
+library(hectorcal)
 library(doParallel)
-devtools::load_all(pic_dir)
 
 
 # Define the prior hyperparameters, these should be the same as the hyperparameters
