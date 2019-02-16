@@ -26,115 +26,13 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(hector)
+library(hectorcal)
 library(foreach)
 
 knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
 
 # Set the working direcotry for this script to the project location
-BASE <- '/Users/dorh012/Documents/GitHub/hectorcal'
-```
-
-Define some functions that will make looking at the results easier. 
-
-*** 
-
-```{r}
-# Calcualte the fraction of the varience of PCA restlts 
-# 
-# Args 
-#   pca: an object returned by prcomp 
-# Returns: A vector of of the portion of varience expalained by the PCs, should be plotted with using plot_var function
-calc_varience <- function(pca){
-    cumsum(pca$sdev^2)/sum(pca$sdev^2)
-}
-
-
-# Plot the fraction of variance captured by the PCs
-#
-# Args 
-#   frac: a vector returned by calc_varience 
-#   title: an optional argument for a plot title
-# Returns: a ggplot dot plot of the fraction of the varience
-plot_frac <- function(frac, title = NULL){
-    
-    tibble::tibble(value = frac, 
-                   num = 1:length(frac)) %>% 
-        ggplot(aes(num, value)) + 
-        geom_point(size = 1.5) + 
-        labs(y = 'Fraction of variance captured', 
-             x = 'Number of PCs', 
-             title = title)
-    
-}
-
-
-# Plot N PCs from the object returend from prcomp 
-# 
-# Args 
-#   pca: the PCA results, an object returned by prcomp
-#   pc_indx: a vector of the PC indexes to plot
-#   title: optional argument to give a title the plot 
-# Returns: A ggplot line plot of the PCs
-plot_pcs <- function(pca, pc_indx, title = NULL){
-    
-    # For each of the pcs indicated in the pc_indx vector transform the rotation 
-    # value into something to plot (mulitply by the sign of the last pc value and then 
-    # the scale value if applicable). Save as a long data frame with information about the 
-    # scenario name, year, and variable. 
-    data <- foreach(i = pc_indx, .combine = 'bind_rows') %do% {
-        
-        # Pull out the pieces of information from the prcomp object
-        tibble::tibble(rotation = pca$rotation[ , i], 
-                       rowname = row.names(pca$rotation), 
-                       sign = sign(pca$rotation[ , i]), 
-                       scale = pca$scale) %>% 
-            # Parse out information from the row name 
-            tidyr::separate(rowname, into = c('scenario', 'variable', 'year'), sep = '_') %>% 
-            mutate(variable = if_else(variable == 1, 'Tgav', 'CO2')) %>% 
-            # Make sure that the year is an integer 
-            mutate(year = as.integer(year)) ->
-            inter_med
-        
-        # Figure out which sign to mulitply 
-        inter_med %>%  
-            filter(year == max(year)) %>% 
-            select(scenario, variable, mulitply_by = sign) ->
-            sign_tibble
-        
-        
-        # Jooin the unscaled_data with the sign tibble and muliply the rotation by the appropriate sign 
-        # and scale if need be. 
-        if(isFALSE(unique(inter_med$scale))){
-            
-            # The scale is FALSE so there is no need to multiple the rotation by the scale
-            inter_med %>%  
-                left_join(sign_tibble, by = c("scenario", "variable")) %>% 
-                mutate(value = rotation * mulitply_by) %>% 
-                mutate(pc = as.character(i))
-            
-        } else {
-            
-            # The data was scale so the rotation must be muliplied by the scale
-            inter_med %>%  
-                left_join(sign_tibble, by = c("scenario", "variable")) %>% 
-                mutate(value = rotation * scale * mulitply_by) %>% 
-                mutate(pc = as.character(i))
-        }
-        
-        
-    }
-    
-    
-    # Basic ggplot line 
-    ggplot(data = data) + 
-        geom_line(aes(year, value, color = scenario, linetype = pc), 
-                  size = 1) + 
-        theme_bw(base_size = 16) + 
-        labs(y = 'PC', 
-             title = title)
-}
-
-
+BASE <- '..'
 ```
 
 
@@ -153,12 +51,12 @@ rcp85_str <- readRDS(path)
 
 # Foramt into as a wide tibble where one row represents on "case" of Hector.
 tibble::as_tibble(rcp85_str$rslt) %>% 
-    filter(variable == 1) %>% 
-    mutate(index = paste0('rcp85_', variable, '_', year)) %>% 
-    select(run_id, index, value) %>% 
-    spread(index, value) %>%  
+    dplyr::filter(variable == 1) %>% 
+    dplyr::mutate(index = paste0('rcp85_', variable, '_', year)) %>% 
+    dplyr::select(run_id, index, value) %>% 
+    tidyr::spread(index, value) %>%  
     na.omit %>% 
-    select(-run_id) -> 
+    dplyr::select(-run_id) -> 
     temp_rcp85_results
 
 # We do not scale the results with this becasue we are jsut trying to recreate 
@@ -169,11 +67,11 @@ pca_temp_rcp85 <- prcomp(temp_rcp85_results[1:250, seq(from = 1, to = 241, by = 
 How much of the variability is explained by the different pcs? 
 
 ```{r}
-fvar_temp_rcp85 <- calc_varience(pca_temp_rcp85)
+fvar_temp_rcp85 <- calc_variance(pca_temp_rcp85)
 head(fvar_temp_rcp85)
 
 plot_fvar_temp_rcp85 <- plot_frac(fvar_temp_rcp85, title = 'Hector Emission Driven PCA RCP 8.5 Only') + 
-    labs(subtitle = 'recreate RPL example')
+    ggplot2::labs(subtitle = 'recreate RPL example')
 
 plot_fvar_temp_rcp85
 
@@ -185,7 +83,7 @@ plot_pcs(pca_temp_rcp85, 1:3, title = 'Hector Emission Driven Tgav PCA RCP 8.5 O
     plot_pc_rcp85;
 
 plot_pc_rcp85 + 
-    labs(subtitle = 'recreate RPL')
+    ggplot2::labs(subtitle = 'recreate RPL')
 ```
 
 **Conclusion:** Awesome it looks like the exploratory one! 
@@ -196,12 +94,12 @@ plot_pc_rcp85 +
 
 What happens when we add more years to the PCA? So we still only have 250 obs.
 
-**Expectation:** I think that the varience should still look the same and that the PCs will be a little smoother. 
+**Expectation:** I think that the variance should still look the same and that the PCs will be a little smoother. 
 
 ```{r}
 pca_temp_rcp85_A <- prcomp(temp_rcp85_results[1:250, ], center = TRUE, scale. = FALSE)
 
-fvar_temp_rcp85_A <- calc_varience(pca_temp_rcp85_A)
+fvar_temp_rcp85_A <- calc_variance(pca_temp_rcp85_A)
 
 plot_frac(fvar_temp_rcp85_A, title = 'Hector Emission Driven PCA RCP 8.5 Only') + 
     labs(subtitle = 'All the Years (only showing the 1st 15 PCs)') + 
@@ -218,7 +116,7 @@ tibble("all the years" = head(fvar_temp_rcp85_A),
     knitr::kable()
 ```
 
-Hmm the amount of varience explained by the PCs are very similar. 
+Hmm the amount of variance explained by the PCs are very similar. 
 
 
 What do the first 3 PCs look like? Do they change? 
@@ -245,8 +143,8 @@ plot_pc_rcp85 +
 ```{r}
 pca_temp_rcp85_B <- prcomp(temp_rcp85_results, center = TRUE, scale. = FALSE)
 
-# Plot the varience, I think that the majority of the varience shoudl still be captured in the first 3 PCs. 
-fvar_temp_rcp85_B <- calc_varience(pca_temp_rcp85_B)
+# Plot the variance, I think that the majority of the variance shoudl still be captured in the first 3 PCs. 
+fvar_temp_rcp85_B <- calc_variance(pca_temp_rcp85_B)
 head(fvar_temp_rcp85_B)
 
 plot_frac(fvar_temp_rcp85_B, title = 'Hector Emission Driven PCA RCP 8.5 Only All Years and All Results') + 
@@ -299,7 +197,7 @@ What happens when we include a second scenario??
 
 So lets combine temp for RCP 85 and 26
 
-**Expectations:** That there more PCs will contribute to the varience and that the PCs will retain similar shapes may be?
+**Expectations:** That there more PCs will contribute to the variance and that the PCs will retain similar shapes may be?
 
 
 ```{r, message = FALSE}
@@ -332,10 +230,10 @@ temp_rcp85_rcp26 <- na.omit(select(wide_data, -run_id))
 pca_temp_rcp85_rcp26 <- prcomp(x = temp_rcp85_rcp26, center = TRUE, scale = FALSE)
 ```
 
-The fraction of the varience. 
+The fraction of the variance. 
 
 ```{r}
-frac_C <- calc_varience(pca_temp_rcp85_rcp26)
+frac_C <- calc_variance(pca_temp_rcp85_rcp26)
 
 plot_frac(frac_C, title = 'Hector Temp RCP 85 & Temp 85') + 
     coord_cartesian(xlim = c(0, 15)) + 
@@ -343,10 +241,10 @@ plot_frac(frac_C, title = 'Hector Temp RCP 85 & Temp 85') +
 
 ```
 
-Interesting I would have expected that more PCs contribute to the varience. How does it compare to the other fraction of varience?
+Interesting I would have expected that more PCs contribute to the variance. How does it compare to the other fraction of variance?
 
 ```{r}
-# The fraction of the varience for the temp rcp 85 & rcp 85 pca 
+# The fraction of the variance for the temp rcp 85 & rcp 85 pca 
 tibble::tibble( PC = 1:10,
                 `temp 85 & 26` = frac_C[1:10], 
                 `temp 85 only` = fvar_temp_rcp85_B[1:10]) %>%  
@@ -388,13 +286,13 @@ unscaled_pca_rcp85_rcp26 %+% unscaled_data +
     labs(title = 'Comparison of the unscaled (FALSE) and the scaled (TRUE)\nPCA for Hector Temp RCP 85 and RCP 26')
 ```
 
-**Conclusions:** As we expected when we increase the numer of scenarios going into the PCA less varience is explained by the first 3 PCs. The sahpes are somewhat similar to one another and diverge when the rcp emissions take over. Using the prncomp scale argument changed the shape a bit, I wasn't expecting that... Where you? 
+**Conclusions:** As we expected when we increase the numer of scenarios going into the PCA less variance is explained by the first 3 PCs. The sahpes are somewhat similar to one another and diverge when the rcp emissions take over. Using the prncomp scale argument changed the shape a bit, I wasn't expecting that... Where you? 
 
 <br>
 
 ## D. RCP 85 only but now let's do CO2 and Tgav
 
-**Expectation:**  More PCs are going to contribute to the varience, I think that the PC for the CO2 and Tgav might be smiliar but on different scales.
+**Expectation:**  More PCs are going to contribute to the variance, I think that the PC for the CO2 and Tgav might be smiliar but on different scales.
 
 ```{r}
 
@@ -428,7 +326,7 @@ pca_temp_co2_rcp85 <- prcomp(x = temp_co2_rcp85, center = TRUE, scale = FALSE)
 Because of Tgav and CO2 are on different scales I se the prcomp scale argument to be equal to TRUE. 
 
 ```{r, fig.width=10, fig.height=6}
-frac_temp_co2_rcp85 <- calc_varience(pca_temp_co2_rcp85)
+frac_temp_co2_rcp85 <- calc_variance(pca_temp_co2_rcp85)
 
 frac_temp_co2_rcp85[1:10]
 
@@ -449,7 +347,7 @@ plot_pcs(pca = pca_temp_co2_rcp85, pc_indx = 1:3) +
 
 # Summary 
 
-1. Increasing the ensmble size does not really change the PCs or the varience explained by the PCs. 
+1. Increasing the ensmble size does not really change the PCs or the variance explained by the PCs. 
 2. Incorperating more of the years flattens out the PC -- why? 
 3. I think that the first PC story line is consistent across the different scenarios and variable but I am not sure about the other PCs 
 
@@ -457,5 +355,5 @@ plot_pcs(pca = pca_temp_co2_rcp85, pc_indx = 1:3) +
 ## Questions 
 
 * Why do we want to have multiple scenarios contributing to a Hector vector PCA? When we are doing the MCMC won't the likelihood function be comparing the PC from a single scenario at at time? I mean we aren't ever doing to be calibrating to muliple rcps at a time will we? 
-* What do we want to do about the scaling? Do we want to remove the varience before the PCA? Because there is no way for prcomp to know the difference in the groups... the same about of varience is going to be removed from everything.
+* What do we want to do about the scaling? Do we want to remove the variance before the PCA? Because there is no way for prcomp to know the difference in the groups... the same about of variance is going to be removed from everything.
 * Why do we muliply by the sign? 
