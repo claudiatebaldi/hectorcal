@@ -1,27 +1,21 @@
 # This script creates an ensemble of Hector runs that will be for the PCA.
 # Right now this is set up to run on pic.
-#
-# TODO a possible enchancemnet would be to make the number of cores in each element of the
-# hector core list be flexibe instead of 3 but when I tried to use an lapply of for each
-# statement to itterate over the hector list the computation time increased too much.
-# be felxible instead of must each, this script returns a better data scrture with less calls
-# but is much slower
 
 # 0. Set Up --------------------------------------------------------------------------------
 Sys.time()
 
 pic_dir <- '.'
 
-# Load the required pacakges
+# Load the required packages
 library(hector)
 devtools::load_all('../')
 library(doParallel)
 library(dplyr)
 
 
-# Define the prior hyperparameters, these should be the same as the hyperparameters defined in
-# the liklihood function. These will be used as default inputs into functions defined
-# in section 1 to create the pirior distirbtuion.
+# Define the prior hyper-parameters, these should be the same as the hyper-parameters defined in
+# the likelihood function. These will be used as default inputs into functions defined
+# in section 1 to create the prior distirbtuion.
 hyper_params <- list(ecsmu = 3,.0,
                      ecssig = 3.0,
                      aeromu = 1.0,
@@ -36,30 +30,30 @@ hyper_params <- list(ecsmu = 3,.0,
                      c0sig = 14.0)
 
 
-# Set the seed to ensure reproduceable results
+# Set the seed to ensure reproducible results
 set.seed(867-5309)
 
 # This should be equal to the number of nodes selected in the
 nodes <- 20
 
 # The number of Hector runs per rcp scenario
-n_runs <- 1200
+n_runs <- 2000
 
 # Years to extract the Hector output for
-years  <- 1950:2100
+years  <- 1850:2100
+
 
 # 1. Define functions ---------------------------------------------------------------------
-
-# Randomly generate carbon values based on the prior distribtuion. These are the
+# Randomly generate carbon values based on the prior distribution. These are the
 # parameters used in the emission driven runs. Will be used in the hector_sample function.
 #
 # Args
-#   ecsmu: the climate sensitivity mean, default is set to the valuein the hyper paramter defined in section 0
+#   ecsmu: the climate sensitivity mean, default is set to the value in the hyper parameter defined in section 0
 #   ecssig: the climate sensitivity  standard deviation
 #   aeromu: the aerosol scalar mean
 #   aerosig: the aerosol standard deviation
-# Returns: a list of functions that will sample the climate senstivity, aero scaler, and ocean diffustvity
-# parameter spaces. Each function in the list will sample the prior distrubtion n times.
+# Returns: a list of functions that will sample the climate sensitivity, aero scaler, and ocean diffusivity
+# parameter spaces. Each function in the list will sample the prior distribution n times.
 make_concen_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ecssig,
                              aeromu = hyper_params$aeromu, aerosig = hyper_params$ecssig,
                              kappamu = hyper_params$kappamu, kappasig = hyper_params$kappasig){
@@ -73,22 +67,22 @@ make_concen_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$e
     list
 }
 
-# Randomly generate carbon cycle and climate parameter values based on the prior distribtuion. These are the
+# Randomly generate carbon cycle and climate parameter values based on the prior distribution. These are the
 # parameters used in the emission driven runs. Will be used in the hector_sample function.
 #
 # Args
-#   ecsmu: the climate sensitivity mean, default is set to the valuein the hyper paramter defined in section 0
+#   ecsmu: the climate sensitivity mean, default is set to the value in the hyper parameter defined in section 0
 #   ecssig: the climate sensitivity  standard deviation
 #   aeromu: the aerosol scalar mean
 #   aerosig: the aerosol standard deviation
-#   c0mu: mean preindustiral co2
-#   c0sig: sd peridustrial co2
-#   q10mu: mean temperature effect on heterorophic respieration
-#   q10sig: sd effect on heterorophic respiration
-#   betamu: mean co2 fertlization
-#   betasig: sd co2 fertlization
-# Returns: a list of functions that will sample the climate senstivity, aero scaler, ocean diffustvity
-# beta, q10, and preindustrical CO2. Each function in the list will sample the prior distrubtion n times.
+#   c0mu: mean preindustrial co2
+#   c0sig: sd preindustrial co2
+#   q10mu: mean temperature effect on heterotrophic respiration
+#   q10sig: sd effect on heterotrophic respiration
+#   betamu: mean co2 fertilization
+#   betasig: sd co2 fertilization
+# Returns: a list of functions that will sample the climate sensitivity, aero scaler, ocean diffusivity
+# beta, q10, and pre industrial CO2. Each function in the list will sample the prior distribution n times.
 make_emiss_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ecssig,
                             aeromu = hyper_params$aeromu, aerosig = hyper_params$ecssig,
                             kappamu = hyper_params$kappamu, kappasig = hyper_params$kappasig,
@@ -110,32 +104,23 @@ make_emiss_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ec
     emission_dists
 }
 
-
 # Create a list n long with a hector core for every inifile
 #
 # Args
 #   inifile: a vector of the paths to the hector ini files to use set up the cores in the each element of the list
 #   names: a vector of the core names, should be equal in length to the inifile argument
 #   n: the length of the list of hector cores to return, this should correspond to the number of nodes
-#       the hector runs are going to parallized over
-# Returns: the a list of hector cores to parallize over
-setup_cores <- function(inifile, names, n) {
-
-    stopifnot(length(inifile) == length(names))
-
-    lapply(1:n, function(i) {
-        lapply(1:length(inifile), function(k){
-            newcore(inifile = inifile[k], suppresslogging = FALSE, name = names[k])
-        })
-    })
+#       the hector runs are going to parallelized  over
+# Returns: the a list of hector cores to parallelize over
+setup_cores <- function(inifile,name, n) {
+    lapply(1:n, function(i) {newcore(inifile, name = name, suppresslogging=TRUE)})
 }
 
-
-# run Hector once using a sampled paramter set
+# run Hector once using a sampled parameter set, this function is meant to be used
 #
 # Args
 #   core: a Hector core to use
-#   idx: an index of the paramter values to use, determined by the set up in the hector_sample function
+#   idx: an index of the parameter values to use, determined by the set up in the hector_sample function
 #   param_vals: a list of the parameter values to run
 #   keeptimes: a vector of the years to return the Hector output
 #   keepvars: the paramter values
@@ -159,37 +144,48 @@ run_sample <- function(core, idx, param_vals, keeptimes, keepvars, runid)
 
     if(is.null(stat)) {
         ## Hector run failed, probably due to excessively high or low temperature.
-        out <- rep(NA, length(keeptimes)*length(keepvars) * length(core))
+        data.frame(runid = runid[idx],
+                   value = NA,
+                   variable = NA,
+                   scenario = NA,
+                   year = NA)
 
     }
     else {
-        # Pull out the Hector results and format into a row of data
-        rslt <- fetchvars(core, dates = keeptimes, vars = keepvars) %>%
-            mutate(col_name = paste0('X', year, '_', scenario, '_', variable))
+        fetchvars(core, keeptimes, keepvars) %>%
+            mutate(runid = runid[idx]) %>%
+            select(runid, value, variable, scenario, year)
 
-        out        <- rslt$value
-        names(out) <- rslt$col_name
-        out
+
+
     }
 }
 
 
-# Run hector mulitple times with sampled paramter values
+
+# Run hector multiple times with sampled parameter values
 #
 # Args
-#   n: the number of parameter samples to use as Hector intpus
+#   n: the number of parameter samples to use as Hector inputs
 #   hcores: the number of hector cores to use/parallize the runs over
 #   keeptime: the Hector output result years to keep
 #   keepvars: a vector of the Hector variable names to return output for, default is set to hector::GLOBAL_TEMP
 #   priorDist: a list of the functions that will sample the prior distribution n times
-hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP()), priorDist) {
+hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP()),
+                         priorDist = NULL, param_vals = NULL) {
 
-    # TODO change this requirement
-    if(length(hcores[[1]]) != 4) stop('each element in hecores must equal length of 4')
+    # priorDist and param_vals cannot both be NULL
+    if(is.null(param_vals) & !is.null(priorDist)){
 
-    # Generate the paramter values
-    param_vals <- lapply(priorDist, function(f){f(n)})
-
+        # Generate matrix of outputs for hector runs sampled from the supplied distribution
+        param_vals <- lapply(priorDist, function(f){f(n)})
+    } else if (is.null(priorDist) & !is.null(param_vals)) {
+        # Do nothing because the param_vals being passed into the function is being use
+    } else {
+        # However if the conditions of the if else if statement are not met then
+        # throw some error
+        stop('problem with priorDist and param_vals')
+    }
 
     # Organize the runs into batches that will be run in parallel
     max_cores <- parallel::detectCores()
@@ -203,43 +199,29 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
 
 
     # Figure out the run names, this will be added to the Hector
-    # results and the paramter values
-    runid <- as.integer(1:n)
+    # results and the parameter values
+    runid <- 1:n
 
-    # For each of the compelte batches parallelize the Hector runs
+    # For each of the complete batches parallelize the Hector runs
     batch_rslts <- foreach(k=1:nbatch, .combine=rbind) %do% {
         ## Run a parallel batch
         foreach(i=1:ncore, .combine=rbind) %dopar% {
             core <- hcores[[i]]
             idx <- (k-1)*ncore + i
-
-            # TODO make this part flexible
-            c('runid' = runid[idx],
-              c(run_sample(core[[1]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[2]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[3]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[4]], idx, param_vals, keeptime, keepvars, runid)))
-
-
-        } # close dopar
-    } # close do
+            run_sample(core, idx, param_vals, keeptime, keepvars, runid)
+        }
+    }
 
     # If there are any runs that did not fit into the complete batches
     # run them now.
     if(nextra > 0) {
         extra_rslts <- foreach(i=1:nextra, .combine=rbind) %dopar% {
+
             core <- hcores[[i]]
             idx <- nbatch*ncore + i
+            run_sample(core, idx, param_vals, keeptime, keepvars, runid)
 
-            # TODO make this part flexible
-            c('runid' = runid[idx],
-              c(run_sample(core[[1]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[2]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[3]], idx, param_vals, keeptime, keepvars, runid),
-                run_sample(core[[4]], idx, param_vals, keeptime, keepvars, runid)))
-
-
-        } # close dopar
+        }
 
         # Combine the batch and the extra run results
         rslt <- rbind(batch_rslts, extra_rslts)
@@ -254,17 +236,18 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
 
     # Format the results
     row.names(rslt) <- NULL
+
     NA_rows <- unique(which(is.na(rslt), arr.ind = TRUE)[ , 1])
     out     <- rslt[-NA_rows, ]
 
     # Determine the status of the run, if it failed or not
     param_df     <- data.frame(runid = runid , do.call(cbind, param_vals))
     run_complete          <- rep(TRUE, nrow(param_df))
-    run_complete[NA_rows] <- FALSE
+    missing_runs <- which(!param_df$runid %in% out$runid)
+    run_complete[missing_runs] <- FALSE
     param_df$run_complete <- run_complete
 
-    list(rslt=rslt, params=param_df)
-
+    list(rslt=out, params=param_df)
 }
 
 
@@ -273,7 +256,7 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
 output_dir <- file.path(pic_dir, 'pic_results')
 dir.create(output_dir)
 
-# Make the concentration and the emission prior distriubtuion functions.
+# Make the concentration and the emission prior distribution functions.
 concentration_dists <- make_concen_dist()
 emission_dists      <- make_emiss_dist()
 
@@ -282,28 +265,94 @@ all_inifiles <- list.files(system.file('input', package = 'hector'), full.names 
 emission_ini <- all_inifiles[grepl(pattern = 'rcp[0-9]{2}.ini', all_inifiles)]
 concen_ini   <- all_inifiles[grepl(pattern = 'rcp[0-9]{2}_constrained', all_inifiles)]
 
-# The emission driven runs with the carbon cycle paramters varying
-emission_cores      <- setup_cores(emission_ini,
-                                   names = c('emissRCP26', 'emissRCP45', 'emissRCP60', 'emiss85'), nodes)
-message('starting the emissions cc run')
-system.time(emission_results_CC <- hectorSample(n_runs, emission_cores, keeptime = years,
-                                                keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), priorDist = emission_dists))
-message('the emissions cc run complete')
-saveRDS(emission_results_CC, file = file.path(output_dir, 'emission_CCparams.rds'))
 
-# The emission driven runs with only the climate paramters varying, to keep the carbon paramters
-# constant use the concentration distribution functions.
-emission_results <- hectorSample(n_runs, emission_cores, keeptime = years,
-                                 keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), priorDist = concentration_dists)
-saveRDS(emission_results, file = file.path(output_dir, 'emission.rds'))
+# Emission Driven Runs with the CC parameters varied -----
+# RCP 26
+hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emiss-CC-RCP26')
+rcp26_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), priorDist = emission_dists)
+saveRDS(object = rcp26_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP26.rds'))
 
-# The concentration driven runs
-concen_cores <- setup_cores(concen_ini, names = c('concenRCP26', 'concenRCP45', 'concenRCP60', 'concen85'), nodes)
-concen_results <- hectorSample(n_runs, concen_cores, keeptime = years, keepvars = GLOBAL_TEMP(), priorDist = concentration_dists)
-saveRDS(concen_results, file = file.path(output_dir, 'concentration.rds'))
+# Format the parameters back into a list to reuse in the hectorSample function
+emission_params <- list('S' = rcp26_emissionCC$params[,2],
+                        'alpha' = rcp26_emissionCC$params[,3],
+                        'diff' = rcp26_emissionCC$params[,4],
+                        'C0' = rcp26_emissionCC$params[, 5],
+                        'q10_rh' = rcp26_emissionCC$params[, 6],
+                        'beta' = rcp26_emissionCC$params[, 7])
+
+# RCP 45
+hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emiss-CC-RCP45')
+rcp45_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
+saveRDS(object = rcp45_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP45.rds'))
+
+# RCP 60
+hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emiss-CC-RCP60')
+rcp60_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
+saveRDS(object = rcp60_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP60.rds'))
+
+# RCP 85
+hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emiss-CC-RCP85')
+rcp85_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
+saveRDS(object = rcp85_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP85.rds'))
+
+
+
+# Concentration Driven Runs -----
+# RCP 26
+hcores    <- setup_cores(concen_ini[grepl('rcp26', concen_ini)], n = nodes, name ='concen-RCP26')
+rcp26_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), priorDist = concentration_dists)
+saveRDS(object = rcp26_concen, file = file.path(output_dir, 'concen-RCP26.rds'))
+
+# Format the parameters back into a list to reuse in the hectorSample function
+concen_params <- list('S' = rcp26_concen$params[,2],
+                      'alpha' = rcp26_concen$params[,3],
+                      'diff' = rcp26_concen$params[,4])
+
+# RCP 45
+hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='concen-RCP45')
+rcp45_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+saveRDS(object = rcp45_concen, file = file.path(output_dir, 'concen-RCP45.rds'))
+
+# RCP 60
+hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='concen-RCP60')
+rcp60_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+saveRDS(object = rcp60_concen, file = file.path(output_dir, 'concen-RCP60.rds'))
+
+# RCP 85
+hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='concen-RCP85')
+rcp85_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+saveRDS(object = rcp85_concen, file = file.path(output_dir, 'concen-RCP85.rds'))
+# Emission Driven Runs with constant C cycle -------
+
+# Emission Driven Runs with the CC parameters varied -----
+
+# Format the parameters back into a list to reuse in the hectorSample function
+emission_params_constant_carbon <- list('S' = rcp26_emissionCC$params[,2],
+                                        'alpha' = rcp26_emissionCC$params[,3],
+                                        'diff' = rcp26_emissionCC$params[,4])
+
+
+# RCP 26
+hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emiss-consatntC-RCP26')
+time_test <- system.time(rcp26_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon))
+saveRDS(object = rcp26_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP26.rds'))
+
+
+# RCP 45
+hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emiss-constantC-RCP45')
+rcp45_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
+saveRDS(object = rcp45_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP45.rds'))
+
+# RCP 60
+hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emiss-constantC-RCP60')
+rcp60_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
+saveRDS(object = rcp60_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP60.rds'))
+
+# RCP 85
+hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emiss-constantC-RCP85')
+rcp85_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
+saveRDS(object = rcp85_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP85.rds'))
 
 
 Sys.time()
-
-
-
+# End
