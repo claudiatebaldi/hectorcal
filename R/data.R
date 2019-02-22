@@ -245,6 +245,41 @@
 #' @family PCA hector ensemble
 'PCA_hector_ensemble-emissConstantC-esmrcp26'
 
+#' Emission driven CMIP5 ESM mean comparison data
+#'
+#' This dataset contains the CMIP5 ensmeble mean output for the emission driven historical and
+#' rcp85 experiments. The multi-model mean is the average of each model intital conditions ensemble
+#' average. This multi-model mean does not account for how models may be related to one aother. The
+#' historical experiment name has been replaced with the rcp experiment name.
+#'
+#' @format Data frame with 4 columns
+#' \describe{
+#' \item{year}{Year being described (1851 -- 2100).}
+#' \item{variable}{Variable being reported "tas" or "co2", temperatures are anomalies.}
+#' \item{experiment}{Experiment being reported, "esmrcp85"}
+#' \item{value}{The multimodel mean.}
+#' }
+#' @family PCA hector ensemble
+'PCA_meanESAM-emiss'
+
+#' Concentration driven CMIP5 ESM mean comparison data
+#'
+#' This dataset contains the CMIP5 ensmeble mean output for the concentration driven historical and
+#' rcp85 experiments. The multi-model mean is the average of each model intital conditions ensemble
+#' average. This multi-model mean does not account for how models may be related to one aother. The
+#' historical experiment name has been replaced with the rcp experiment name.
+#'
+#' @format Data frame with 4 columns
+#' \describe{
+#' \item{year}{Year being described (1851 -- 2100).}
+#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
+#' \item{experiment}{Experiment being reported, "esmrcp85"}
+#' \item{value}{The multimodel mean.}
+#' }
+#' @family PCA hector ensemble
+'PCA_meanESAM-concen'
+
+
 #' Hector concentration driven principal compoents (PCs)
 #'
 #' This oject contains the sd, rotation, center, and scale for the PCs calculated with
@@ -307,3 +342,7 @@
 #' }
 #' @family PC hector
 'PC_hector_emissCC-esmrcp26_emissCC-esmrcp45_emissCC-esmrcp60_emissCC-esmrcp85'
+
+
+
+
