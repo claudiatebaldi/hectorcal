@@ -37,7 +37,9 @@ Other PCA hector ensemble: \code{\link{PCA_hector_ensemble-concen-rcp26}},
   \code{\link{PCA_hector_ensemble-concen-rcp85}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp45}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp60}},
-  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}}
+  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}},
+  \code{\link{PCA_meanESAM-concen}},
+  \code{\link{PCA_meanESAM-emiss}}
 
 Other PCA hector ensemble: \code{\link{PCA_hector_ensemble-concen-rcp26}},
   \code{\link{PCA_hector_ensemble-concen-rcp45}},
@@ -45,7 +47,9 @@ Other PCA hector ensemble: \code{\link{PCA_hector_ensemble-concen-rcp26}},
   \code{\link{PCA_hector_ensemble-concen-rcp85}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp45}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp60}},
-  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}}
+  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}},
+  \code{\link{PCA_meanESAM-concen}},
+  \code{\link{PCA_meanESAM-emiss}}
 }
 \concept{PCA hector ensemble}
 \keyword{datasets}
