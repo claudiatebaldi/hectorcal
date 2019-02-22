@@ -50,28 +50,47 @@ format_hector_pca_package_data <- function(file_flag, ensemble_size){
     combination_list %>%
         lapply(function(input){
 
-            # Subset the Hector data
-            rlsts_long %>%
-                filter(scenario %in% input$scn) %>%
-                # Name each column after the year, variable, and scenario name
-                mutate(col = paste0('X', year, '_', variable, '_', scenario)) %>%
-                select(runid, col, value) %>%
-                # Format as a wide data frame in prep for the prcomp call
-                spread(col, value) %>%
-                na.omit() %>%
-                select(-runid) ->
-                df
+            if(grepl(pattern = 'constant|concen', file_flag)){
+                # Subset the Hector data
+                rlsts_long %>%
+                    filter(scenario %in% input$scn) %>%
+                    filter(variable == 'Tgav') %>%
+                    # Name each column after the year, variable, and scenario name
+                    mutate(col = paste0('X', year, '_', variable, '_', scenario)) %>%
+                    select(runid, col, value) %>%
+                    # Format as a wide data frame in prep for the prcomp call
+                    spread(col, value) %>%
+                    na.omit() %>%
+                    select(-runid) ->
+                    df
+            } else {
+                # Subset the Hector data
+                rlsts_long %>%
+                    filter(scenario %in% input$scn) %>%
+                    # Name each column after the year, variable, and scenario name
+                    mutate(col = paste0('X', year, '_', variable, '_', scenario)) %>%
+                    select(runid, col, value) %>%
+                    # Format as a wide data frame in prep for the prcomp call
+                    spread(col, value) %>%
+                    na.omit() %>%
+                    select(-runid) ->
+                    df
+                }
+
+
 
             # Check to make sure that the
-            if(nrow(df) < ensemble_size) stop('Hector ensemble is too small')
+            if(nrow(df) < ensemble_size){stop('Hector ensemble is too small')}
 
             # Subset the data frame to only contain the number of rows of the
             # as the defined ensemble size and name the data frame.
             name <- paste(input$scn, collapse = '_')
-            assign(name, df[1:ensemble_size, ])
+            out <- df[1:ensemble_size, ]
+            assign(name, out)
 
             # Save the data frame as external package data
             do.call("use_data", list(as.name(name), overwrite = TRUE))
+
         })
 }
 
@@ -79,6 +98,8 @@ format_hector_pca_package_data <- function(file_flag, ensemble_size){
 
 format_hector_pca_package_data('concen-', ensemble_size)
 format_hector_pca_package_data('emiss-CC-', ensemble_size)
+format_hector_pca_package_data('emiss-constantC-', ensemble_size)
+
 
 # End
 
