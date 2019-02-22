@@ -55,3 +55,56 @@
 #' }
 #' @family comparison data
 'cmip_individual'
+
+#' Ensemble of Hector concentration driven runs
+#'
+#' This dataset contains outputs for the 1000 Hector runs driven with RCP 2.6, RCP 4.5, RCP 6.0
+#' and RCP 8.5 concentration. Each Hector "case" or row corresponds to results from
+#' a different combination of climate sensitivity, ocean heat diffusivity, and aerosol scaling factor
+#' sampled from the parameter prior distribution.
+#'
+#' @format Data frame with 1000 rows and 1004 columns
+#' \describe{
+#' \item{Rows}{Represent results from 1000 Hector runs driven with concentrations
+#' and varying climate sensitivity, ocean heat diffusivity, and aerosol scaling factor}
+#' \item{Columns}{Hector temperature output values named with the following
+#' pattern XYYYY_variable_scenario}
+#' }
+#' @family hector ensemble
+'concen-RCP26_concen-RCP45_concen-RCP60_concen-RCP85'
+
+#' Ensemble of Hector emission driven runs
+#'
+#' This dataset contains outputs for the 1000 Hector runs driven with RCP 2.6, RCP 4.5, RCP 6.0
+#' and RCP 8.5 concentration. Each Hector "case" or row corresponds to results from
+#' a different combination of climate sensitivity, ocean heat diffusivity, aerosol scaling factor,
+#' beta, q10, and preindustrial CO2 sampled from the parameter prior distribution.
+#'
+#' @format Data frame with 1000 rows and 2008 columns
+#' \describe{
+#' \item{Rows}{Represent results from 1000 Hector runs driven with concentrations
+#' and varying climate sensitivity, ocean heat diffusivity, and aerosol scaling factor}
+#' \item{Columns}{Hector temperature and atmospheric output values named with the
+#'  following pattern XYYYY_variable_scenario}
+#' }
+#' @family hector ensemble
+'emiss-CC-RCP26_emiss-CC-RCP45_emiss-CC-RCP60_emiss-CC-RCP85'
+
+#' Ensemble of Hector emission driven runs with constant Carbon cycle parameters
+#'
+#' This dataset contains outputs for the 1000 Hector runs driven with RCP 2.6, RCP 4.5, RCP 6.0
+#' and RCP 8.5 concentration. Each Hector "case" or row corresponds to results from
+#' a different combination of climate sensitivity, ocean heat diffusivity, and
+#' aerosol scaling factor sampled from the parameter prior distribution.
+#'
+#' @format Data frame with 1000 rows and 1004 columns
+#' \describe{
+#' \item{Rows}{Represent results from 1000 Hector runs driven with concentrations
+#' and varying climate sensitivity, ocean heat diffusivity, and aerosol scaling factor}
+#' \item{Columns}{Hector temperature output values named with the
+#'  following pattern XYYYY_variable_scenario}
+#' }
+#' @family hector ensemble
+'emiss-consatntC-RCP26_emiss-constantC-RCP45_emiss-constantC-RCP60_emiss-constantC-RCP85'
+
+
