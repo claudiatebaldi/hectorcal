@@ -7,29 +7,22 @@
 library(dplyr)
 library(hectorcal)
 
-# 1. Create Mapping Tibbles -------------------------------------------------------
-esm_comaprison_mean %>%
-    select(model, ensemble) %>%
-    distinct %>%
-    mutate(runid = 1:nrow(.)) ->
-    cmip_runid_mapping
-
 # 1. Process the Emission driven runs ---------------------------------------------
-esm_comaprison_mean %>%
+esm_comparison %>%
     filter(grepl('esm', experiment)) %>%
     # Rename the experiment to match the Hector experiment
     mutate(experiment = 'esmrcp85') %>%
     arrange(variable, year) %>%
     select(year, variable, experiment, value = cmean) ->
-    `PCA_meanESAM-emiss`
+    `PCA_ESMmean-emiss`
 
 # Save as external package data
-devtools::use_data(`PCA_meanESAM-emiss`, overwrite = TRUE)
+devtools::use_data(`PCA_ESMmean-emiss`, overwrite = TRUE)
 
 # 2. Process the concentration driven runs ---------------------------------------
 # For the concentration runs we are only interested in temperature data and will
 # need to combine the historical experiment with the future rcp experiment.
-esm_comaprison_mean %>%
+esm_comparison %>%
     filter(!grepl('esm', experiment) & variable == 'tas') ->
     concentration_runs
 
@@ -49,9 +42,9 @@ concentration_runs %>%
     select(year, variable, experiment, value = cmean) %>%
     bind_rows(historical_concentration_runs) %>%
     arrange(variable, experiment, year) ->
-    `PCA_meanESAM-concen`
+    `PCA_ESMmean-concen`
 
 # Save as external package data
-devtools::use_data(`PCA_meanESAM-concen`, overwrite = TRUE)
+devtools::use_data(`PCA_ESMmean-concen`, overwrite = TRUE)
 
 
