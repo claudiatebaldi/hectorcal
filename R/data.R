@@ -70,7 +70,7 @@
 #' \item{Columns}{Hector temperature output values named with the following
 #' pattern XYYYY_variable_scenario}
 #' }
-#' @family hector ensemble
+#' @family PCA hector ensemble
 'concen-RCP26_concen-RCP45_concen-RCP60_concen-RCP85'
 
 #' Ensemble of Hector emission driven runs
@@ -87,7 +87,7 @@
 #' \item{Columns}{Hector temperature and atmospheric output values named with the
 #'  following pattern XYYYY_variable_scenario}
 #' }
-#' @family hector ensemble
+#' @family PCA hector ensemble
 'emiss-CC-RCP26_emiss-CC-RCP45_emiss-CC-RCP60_emiss-CC-RCP85'
 
 #' Ensemble of Hector emission driven runs with constant Carbon cycle parameters
@@ -104,7 +104,7 @@
 #' \item{Columns}{Hector temperature output values named with the
 #'  following pattern XYYYY_variable_scenario}
 #' }
-#' @family hector ensemble
+#' @family PCA hector ensemble
 'emiss-consatntC-RCP26_emiss-constantC-RCP45_emiss-constantC-RCP60_emiss-constantC-RCP85'
 
 
