@@ -9,9 +9,22 @@ library(hectorcal)
 
 # 1. Process the Emission driven runs ---------------------------------------------
 esm_comparison %>%
-    filter(grepl('esm', experiment)) %>%
+    filter(grepl('esm', experiment)) ->
+    emiss_runs
+
+# Prevent duplicate years from being saved in the data.
+emiss_runs %>%
+    filter(experiment == 'esmHistorical') %>%
     # Rename the experiment to match the Hector experiment
-    mutate(experiment = 'esmrcp85') %>%
+    mutate(experiment = 'esmrcp85') ->
+    emiss_historical
+
+emiss_runs %>%
+    filter(experiment != 'esmHistorical') ->
+    future_emiss
+
+future_emiss %>%
+    bind_rows(filter(emiss_historical, !year %in% future_emiss$year)) %>%
     arrange(variable, year) %>%
     select(year, variable, experiment, value = cmean) ->
     `PCA_ESMmean-emiss`
@@ -39,8 +52,13 @@ concentration_runs %>%
 # Combine the future rcp with the newly names hisortical runs and format for output.
 concentration_runs %>%
     filter(experiment != 'historical') %>%
-    select(year, variable, experiment, value = cmean) %>%
-    bind_rows(historical_concentration_runs) %>%
+    select(year, variable, experiment, value = cmean) ->
+    future_concen
+
+# Make sure there aren't duplicate years being saved in the package data.
+future_concen %>%
+    bind_rows(historical_concentration_runs %>%
+                  filter(!year %in% future_concen$year)) %>%
     arrange(variable, experiment, year) ->
     `PCA_ESMmean-concen`
 

@@ -260,7 +260,7 @@
 #' \item{value}{The multimodel mean.}
 #' }
 #' @family PCA hector ensemble
-'PCA_meanESAM-emiss'
+'PCA_ESMmean-emiss'
 
 #' Concentration driven CMIP5 ESM mean comparison data
 #'
@@ -277,7 +277,7 @@
 #' \item{value}{The multimodel mean.}
 #' }
 #' @family PCA hector ensemble
-'PCA_meanESAM-concen'
+'PCA_ESMmean-concen'
 
 
 #' Hector concentration driven principal compoents (PCs)

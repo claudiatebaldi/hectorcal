@@ -31,25 +31,25 @@ data set only contains results from runs that also solved in for the Hector emis
 rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were varied.
 }
 \seealso{
-Other PCA hector ensemble: \code{\link{PCA_hector_ensemble-concen-rcp26}},
+Other PCA hector ensemble: \code{\link{PCA_ESMmean-concen}},
+  \code{\link{PCA_ESMmean-emiss}},
+  \code{\link{PCA_hector_ensemble-concen-rcp26}},
   \code{\link{PCA_hector_ensemble-concen-rcp45}},
   \code{\link{PCA_hector_ensemble-concen-rcp60}},
   \code{\link{PCA_hector_ensemble-concen-rcp85}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp45}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp60}},
-  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}},
-  \code{\link{PCA_meanESAM-concen}},
-  \code{\link{PCA_meanESAM-emiss}}
+  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}}
 
-Other PCA hector ensemble: \code{\link{PCA_hector_ensemble-concen-rcp26}},
+Other PCA hector ensemble: \code{\link{PCA_ESMmean-concen}},
+  \code{\link{PCA_ESMmean-emiss}},
+  \code{\link{PCA_hector_ensemble-concen-rcp26}},
   \code{\link{PCA_hector_ensemble-concen-rcp45}},
   \code{\link{PCA_hector_ensemble-concen-rcp60}},
   \code{\link{PCA_hector_ensemble-concen-rcp85}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp45}},
   \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp60}},
-  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}},
-  \code{\link{PCA_meanESAM-concen}},
-  \code{\link{PCA_meanESAM-emiss}}
+  \code{\link{PCA_hector_ensemble-emissConstantC-esmrcp85}}
 }
 \concept{PCA hector ensemble}
 \keyword{datasets}
