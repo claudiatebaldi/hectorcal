@@ -8,7 +8,7 @@ pic_dir <- '.'
 
 # Load the required packages
 library(hector)
-devtools::load_all('../')
+library(hectorcal)
 library(doParallel)
 library(dplyr)
 
@@ -34,7 +34,7 @@ hyper_params <- list(ecsmu = 3,.0,
 set.seed(867-5309)
 
 # This should be equal to the number of nodes selected in the
-nodes <- 20
+nodes <- 6
 
 # The number of Hector runs per rcp scenario
 n_runs <- 2000
@@ -237,17 +237,10 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
     # Format the results
     row.names(rslt) <- NULL
 
-    NA_rows <- unique(which(is.na(rslt), arr.ind = TRUE)[ , 1])
-    out     <- rslt[-NA_rows, ]
-
     # Determine the status of the run, if it failed or not
     param_df     <- data.frame(runid = runid , do.call(cbind, param_vals))
-    run_complete          <- rep(TRUE, nrow(param_df))
-    missing_runs <- which(!param_df$runid %in% out$runid)
-    run_complete[missing_runs] <- FALSE
-    param_df$run_complete <- run_complete
 
-    list(rslt=out, params=param_df)
+    dplyr::left_join(rslt, param_df, by = 'runid')
 }
 
 
@@ -268,90 +261,90 @@ concen_ini   <- all_inifiles[grepl(pattern = 'rcp[0-9]{2}_constrained', all_inif
 
 # Emission Driven Runs with the CC parameters varied -----
 # RCP 26
-hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emiss-CC-RCP26')
+hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emissCC-esmrcp26')
 rcp26_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), priorDist = emission_dists)
-saveRDS(object = rcp26_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP26.rds'))
+saveRDS(object = rcp26_emissionCC, file = file.path(output_dir, 'emissCC-RCP26.rds'))
 
 # Format the parameters back into a list to reuse in the hectorSample function
-emission_params <- list('S' = rcp26_emissionCC$params[,2],
-                        'alpha' = rcp26_emissionCC$params[,3],
-                        'diff' = rcp26_emissionCC$params[,4],
-                        'C0' = rcp26_emissionCC$params[, 5],
-                        'q10_rh' = rcp26_emissionCC$params[, 6],
-                        'beta' = rcp26_emissionCC$params[, 7])
+emission_params <- list('S' = unique(rcp26_emissionCC$S),
+                        'alpha' = unique(rcp26_emissionCC$alpha),
+                        'diff' = unique(rcp26_emissionCC$diff),
+                        'C0' = unique(rcp26_emissionCC$C0),
+                        'q10_rh' = unique(rcp26_emissionCC$q10_rh),
+                        'beta' = unique(rcp26_emissionCC$beta))
 
 # RCP 45
-hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emiss-CC-RCP45')
+hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emissCC-esmrcp45')
 rcp45_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
-saveRDS(object = rcp45_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP45.rds'))
+saveRDS(object = rcp45_emissionCC, file = file.path(output_dir, 'emissCC-RCP45.rds'))
 
 # RCP 60
-hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emiss-CC-RCP60')
+hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emissCC-esmrcp60')
 rcp60_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
-saveRDS(object = rcp60_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP60.rds'))
+saveRDS(object = rcp60_emissionCC, file = file.path(output_dir, 'emissCC-RCP60.rds'))
 
 # RCP 85
-hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emiss-CC-RCP85')
+hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emissCC-esmrcp85')
 rcp85_emissionCC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params)
-saveRDS(object = rcp85_emissionCC, file = file.path(output_dir, 'emiss-CC-RCP85.rds'))
+saveRDS(object = rcp85_emissionCC, file = file.path(output_dir, 'emissCC-RCP85.rds'))
 
 
 
 # Concentration Driven Runs -----
 # RCP 26
-hcores    <- setup_cores(concen_ini[grepl('rcp26', concen_ini)], n = nodes, name ='concen-RCP26')
+hcores    <- setup_cores(concen_ini[grepl('rcp26', concen_ini)], n = nodes, name ='concen-rcp26')
 rcp26_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), priorDist = concentration_dists)
 saveRDS(object = rcp26_concen, file = file.path(output_dir, 'concen-RCP26.rds'))
 
 # Format the parameters back into a list to reuse in the hectorSample function
-concen_params <- list('S' = rcp26_concen$params[,2],
-                      'alpha' = rcp26_concen$params[,3],
-                      'diff' = rcp26_concen$params[,4])
+concen_params <- list('S' = unique(rcp26_concen$S),
+                      'alpha' = unique(rcp26_concen$alpha),
+                      'diff' = unique(rcp26_concen$diff))
 
 # RCP 45
-hcores    <- setup_cores(concen_ini[grepl('rcp45', concen_ini)], n = nodes, name ='concen-RCP45')
+hcores    <- setup_cores(concen_ini[grepl('rcp45', concen_ini)], n = nodes, name ='concen-rcp45')
 rcp45_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp45_concen, file = file.path(output_dir, 'concen-RCP45.rds'))
 
 # RCP 60
-hcores    <- setup_cores(concen_ini[grepl('rcp60', concen_ini)], n = nodes, name ='concen-RCP60')
+hcores    <- setup_cores(concen_ini[grepl('rcp60', concen_ini)], n = nodes, name ='concen-rcp60')
 rcp60_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp60_concen, file = file.path(output_dir, 'concen-RCP60.rds'))
 
 # RCP 85
-hcores    <- setup_cores(concen_ini[grepl('rcp85', concen_ini)], n = nodes, name ='concen-RCP85')
+hcores    <- setup_cores(concen_ini[grepl('rcp85', concen_ini)], n = nodes, name ='concen-rcp85')
 rcp85_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp85_concen, file = file.path(output_dir, 'concen-RCP85.rds'))
-# Emission Driven Runs with constant C cycle -------
+# Emission Driven Runs with Constant C cycle -------
 
 # Emission Driven Runs with the CC parameters varied -----
 
 # Format the parameters back into a list to reuse in the hectorSample function
-emission_params_constant_carbon <- list('S' = rcp26_emissionCC$params[,2],
-                                        'alpha' = rcp26_emissionCC$params[,3],
-                                        'diff' = rcp26_emissionCC$params[,4])
+emission_params_Constant_carbon <- list('S' = unique(rcp26_emissionCC$S),
+                                        'alpha' = unique(rcp26_emissionCC$alpha),
+                                        'diff' = unique(rcp26_emissionCC$diff))
 
 
 # RCP 26
-hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emiss-consatntC-RCP26')
-time_test <- system.time(rcp26_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon))
-saveRDS(object = rcp26_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP26.rds'))
+hcores    <- setup_cores(emission_ini[grepl('rcp26', emission_ini)], n = nodes, name ='emissConstantC-esmrcp26')
+time_test <- system.time(rcp26_emissionConstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = emission_params_Constant_carbon))
+saveRDS(object = rcp26_emissionConstantC, file = file.path(output_dir, 'emissConstantC-RCP26.rds'))
 
 
 # RCP 45
-hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emiss-constantC-RCP45')
-rcp45_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
-saveRDS(object = rcp45_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP45.rds'))
+hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='emissConstantC-esmrcp45')
+rcp45_emissionConstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = emission_params_Constant_carbon)
+saveRDS(object = rcp45_emissionConstantC, file = file.path(output_dir, 'emissConstantC-RCP45.rds'))
 
 # RCP 60
-hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emiss-constantC-RCP60')
-rcp60_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
-saveRDS(object = rcp60_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP60.rds'))
+hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='emissConstantC-esmrcp60')
+rcp60_emissionConstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = emission_params_Constant_carbon)
+saveRDS(object = rcp60_emissionConstantC, file = file.path(output_dir, 'emissConstantC-RCP60.rds'))
 
 # RCP 85
-hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emiss-constantC-RCP85')
-rcp85_emissionconstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = emission_params_constant_carbon)
-saveRDS(object = rcp85_emissionconstantC, file = file.path(output_dir, 'emiss-constantC-RCP85.rds'))
+hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='emissConstantC-esmrcp85')
+rcp85_emissionConstantC <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = emission_params_Constant_carbon)
+saveRDS(object = rcp85_emissionConstantC, file = file.path(output_dir, 'emissConstantC-RCP85.rds'))
 
 
 Sys.time()
