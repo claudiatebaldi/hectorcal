@@ -244,3 +244,66 @@
 #' }
 #' @family PCA hector ensemble
 'PCA_hector_ensemble-emissConstantC-esmrcp26'
+
+#' Hector concentration driven principal compoents (PCs)
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector concentration driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' along with some meta data information about the Hector data that went into the runs
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal componets.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas").}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' }
+#' @family PC hector
+'PC_hector_concen-rcp26_concen-rcp45_concen-rcp60_concen-rcp85'
+
+#' Hector emission driven principal compoents (PCs) with constant carbon cycle paramters
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector emission driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' along with some meta data information about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal componets.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas").}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' }
+#' @family PC hector
+'PC_hector_emissConstantC-esmrcp26_emissConstantC-esmrcp45_emissConstantC-esmrcp60_emissConstantC-esmrcp85'
+
+#' Hector emission driven principal compoents (PCs) with varying carbon cycle paramters
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector emission driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' along with some meta data information about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal componets.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas" and "co2").}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' }
+#' @family PC hector
+'PC_hector_emissCC-esmrcp26_emissCC-esmrcp45_emissCC-esmrcp60_emissCC-esmrcp85'
