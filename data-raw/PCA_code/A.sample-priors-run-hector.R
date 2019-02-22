@@ -253,7 +253,7 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
 
 # 2. Runs ------------------------------------------------------------------------------------------------
 # Make the output directory
-output_dir <- file.path(pic_dir, 'pic_results')
+output_dir <- file.path(pic_dir, 'PCA_pic_results')
 dir.create(output_dir)
 
 # Make the concentration and the emission prior distribution functions.
@@ -309,18 +309,18 @@ concen_params <- list('S' = rcp26_concen$params[,2],
                       'diff' = rcp26_concen$params[,4])
 
 # RCP 45
-hcores    <- setup_cores(emission_ini[grepl('rcp45', emission_ini)], n = nodes, name ='concen-RCP45')
-rcp45_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+hcores    <- setup_cores(concen_ini[grepl('rcp45', concen_ini)], n = nodes, name ='concen-RCP45')
+rcp45_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp45_concen, file = file.path(output_dir, 'concen-RCP45.rds'))
 
 # RCP 60
-hcores    <- setup_cores(emission_ini[grepl('rcp60', emission_ini)], n = nodes, name ='concen-RCP60')
-rcp60_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+hcores    <- setup_cores(concen_ini[grepl('rcp60', concen_ini)], n = nodes, name ='concen-RCP60')
+rcp60_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp60_concen, file = file.path(output_dir, 'concen-RCP60.rds'))
 
 # RCP 85
-hcores    <- setup_cores(emission_ini[grepl('rcp85', emission_ini)], n = nodes, name ='concen-RCP85')
-rcp85_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = c(GLOBAL_TEMP(), ATMOSPHERIC_C()), param_vals = concen_params)
+hcores    <- setup_cores(concen_ini[grepl('rcp85', concen_ini)], n = nodes, name ='concen-RCP85')
+rcp85_concen <- hectorSample(n_runs, hcores, keeptime = years, keepvars = GLOBAL_TEMP(), param_vals = concen_params)
 saveRDS(object = rcp85_concen, file = file.path(output_dir, 'concen-RCP85.rds'))
 # Emission Driven Runs with constant C cycle -------
 

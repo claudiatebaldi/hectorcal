@@ -6,8 +6,8 @@ library(dplyr)
 library(tidyr)
 library(devtools)
 
-# The size of the ensemble -- will want to change to be 1000
-ensemble_size <- 2
+# The size desired size of the ensemble, the number of Hector runs to keep.
+ensemble_size <- 1000
 
 # 1. Define Function ------------------------------------------------------------------
 
