@@ -2,7 +2,7 @@
 #### Error handler for hector errors
 errhandler <- function(e)
 {
-    message(e)
+    message(conditionMessage(e))
     NULL
 }
 
