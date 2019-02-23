@@ -32,10 +32,15 @@ errhandler <- function(e)
 #' variable.
 #' @param cal_mean If true calibrate to mean; otherwise calibrate to range
 #' @param use_c_cycle If true, include carbon cycle parameters; if not, don't.
+#' @param lowcol Column in comparison data to use for the low edge of the mesa
+#' function.  Ignored if cal_mean is \code{TRUE}
+#' @param hicol Column in comparison data to use for the high edge of the mesa
+#' function.  Ignored if cal_mean is \code{TRUE}
 #' @export
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
-                            cal_mean = TRUE, use_c_cycle=TRUE)
+                            cal_mean = TRUE, use_c_cycle=TRUE,
+                            lowcol = 'mina', hicol = 'maxb')
 {
     ## indices in the parameter vector for the various parameters.  We have several
     ## combinations of run parameters, so we have to sort them out here.
@@ -166,7 +171,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
             ll <- sum(dnorm(htemps, mean=esmtemps$cmean, sd=p[isigt], log=TRUE))
         }
         else {
-            ll <- sum(log(mesa(htemps, esmtemps$mina, esmtemps$maxb, 0.4)))
+            ll <- sum(log(mesa(htemps, esmtemps[[lowcol]], esmtemps[[hicol]], 0.4)))
         }
         if(use_c_cycle) {
             hco2 <- hdata[hdata$variable==hector::ATMOSPHERIC_CO2(), 'value']
@@ -174,7 +179,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                 ll <- ll + sum(dnorm(hco2, esmco2$cmean, sd=p[isigco2], log=TRUE))
             }
             else {
-                ll <- ll + sum(log(mesa(hco2, esmco2$mina, esmco2$maxb, smooth_co2)))
+                ll <- ll + sum(log(mesa(hco2, esmco2[[lowcol]], esmco2[[hicol]], smooth_co2)))
             }
         }
 

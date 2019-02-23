@@ -5,7 +5,8 @@
 \title{Construct a log posterior probability function for Bayesian calibration}
 \usage{
 build_mcmc_post(comp_data, inifile, years = seq(2010, 2100, 20),
-  smooth_co2 = 15, cal_mean = TRUE, use_c_cycle = TRUE)
+  smooth_co2 = 15, cal_mean = TRUE, use_c_cycle = TRUE,
+  lowcol = "mina", hicol = "maxb")
 }
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
@@ -21,6 +22,12 @@ variable.}
 \item{cal_mean}{If true calibrate to mean; otherwise calibrate to range}
 
 \item{use_c_cycle}{If true, include carbon cycle parameters; if not, don't.}
+
+\item{lowcol}{Column in comparison data to use for the low edge of the mesa
+function.  Ignored if cal_mean is \code{TRUE}}
+
+\item{hicol}{Column in comparison data to use for the high edge of the mesa
+function.  Ignored if cal_mean is \code{TRUE}}
 }
 \description{
 The function constructed by this call will be suitable for passing to either
