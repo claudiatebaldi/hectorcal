@@ -114,3 +114,18 @@ temperature parameters.  By contrast, to get high CO2 values, you need only
 have the right carbon cycle parameters; the temperature parameters can be anything.
 The part of the parameter space that produces high temperature values is therefore
 approximately a subset of the part that produces high CO2 values.
+
+Looking at a sample of the hector output traces is also instructive.
+```{r spaghetti.1a}
+spaghetti_plot(mcrslts_mesa_full, 512, hcores, pnames, alpha=0.1) + ggplot2::ggtitle('Full range')
+```
+
+First, we can see that the lack of any historical constraint is allowing some
+slightly absurd models into the sample.  When we rerun with our new dataset in
+place, we can expect the parameter distributions to be more constrained (though
+the difference may or may not be apparent on casual inspection.)  Another thing
+that seems apparent is that the the concern about the lack of crossing traces, 
+at least for temperature, seems to have been unfounded.  The CO2 results, on 
+the other hand, show a lot less diversity in the outputs.  Evidently, the model
+doesn't have as much flexibility in producing CO2 output curves with dramatically
+different shapes.
