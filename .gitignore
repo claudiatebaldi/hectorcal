@@ -11,4 +11,3 @@ attic/
 
 # Generated files
 *.nb.html
-analysis/*.rds
