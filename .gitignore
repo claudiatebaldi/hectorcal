@@ -7,3 +7,8 @@
 # Emacs files
 *~
 attic/
+
+
+# Generated files
+*.nb.html
+analysis/*.rds

@@ -1,0 +1,116 @@
+---
+title: "Experiment 1"
+output: html_notebook
+---
+
+## Setup 
+
+This experiment will require the results of the monte-carlo runs produced by the
+`experiment-1*.R` programs in this directory.  Those programs produce the
+`*.rds` files loaded in this section.
+
+```{r loaddata}
+library('hectorcal')
+library('hector')
+library('coda')
+library('dplyr')
+library('foreach')
+
+mcrslts_mesa_full <- readRDS('mcrslts_mesa_full.rds')
+mcmc_mesa_full <- metrosamp2coda(mcrslts_mesa_full)
+
+ncore <- 8
+doParallel::registerDoParallel(cores=ncore)
+
+```
+
+## Introduction
+
+In the runs that we did for the poster back in the fall, it looked as if the
+runs might not be covering the full range of the CMIP results.  Moreover, there
+seemed to be a marked falloff in the density closer to the edge of the CMIP
+range, despite the fact that the likelihood function was flat over much of this
+range.  A third observation was that the hector outputs for most of the sampled
+parameters seemed to be approximately parallel to one another; there were very
+few runs, for example, that started high and finished low, or vice versa.
+
+All of these observations were made using the spaghetti plots of hector outputs
+for a subsample of the Monte Carlo parameter samples, which is not a very precise
+way of diagnosing these effects.  Therefore, the purpose of this experiment is to 
+examine these matters more carefully to ensure that the Monte Carlo sampling is 
+behaving as expected.
+
+## Part A: Do the results cover the full range?
+
+In this part we reran the full-range Monte Carlo calculations.  The code for 
+performing this run is in `experiment-1A.R`; the results were saved as 
+`mcrslts_mesa_full.rds`.
+
+We were having trouble getting good mixing in these calculations.  Different 
+chains were converging to different, non-overlapping regions of the parameter
+space.  We were able to mitigate this problem by increasing the scale factor 
+for the proposal distribution.  This had the side effect of introducing a _lot_
+of autocorrelation into the Markov chains, necessitating longer runs than we
+had anticipated.  Even with 8 chains of 10,000 samples each, our effective 
+sample size is only a few hundred.  Together with the Gelman-Rubin diagnostic,
+this suggests that our production runs could stand to be a bit longer; however,
+these results should suffice for the purposes of this experiment.
+
+```{r diag.1a}
+autocorr.diag(mcmc_mesa_full)
+effectiveSize(mcmc_mesa_full)
+gelman.diag(mcmc_mesa_full)
+```
+
+The basic results of the calculation are below.  The marginal densities are
+consistent with what we saw in the poster results.  
+
+```{r rslt.1a}
+summary(mcmc_mesa_full)
+densplot(mcmc_mesa_full)
+```
+
+Do these outputs in fact cover the whole range of the CMIP outputs?  We can compare
+the ranges in the comparison data to the distribution of values that come out of 
+the hector runs from our sampled parameters at selected times.
+
+```{r rangecomp}
+testtimes <- c(2006, 2050, 2100)
+pnames <- c(ECS(), AERO_SCALE(), DIFFUSIVITY(), BETA(), Q10_RH(), PREINDUSTRIAL_CO2())
+comp_esmrcp85 <- filter(esm_comparison, experiment=='esmrcp85')
+esmrcp85_ini <- system.file("input/hector_rcp85.ini", package = "hector")
+hcores <- lapply(1:ncore, function(i){newcore(esmrcp85_ini)})
+samps_all <- do.call(rbind, lapply(mcrslts_mesa_full, function(x){x$samples}))
+
+filter(comp_esmrcp85, year %in% testtimes)
+hector_output_stats(samps_all, hcores, pnames, nsamp=1000, 
+                    times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
+```
+
+The `mina` and `maxb` columns give the range of the ensemble, and as can be seen
+in the quantile stats, our minimum and maximum values are actually a tiny bit
+outside the CMIP range. This is because our likelihood function is not a sharp
+cutoff, so the values can be a little outside the range at some times,
+especially if they were in range over the rest of the run.  So, we _do_ seem to
+be producing the full temperature and CO2 range.
+
+On the other hand, looking at the 10-90 percentile range for temperature shows
+that for our MC samples it is a little narrower than the corresponding range for
+the CMIP models.  This indicates that the probability density is falling off as
+you get to the upper and lower edge of the range, relative to what we are seeing
+in the CMIP models.  We also observed this in the poster results, and it’s still
+not entirely clear why that should be, since the likelihood function is mostly
+flat within the CMIP range.  We do have some hypotheses; the leading one is that
+the volume of the parameter space that can produce runs in these ranges is rather
+small, making it hard to land in that part of the output space.
+
+Interestingly, our 10-90 percentile range for CO2 seems to match the
+corresponding CMIP range more closely than is the case for temperature.  This
+observation supports the restricted volume hypothesis.  CO2 outputs depend only
+on the parameters that affect the carbon cycle, while temperature outputs depend
+on all six parameters jointly.  Thus, in order to get temperatures toward, say, 
+the high end of the range, you need a confluence of high CO2 values and high
+temperature parameters.  By contrast, to get high CO2 values, you need only 
+have the right carbon cycle parameters; the temperature parameters can be anything.
+The part of the parameter space that produces high temperature values is therefore
+approximately a subset of the part that produces high CO2 values.
