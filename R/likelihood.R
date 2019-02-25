@@ -36,11 +36,15 @@ errhandler <- function(e)
 #' function.  Ignored if cal_mean is \code{TRUE}
 #' @param hicol Column in comparison data to use for the high edge of the mesa
 #' function.  Ignored if cal_mean is \code{TRUE}
+#' @param prior_params Named list of alternative values for the numerical
+#' parameters in the prior distributions.  Any parameters not mentioned in the
+#' list will be set to their default values.
 #' @export
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
                             cal_mean = TRUE, use_c_cycle=TRUE,
-                            lowcol = 'mina', hicol = 'maxb')
+                            lowcol = 'mina', hicol = 'maxb',
+                            prior_params = NULL)
 {
     ## indices in the parameter vector for the various parameters.  We have several
     ## combinations of run parameters, so we have to sort them out here.
@@ -98,6 +102,14 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     c0mu    <- 285; c0sig    <- 14.0
     sigtscale <- 1.0
     sigco2scale <- 10.0
+
+    ## Check to see if user has overridden any of the parameters
+    if(!is.null(prior_params)) {
+        for(param in names(prior_params)) {
+            assign(param, prior_params[[param]])
+        }
+    }
+
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
     q10prior   <- mktruncnorm(0, Inf, q10mu, q10sig)
