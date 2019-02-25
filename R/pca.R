@@ -16,14 +16,17 @@ check_columns <- function(input, req_cols){
 #' @param PCA_climate an object of climate data, must contain value, year, experiment, and variable columns.
 #' It may not contain data for more years, variables, or experiments then in the principal_components argument.
 #' @param principal_components a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.
-#' @retun a list of three objects \item{rotation}{the PC loadings}, \item{scale}{the values used to scale the input climate data}, and
-#' \item{center}{the values used to center the climate data}
+#' @retun a list of three objects, rotation (the PC loadings), scale (the values used to scale the input climate data), and
+#' center (the values used to center the climate data).
+#' @importFrom dplyr %>%
 #' @export
-# DO we want to add the sdev column? Do we want to add the meta data?
 project_climate <- function(PCA_climate, principal_components){
 
     # First check to make sure that the climate data contains the required columns
     check_columns(PCA_climate, c('value', 'year', 'experiment', 'variable'))
+
+    # Return the output strucutre
+    obj <- list()
 
     # Check to see that the climate data being read into the principal componets does not contain data the
     # principal componet strucutre does not have data for.
@@ -50,51 +53,51 @@ project_climate <- function(PCA_climate, principal_components){
         dplyr::full_join(tibble::tibble(scale = principal_components$scale,
                                         col = names(principal_components$scale)), by = 'col') %>%
         na.omit ->
-        inter_df
+        tibble_value_scale_center
 
-    inter_df %>%
-        dplyr::mutate(value = (value - center) / scale) %>%
-        select(col, value) %>%
-        distinct  ->
-        centered_scaled_values
 
-    # Subset the principal component loadings to match the contents of the cliamte data
-    pc_loadings <- principal_components$rotation[row.names( principal_components$rotation) %in% centered_scaled_values$col, ]
+    # Calculate the dot product of the scaled & centered data by the principal componet loadings.
+    pc_loadings <- principal_components$rotation[row.names( principal_components$rotation) %in% tibble_value_scale_center$col, ]
 
-    # Multiply the cenered adn scaled values by the
-    rotation <- pc_loadings * centered_scaled_values$value
-
-    # Return the output strucutre
-    obj <- list()
-    # Multiply the cenered and scaled loadings by the value
-    obj[['rotation']] <- pc_loadings * centered_scaled_values$value
+    # Scale and center the new data
+    n_pc <- ncol(pc_loadings)
+    center  <- tibble_value_scale_center$center
+    scale   <- tibble_value_scale_center$scale
+    newdata <- matrix(rep(tibble_value_scale_center$value, times = n_pc), ncol = length(center))
+    #newdata <- scale(matrix(tibble_value_scale_center$value, ncol = length(center)), center, scale)
+   obj[['rotation']] <- scale(newdata, center, scale) %*% pc_loadings
 
     # Scales
-    scale        <- c(inter_df$scale)
-    names(scale) <- inter_df$col
-    obj[['scale']]   <- scale
+    scale             <- tibble_value_scale_center$scale
+    names(scale)      <- tibble_value_scale_center$col
+    obj[['scale']]    <- scale
 
     # Center
-    center           <- inter_df$center
-    names(center)    <- inter_df$center
-    obj[['center']]  <- center
+    center            <- tibble_value_scale_center$center
+    names(center)     <- tibble_value_scale_center$col
+    obj[['center']]   <- center
 
     # Return the object
     obj
 }
 
-# Not sure about this funciton...
-revert_climate <- function(projected_climate){
 
-    sum_projection <- apply(projected_climate$rotation, 1, sum)
-    tibble(value = sum_projection,
-           names = names(sum_projection)) %>%
-        left_join(tibble(scale = projected_climate$scale,
-                         names = names(projected_climate$scale)),
-                  by = 'names') %>%
-        left_join(tibble(scale = projected_climate$scale,
-                         names = names(projected_climate$scale)),
-                  by = 'names')
+#' Reconstruct climate data from projected climate data and prcinicpal componetns
+#'
+#' @param projected_climate an object returned by \code{project_climate}
+#' @param principal_components a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.
+#' @retun a data frame of reconstructed cliamte data containing the following columns, year, value, experiment, and variable
+#' @importFrom dplyr %>%
+#' @export
+reconstruct_climate <- function(projected_climate, principal_components){
+
+    matrix <- projected_climate$rotation %*% t(principal_components$rotation)
+    value  <- matrix * projected_climate$scale + projected_rslt$center
+
+    data.frame(value = as.vector(value), col = colnames(value)) %>%
+        tidyr::separate(col, into = c('year', 'variable', 'experiment')) %>%
+        dplyr::mutate(year = as.integer(gsub('X', '', year))) %>%
+        dplyr::select(year, value, variable, experiment)
 
 }
 
