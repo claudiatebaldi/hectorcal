@@ -19,6 +19,9 @@ library('foreach')
 mcrslts_mesa_full <- readRDS('mcrslts_mesa_full.rds')
 mcmc_mesa_full <- metrosamp2coda(mcrslts_mesa_full)
 
+mcrslts_hi10 <- readRDS('mcrslts_hi10.rds')
+mcmc_hi10 <- metrosamp2coda(mcrslts_hi10)
+
 ncore <- 8
 doParallel::registerDoParallel(cores=ncore)
 
@@ -129,3 +132,38 @@ at least for temperature, seems to have been unfounded.  The CO2 results, on
 the other hand, show a lot less diversity in the outputs.  Evidently, the model
 doesn't have as much flexibility in producing CO2 output curves with dramatically
 different shapes.
+
+## Part B: Why does the density of the traces fall off near the edge of the range?
+
+To investigate the falloff toward the edge of the range, we set up a Monte Carlo 
+run where we force the temperature to end the century in the upper decile of the 
+range, while the final CO2 concentration is constrained to the full range.  No other
+constraints were applied.  As might be expected, these constraints leave us with 
+a more restricted set of viable parameters.
+
+```{r compare.1a.1b}
+summary(mcmc_mesa_full)   # Results from the previous run
+summary(mcmc_hi10)        # Results from this run
+```
+
+As might be expected, the major difference here is that the equilibrium climate
+sensitivity, $S$, is substantially higher.  There _doesn't_ seem to be any evidence
+that the parameters need to be fine-tuned to land in this range of outputs.  In
+particular, the interquartile range of the carbon cycle parameters isn't much 
+different in the Part B run, as compared to Part A.  Likewise, the width of the 
+distributions of the temperature parameters isn't much smaller than what we saw
+in Part A.
+
+Looking at the output traces, we see that constraining the output only at the 
+end of the run allows some unrealistic runs into the mix.  We can also see this
+in the quantiles for the aerosol scale factor, which has a much larger allowed
+range on the low end.
+
+```{r spaghetti.1b}
+spaghetti_plot(mcrslts_hi10, 512, hcores, pnames, alpha=0.1) + ggplot2::ggtitle('Upper decile, final year only')
+```
+
+This difference in the early-century constraint makes it hard to definitively 
+rule out the fine-tuning hypothesis.  We need to rerun this experiment with 
+some full-range constraints present in the early century before we can make a
+final determination on this hypothesis.
