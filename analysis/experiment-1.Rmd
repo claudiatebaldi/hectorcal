@@ -22,6 +22,9 @@ mcmc_mesa_full <- metrosamp2coda(mcrslts_mesa_full)
 mcrslts_hi10 <- readRDS('mcrslts_hi10.rds')
 mcmc_hi10 <- metrosamp2coda(mcrslts_hi10)
 
+mcrslts_wide_priors <- readRDS('mcrslts_wide_priors.rds')
+mcmc_wide_priors <- metrosamp2coda(mcrslts_wide_priors)
+
 ncore <- 8
 doParallel::registerDoParallel(cores=ncore)
 
@@ -187,4 +190,53 @@ probability is not enough to exclude these higher temperature runs, but it could
 density we have observed in the output traces.  We could test this by broadening the priors to make them 
 less informative and rerunning the full-range calibration test.
 
+## Part C: Can the Priors explain the edge density falloff?
+
+To investigate this hypothesis we reran the calculation with part A, but with the priors replaced by very 
+non-informative distributions.  Specifically, we made them all normal with $\sigma = 10$, except for the 
+preindustrial CO2 prior, which had $\sigma = 60$, owing to the larger scale of that parameter.
+
+The first thing to observe is that the convergence for the Markov chains in this part of the experiment
+is marginal at best.  Looking at the trace plots below, we see that several of the variables have chains 
+with lengthy excursions into very large or very small parameter values.  The chains are also highly correlated;
+despite running 8 chains of 10,000 samples each, the total effective sample count for $S$ is just 
+`r round(neff(mcmc_wide_priors)[1])`.  This poor convergence is a result of the lack of stabilizing influence 
+of weakly-informative priors.  If we were using this run for production results, we would want to try to 
+get better convergence, but for purposes of comparing the edge behavior, what we have here should suffice.
+
+```{r partc.trace}
+plot(mcmc_wide_priors)
+```
+
+The density plots side-by-side with the trace plots give some idea of the effect
+of the priors on the posterior distributions.  Comparing these to the density plots
+from Part A, we can see that $S$ extends to much larger and smaller values than were
+seen in part A, as do $\alpha$ (aerosol scaling), $\kappa$ (diffusivity), and $Q_{10}$.
+Looking at the distribution statistics for part A and part C gives us a quantitative
+version of the same story.
+
+```{r parta.partc.dist}
+summary(mcmc_mesa_full)
+summary(mcmc_wide_priors)
+```
+
+_remarks on summary stats_
+
+Based on these results, we would expect to see a less pronounced density falloff 
+in the hector output traces.
+
+```{r partc.spaghetti}
+spaghetti_plot(mcrslts_wide_priors, 512, hcores, pnames, alpha=0.1) + ggplot2::ggtitle('Full range calibration with wide priors')
+```
+
+It's hard to say for sure if there is less density falloff than there was in the part A
+runs.  Only the traces that end up between temperatures of 3.4 and 6.25 count for this
+purpose; outside of that range the density is falling off because the mesa function is 
+saying that our results don't belong out there.
+
+```{r partc.hstats}
+samps_wide_priors <- do.call(rbind, lapply(mcrslts_wide_priors, function(x){x$samples}))
+hector_output_stats(samps_all, hcores, pnames, nsamp=1000, times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
+hector_output_stats(samps_wide_priors, hcores, pnames, nsamp=1000, times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
+```
 
