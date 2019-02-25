@@ -39,12 +39,16 @@ errhandler <- function(e)
 #' @param prior_params Named list of alternative values for the numerical
 #' parameters in the prior distributions.  Any parameters not mentioned in the
 #' list will be set to their default values.
+#' @param use_lnorm_ecs If true, use a log-normal prior for climate
+#' sensitivity.  If false, use a normal prior.  The false setting is intended
+#' primarily for testing the influence of priors on the final result.
 #' @export
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
                             cal_mean = TRUE, use_c_cycle=TRUE,
                             lowcol = 'mina', hicol = 'maxb',
-                            prior_params = NULL)
+                            prior_params = NULL,
+                            use_lnorm_ecs=TRUE)
 {
     ## indices in the parameter vector for the various parameters.  We have several
     ## combinations of run parameters, so we have to sort them out here.
@@ -110,6 +114,14 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
         }
     }
 
+    ## Check to see if user has requested the lognormal prior
+    if(use_lnorm_ecs) {
+        s_prior <- function(s) {dlnorm(s, log(ecsmu), log(ecssig), log=TRUE)}
+    }
+    else{
+        s_prior <- function(s) {dnorm(s, ecsmu, ecssig, log=TRUE)}
+    }
+
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
     q10prior   <- mktruncnorm(0, Inf, q10mu, q10sig)
@@ -124,10 +136,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                         c(aeromu, kappamu),
                         c(aerosig, kappasig),
                         log=TRUE),
-                  dlnorm(p[iecs],
-                         log(ecsmu),
-                         log(ecssig),
-                         log = TRUE))
+                  s_prior(p[iecs]))
         if(use_c_cycle) {
             lp <- lp + sum(dnorm(p[ic0],
                                  c0mu,
