@@ -137,9 +137,10 @@ different shapes.
 
 To investigate the falloff toward the edge of the range, we set up a Monte Carlo 
 run where we force the temperature to end the century in the upper decile of the 
-range, while the final CO2 concentration is constrained to the full range.  No other
-constraints were applied.  As might be expected, these constraints leave us with 
-a more restricted set of viable parameters.
+range, while the final CO2 concentration is constrained to the full range. 
+Temperature and CO2 values were also constrained to the full range in years 2006
+and 2050.  As might be expected, the end of century temperature constraint leave us with 
+a changed set of viable parameters.
 
 ```{r compare.1a.1b}
 summary(mcmc_mesa_full)   # Results from the previous run
@@ -147,23 +148,43 @@ summary(mcmc_hi10)        # Results from this run
 ```
 
 As might be expected, the major difference here is that the equilibrium climate
-sensitivity, $S$, is substantially higher.  There _doesn't_ seem to be any evidence
-that the parameters need to be fine-tuned to land in this range of outputs.  In
-particular, the interquartile range of the carbon cycle parameters isn't much 
-different in the Part B run, as compared to Part A.  Likewise, the width of the 
-distributions of the temperature parameters isn't much smaller than what we saw
-in Part A.
+sensitivity, $S$, is substantially higher. The aerosol scaling factor is also 
+pushed higher, and extremely low values for that parameter are eliminated entirely.
+However, there _doesn't_ seem to be any evidence that the parameters need to be 
+fine-tuned to land in this range of outputs.  In particular, the width of the 
+distributions of the temperature parameters (whether measured by standard 
+deviation or by interquartile range) isn't much smaller than what we saw in Part
+A.  Likewise, apart from a slight increase in $\beta$, the values of the carbon
+cycle parameters aren't much different in the Part B run, as compared to Part A.
+This translates to CO2 concentrations that are roughly consistent between the
+two runs.
 
-Looking at the output traces, we see that constraining the output only at the 
-end of the run allows some unrealistic runs into the mix.  We can also see this
-in the quantiles for the aerosol scale factor, which has a much larger allowed
-range on the low end.
+```{r compare_output.1a.1b}
+samps_hi10 <- do.call(rbind, lapply(mcrslts_hi10, function(x){x$samples}))
+hector_output_stats(samps_all, hcores, pnames, nsamp=1000, times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
+hector_output_stats(samps_hi10, hcores, pnames, nsamp=1000, times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
+```
+
+The output traces don't show anything particularly unexpected.
 
 ```{r spaghetti.1b}
 spaghetti_plot(mcrslts_hi10, 512, hcores, pnames, alpha=0.1) + ggplot2::ggtitle('Upper decile, final year only')
 ```
 
-This difference in the early-century constraint makes it hard to definitively 
-rule out the fine-tuning hypothesis.  We need to rerun this experiment with 
-some full-range constraints present in the early century before we can make a
-final determination on this hypothesis.
+Based on these results, the fine-tuning hypothesis doesn't seem viable to me anymore.
+Our next best hypothesis is that this is being driven by our prior.  In particular, 
+considor the prior for climate sensitivity, $S$.
+
+```{r ecsprior}
+ps <- function(x) {dlnorm(x, log(3.0), log(3.0))}
+curve(ps, from=0, to=10, ylab='p(S)', xlab='S')
+```
+
+The prior probability mass over the range 2.5--3.5 (i.e., the values favored in the full-range calculation) 
+is `r signif(integrate(ps, 2.5, 3.5)$value, 2)`, while the prior probability mass over the 5.5--6.5 range
+favored by the high-decile calculation is `r signif(integrate(ps, 5.5, 6.5)$value, 2)`.  This difference in prior 
+probability is not enough to exclude these higher temperature runs, but it could cause the reduction in probability
+density we have observed in the output traces.  We could test this by broadening the priors to make them 
+less informative and rerunning the full-range calibration test.
+
+

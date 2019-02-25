@@ -28,7 +28,7 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
 
     ggplot2::ggplot(data=sampout, ggplot2::aes(x=year, y=value)) +
       ggplot2::geom_line(ggplot2::aes(group=scenario), color='blue', alpha=alpha) +
-      ggplot2::geom_line(data=meanout, color='red', size=1.5) +
+      ggplot2::geom_line(data=meanout, color='red', size=1.25) +
       ggplot2::facet_wrap(facets=~variable, scales='free_y')
 
 }

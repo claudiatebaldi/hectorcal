@@ -21,9 +21,14 @@ mcmc_scale <- c(0.4, 0.8, 0.4, 0.4, 0.8, 10.0)
 
 pnames <- c('S', 'aero', 'kappa', 'beta', 'q10', 'pre_co2')
 
+
+## Set up full-range constraints in the early and mid-century.  The temperature
+## constraint in the final year will be the top decile of the CMIP distribution,
+## while the CO2 constraint in the final year will be full-range.
+gateyears <- c(2006, 2050, 2100)
 comp_esmrcp85_hi10 <-
-    filter(esm_comparison, experiment=='esmrcp85', year==2100) %>%
-      mutate(a=if_else(variable=='co2', mina, b90), b=maxb)
+    filter(esm_comparison, experiment=='esmrcp85', year %in% gateyears) %>%
+      mutate(a=if_else(variable=='tas' & year==2100, b90, mina), b=maxb)
 
 esmrcp85_ini <- system.file("input/hector_rcp85.ini", package = "hector")
 
@@ -33,7 +38,7 @@ ccounter <- seq(1,nchain)               # chain counter
 lposts <-
     lapply(ccounter, function(ichain) {
                lp <- build_mcmc_post(comp_esmrcp85_hi10, esmrcp85_ini,
-                                     lowcol='a', hicol='b', years=2100,
+                                     lowcol='a', hicol='b', years=gateyears,
                                      cal_mean=FALSE) # nchain identical cores
                function(p) {suppressMessages(lp(p))}
            })
