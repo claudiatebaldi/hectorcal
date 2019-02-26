@@ -292,11 +292,11 @@
 #' \item{rotation}{A matrix of the variable loadings.}
 #' \item{center}{The centering used in the PCA.}
 #' \item{scale}{The scale used in the PCA.}
-#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
 #' \item{variable}{The variables that describe the values used in the PCA ("tas").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
-#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
 'PC_hector_concen-rcp26_concen-rcp45_concen-rcp60_concen-rcp85'
@@ -313,11 +313,11 @@
 #' \item{rotation}{A matrix of the variable loadings.}
 #' \item{center}{The centering used in the PCA.}
 #' \item{scale}{The scale used in the PCA.}
-#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
 #' \item{variable}{The variables that describe the values used in the PCA ("tas").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
-#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
 'PC_hector_emissConstantC-esmrcp26_emissConstantC-esmrcp45_emissConstantC-esmrcp60_emissConstantC-esmrcp85'
@@ -334,11 +334,11 @@
 #' \item{rotation}{A matrix of the variable loadings.}
 #' \item{center}{The centering used in the PCA.}
 #' \item{scale}{The scale used in the PCA.}
-#' \item{meta_data}{a list of meta data information about the data that went into the PCA
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
 #' \item{variable}{The variables that describe the values used in the PCA ("tas" and "co2").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
-#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
 'PC_hector_emissCC-esmrcp26_emissCC-esmrcp45_emissCC-esmrcp60_emissCC-esmrcp85'
