@@ -35,7 +35,21 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
 
 
 
-## Helper function for running the hector samples for various plots
+#' Run hector runs for sampled parameters
+#'
+#' This function is used as a helper function in some of our other plotting
+#' function, but it is also useful in its own right.  For example, the data
+#' frame returned by this function is just what you need to plot density plots
+#' of the Hector outputs
+#' @param allsamps Matrix of all parameter samples
+#' @param nsamp Number of samples to draw.  Must not be greater than
+#' \code{nrow(allsamps)}.
+#' @param hcores List of hector cores initialized with the desired emissions.
+#' @param times Times to pull from the hector output.
+#' @param pnames Hector internal names for the parameters in the columns of
+#' \code{allsamps}.
+#' @param vars Variables to retrieve.
+#' @export
 run_hector_samples <- function(allsamps, nsamp, hcores, times, pnames, vars)
 {
     ntot <- nrow(allsamps)

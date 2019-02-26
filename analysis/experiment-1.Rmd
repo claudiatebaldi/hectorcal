@@ -240,3 +240,45 @@ hector_output_stats(samps_all, hcores, pnames, nsamp=1000, times=testtimes, quan
 hector_output_stats(samps_wide_priors, hcores, pnames, nsamp=1000, times=testtimes, quantiles=c(0,0.1, 0.5, 0.9, 1))
 ```
 
+Let's do what we probably should have done from the start, namely, to compute kernel 
+density functions for the Hector outputs directly.
+
+```{r partc.outsamps}
+hs_all <- run_hector_samples(samps_all, 2048, hcores, c(2050, 2100), pnames, c(GLOBAL_TEMP(), ATMOSPHERIC_CO2()))
+hs_all$runtype <- 'part A'
+hs_wp  <- run_hector_samples(samps_wide_priors, 2048, hcores, c(2050, 2100), pnames, c(GLOBAL_TEMP(), ATMOSPHERIC_CO2()))
+hs_wp$runtype <- 'part C'
+hs <- rbind(hs_all, hs_wp)
+```
+
+```{r partc.outdens}
+ggplot2::ggplot(data=hs, ggplot2::aes(x=value, fill=runtype)) + ggplot2::geom_density(alpha=0.5) +
+    ggplot2::facet_wrap(~year+variable, scales='free') + 
+    ggthemes::theme_economist() + ggthemes::scale_fill_economist()
+```
+
+Now we arrive at the truth of the matter, which is that _despite_ the dramatic
+differences in _parameter_ distributions between the two runs, the differences
+in _output_ distributions don't look all that different.  The $C_a$ distribution
+extends a little further up on the high end, right up to the edge of the full
+range value (1142 ppm).  Evidently our prior was causing us to exclude a little
+bit of that range.
+
+The $T_g$ values look remarkably similar between the two runs, and in 2100, at 
+least, they appear reasonably flat-topped over the CMIP range of 3.36--6.25 deg 
+C for that year.  The Part C $C_a$ distribution is also reasonably flat over the
+CMIP range. The remaining peakiness in the distributions I'm willing to ascribe 
+to less than perfect mixing in the Markov chains.  (One thing we have learned
+from this experiment is that we are likely going to have to do more samples than
+we expected.) At this point, however, I'm not convinced that there is any
+genuine edge falloff to be found.  It's just another artifact of trying to
+diagnose this from the spaghetti plots.  (It's worth noting that the spaghetti
+plots are very lightly sampled compared to these.)
+
+Final verdict, I think this is a non-issue, except perhaps that it's possibly
+indicative of poor convergence in our Monte Carlo runs; however, we have other
+ways of diagnosing that.  Unless someone else on the team sees something that
+really concerns them, I'm going to consider the myth of edge density falloff to
+be busted.
+
+![](busted2.jpg)
