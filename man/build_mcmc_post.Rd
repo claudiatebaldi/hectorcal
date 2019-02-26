@@ -5,7 +5,9 @@
 \title{Construct a log posterior probability function for Bayesian calibration}
 \usage{
 build_mcmc_post(comp_data, inifile, years = seq(2010, 2100, 20),
-  smooth_co2 = 15, cal_mean = TRUE, use_c_cycle = TRUE)
+  smooth_co2 = 15, cal_mean = TRUE, use_c_cycle = TRUE,
+  lowcol = "mina", hicol = "maxb", prior_params = NULL,
+  use_lnorm_ecs = TRUE)
 }
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
@@ -21,6 +23,20 @@ variable.}
 \item{cal_mean}{If true calibrate to mean; otherwise calibrate to range}
 
 \item{use_c_cycle}{If true, include carbon cycle parameters; if not, don't.}
+
+\item{lowcol}{Column in comparison data to use for the low edge of the mesa
+function.  Ignored if cal_mean is \code{TRUE}}
+
+\item{hicol}{Column in comparison data to use for the high edge of the mesa
+function.  Ignored if cal_mean is \code{TRUE}}
+
+\item{prior_params}{Named list of alternative values for the numerical
+parameters in the prior distributions.  Any parameters not mentioned in the
+list will be set to their default values.}
+
+\item{use_lnorm_ecs}{If true, use a log-normal prior for climate
+sensitivity.  If false, use a normal prior.  The false setting is intended
+primarily for testing the influence of priors on the final result.}
 }
 \description{
 The function constructed by this call will be suitable for passing to either

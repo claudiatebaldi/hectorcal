@@ -2,7 +2,7 @@
 #### Error handler for hector errors
 errhandler <- function(e)
 {
-    message(e)
+    message(conditionMessage(e))
     NULL
 }
 
@@ -32,10 +32,23 @@ errhandler <- function(e)
 #' variable.
 #' @param cal_mean If true calibrate to mean; otherwise calibrate to range
 #' @param use_c_cycle If true, include carbon cycle parameters; if not, don't.
+#' @param lowcol Column in comparison data to use for the low edge of the mesa
+#' function.  Ignored if cal_mean is \code{TRUE}
+#' @param hicol Column in comparison data to use for the high edge of the mesa
+#' function.  Ignored if cal_mean is \code{TRUE}
+#' @param prior_params Named list of alternative values for the numerical
+#' parameters in the prior distributions.  Any parameters not mentioned in the
+#' list will be set to their default values.
+#' @param use_lnorm_ecs If true, use a log-normal prior for climate
+#' sensitivity.  If false, use a normal prior.  The false setting is intended
+#' primarily for testing the influence of priors on the final result.
 #' @export
 build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                             smooth_co2 = 15,
-                            cal_mean = TRUE, use_c_cycle=TRUE)
+                            cal_mean = TRUE, use_c_cycle=TRUE,
+                            lowcol = 'mina', hicol = 'maxb',
+                            prior_params = NULL,
+                            use_lnorm_ecs=TRUE)
 {
     ## indices in the parameter vector for the various parameters.  We have several
     ## combinations of run parameters, so we have to sort them out here.
@@ -93,6 +106,22 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     c0mu    <- 285; c0sig    <- 14.0
     sigtscale <- 1.0
     sigco2scale <- 10.0
+
+    ## Check to see if user has overridden any of the parameters
+    if(!is.null(prior_params)) {
+        for(param in names(prior_params)) {
+            assign(param, prior_params[[param]])
+        }
+    }
+
+    ## Check to see if user has requested the lognormal prior
+    if(use_lnorm_ecs) {
+        s_prior <- function(s) {dlnorm(s, log(ecsmu), log(ecssig), log=TRUE)}
+    }
+    else{
+        s_prior <- function(s) {dnorm(s, ecsmu, ecssig, log=TRUE)}
+    }
+
     ## truncated normal functions for constrained params
     betalprior <- mktruncnorm(0, Inf, betamu, betasig)
     q10prior   <- mktruncnorm(0, Inf, q10mu, q10sig)
@@ -107,10 +136,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                         c(aeromu, kappamu),
                         c(aerosig, kappasig),
                         log=TRUE),
-                  dlnorm(p[iecs],
-                         log(ecsmu),
-                         log(ecssig),
-                         log = TRUE))
+                  s_prior(p[iecs]))
         if(use_c_cycle) {
             lp <- lp + sum(dnorm(p[ic0],
                                  c0mu,
@@ -166,7 +192,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
             ll <- sum(dnorm(htemps, mean=esmtemps$cmean, sd=p[isigt], log=TRUE))
         }
         else {
-            ll <- sum(log(mesa(htemps, esmtemps$mina, esmtemps$maxb, 0.4)))
+            ll <- sum(log(mesa(htemps, esmtemps[[lowcol]], esmtemps[[hicol]], 0.4)))
         }
         if(use_c_cycle) {
             hco2 <- hdata[hdata$variable==hector::ATMOSPHERIC_CO2(), 'value']
@@ -174,7 +200,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                 ll <- ll + sum(dnorm(hco2, esmco2$cmean, sd=p[isigco2], log=TRUE))
             }
             else {
-                ll <- ll + sum(log(mesa(hco2, esmco2$mina, esmco2$maxb, smooth_co2)))
+                ll <- ll + sum(log(mesa(hco2, esmco2[[lowcol]], esmco2[[hicol]], smooth_co2)))
             }
         }
 
