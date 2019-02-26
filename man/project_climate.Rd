@@ -4,10 +4,10 @@
 \alias{project_climate}
 \title{Project a data frame of climate data on to a principal componet basis}
 \usage{
-project_climate(PCA_climate, principal_components)
+project_climate(climate_data, principal_components)
 }
 \arguments{
-\item{PCA_climate}{an object of climate data, must contain value, year, experiment, and variable columns.
+\item{climate_data}{an object of climate data, must contain value, year, experiment, and variable columns.
 It may not contain data for more years, variables, or experiments then in the principal_components argument.}
 
 \item{principal_components}{a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.}
