@@ -15,6 +15,7 @@ Suggests:
     ggplot2,
     ggthemes,
     foreach,
+    dplyr
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
