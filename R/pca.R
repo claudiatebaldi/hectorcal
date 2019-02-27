@@ -28,7 +28,7 @@ difference_between <- function(x, y){
 #' @param climate_data an object of climate data, must contain value, year, experiment, and variable columns.
 #' It may not contain data for more years, variables, or experiments then in the principal_components argument.
 #' @param principal_components a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.
-#' @retun a list of three objects, rotation the PC loadings, scale the values used to scale the input climate data, and center the values used to center the climate data.
+#' @return a list of three objects, rotation the PC loadings, scale the values used to scale the input climate data, and center the values used to center the climate data.
 #' @importFrom dplyr %>%
 #' @export
 project_climate <- function(climate_data, principal_components){
@@ -87,7 +87,7 @@ project_climate <- function(climate_data, principal_components){
 #'
 #' @param projected_climate an object returned by \code{project_climate}
 #' @param principal_components a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.
-#' @retun a data frame of reconstructed cliamte data containing the following columns, year, value, experiment, and variable
+#' @return a data frame of reconstructed cliamte data containing the following columns, year, value, experiment, and variable
 #' @import dplyr
 #' @import tidyr
 #' @export

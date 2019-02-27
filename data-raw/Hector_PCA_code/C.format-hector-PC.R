@@ -86,7 +86,7 @@ get_hector_pcs <- function(data_list, combos = FALSE){
 }
 
 
-# 2. Calculte Hector ensmbel PCs ---------------------------------------------
+# 2. Calculate Hector ensmble PCs ---------------------------------------------
 
 # Concentration runs
 get_hector_pcs(list(`PCA_hector_ensemble-concen-rcp26`, `PCA_hector_ensemble-concen-rcp45`,
