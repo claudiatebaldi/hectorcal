@@ -4,15 +4,20 @@
 \alias{reconstruct_climate}
 \title{Reconstruct climate data from projected climate data and prcinicpal componetns}
 \usage{
-reconstruct_climate(projected_climate, principal_components)
+reconstruct_climate(projected_climate, principal_components, ncomp = NA)
 }
 \arguments{
-\item{projected_climate}{an object returned by \code{project_climate}}
+\item{projected_climate}{a vector or row-vector of PC coordinates}
 
-\item{principal_components}{a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.}
+\item{principal_components}{a \code{hectorcal} object that contains results
+from \code{prcomp} and meta data information.}
+
+\item{ncomp}{Number of components to keep in the reconstruction.  Default is
+to keep them all.}
 }
 \value{
-a data frame of reconstructed cliamte data containing the following columns, year, value, experiment, and variable
+a data frame of reconstructed cliamte data containing the following
+columns, year, value, experiment, and variable
 }
 \description{
 Reconstruct climate data from projected climate data and prcinicpal componetns

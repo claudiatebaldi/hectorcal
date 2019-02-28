@@ -4,16 +4,22 @@
 \alias{project_climate}
 \title{Project a data frame of climate data on to a principal componet basis}
 \usage{
-project_climate(climate_data, principal_components)
+project_climate(climate_data, principal_components, row_vector = TRUE)
 }
 \arguments{
-\item{climate_data}{an object of climate data, must contain value, year, experiment, and variable columns.
-It may not contain data for more years, variables, or experiments then in the principal_components argument.}
+\item{climate_data}{a data frame of climate data.  The data must contain
+value, year, experiment, and variable columns.}
 
-\item{principal_components}{a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.}
+\item{principal_components}{a \code{hectorcal} object that contains results
+from \code{prcomp} and meta data information.}
+
+\item{row_vector}{If \code{TRUE}, return the data as a row vector (a 1xN
+matrix)}
 }
 \value{
-a list of three objects, rotation the PC loadings, scale the values used to scale the input climate data, and center the values used to center the climate data.
+a list of three objects, rotation the PC loadings, scale the values
+used to scale the input climate data, and center the values used to center
+the climate data.
 }
 \description{
 Project a data frame of climate data on to a principal componet basis
