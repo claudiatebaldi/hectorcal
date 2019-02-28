@@ -11,6 +11,9 @@ reconstruct_climate(projected_climate, principal_components)
 
 \item{principal_components}{a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.}
 }
+\value{
+a data frame of reconstructed cliamte data containing the following columns, year, value, experiment, and variable
+}
 \description{
 Reconstruct climate data from projected climate data and prcinicpal componetns
 }

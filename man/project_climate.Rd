@@ -12,6 +12,9 @@ It may not contain data for more years, variables, or experiments then in the pr
 
 \item{principal_components}{a \code{hectorcal} object that contains results from \code{prcomp} and meta data information.}
 }
+\value{
+a list of three objects, rotation the PC loadings, scale the values used to scale the input climate data, and center the values used to center the climate data.
+}
 \description{
 Project a data frame of climate data on to a principal componet basis
 }
