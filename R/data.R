@@ -56,292 +56,111 @@
 #' @family comparison data
 'cmip_individual'
 
-#' Ensemble of Hector rcp26 concentration driven runs
+#' Ensembles of Hector concentration driven runs
 #'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 2.6 concentration, this
-#' data set only contains results from runs that also solved in for the Hector concentration driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs.
+#' This dataset contains outputs for the 1000 Hector runs driven with each of
+#' the four concentration pathways, along with the parameters used to drive the
+#' runs.
 #'
-#' @format Data frame with 9 columns
+#' @format List of 5 data frames: rcp26, rcp45, rcp60, rcp85, and params.  The
+#' four output data frames have 6 columns:
 #' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
+#' \item{runid}{Unique identifier for each run.}
 #' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
 #' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
+#' }
+#' The params data frame has 4 columns:
+#' \describe{
+#' \item{runid}{Unique identifier for each run.}
+#' \item{S}{Equilibrium climate sensitivity.}
+#' \item{alpha}{Aerosol scaling factor.}
+#' \item{diff}{Diffusivity parameter.}
 #' }
 #' @family PCA hector ensemble
-'PCA_hector_ensemble-concen-rcp26'
+'hector_conc_ensemble'
 
-#' Ensemble of Hector rcp45 concentration driven runs
+
+#' Ensembles of Hector emission driven runs
 #'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 4.5 concentration, this
-#' data set only contains results from runs that also solved in for the Hector concentration driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs.
+#' This dataset contains outputs for the 1000 Hector runs driven with each of
+#' the four concentration pathways, along with the parameters used to drive the
+#' runs.
 #'
-#' @format Data frame with 9 columns
+#' @format List of 5 data frames: rcp26, rcp45, rcp60, rcp85, and params.  The
+#' four output data frames have 6 columns:
 #' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
+#' \item{runid}{Unique identifier for each run.}
 #' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
 #' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
 #' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-concen-rcp45'
-
-#' Ensemble of Hector rcp60 concentration driven runs
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 6.0 concentration, this
-#' data set only contains results from runs that also solved in for the Hector concentration driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs.
-#'
-#' @format Data frame with 9 columns
+#' The params data frame has 7 columns
 #' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
+#' \item{runid}{Unique identifier for each run.}
+#' \item{S}{Equilibrium climate sensitivity.}
+#' \item{alpha}{Aerosol scaling factor.}
+#' \item{diff}{Diffusivity parameter.}
+#' \item{C0}{Preindustrial CO2 concentration.}
+#' \item{q10_rh}{Heterotrophic respiration Q10 parameter.}
+#' \item{beta}{CO2 fertilization parameter}
 #' }
 #' @family PCA hector ensemble
-'PCA_hector_ensemble-concen-rcp60'
-
-#' Ensemble of Hector rcp85 concentration driven runs
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 8.5 concentration, this
-#' data set only contains results from runs that also solved in for the Hector concentration driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiment. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-concen-rcp85'
-
-#' Ensemble of Hector rcp26 emission driven runs with constant carbon cycle parameters
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 2.6 emissions, this
-#' data set only contains results from runs that also solved in for the Hector emissions driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were held constant here.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-emissConstantC-esmrcp26'
-
-#' Ensemble of Hector rcp45 emission driven runs with constant carbon cycle parameters
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 4.5 emissions, this
-#' data set only contains results from runs that also solved in for the Hector emissions driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were held constant here.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-emissConstantC-esmrcp45'
-
-#' Ensemble of Hector rcp60 emission driven runs with constant carbon cycle parameters
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 6.0 emissions, this
-#' data set only contains results from runs that also solved in for the Hector emissions driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were held constant here.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-emissConstantC-esmrcp60'
-
-#' Ensemble of Hector rcp85 emission driven runs with constant carbon cycle parameters
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 8.5 emissions, this
-#' data set only contains results from runs that also solved in for the Hector emissions driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were held constant here.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-emissConstantC-esmrcp85'
-
-#' Ensemble of Hector rcp26 emission driven runs with varying carbon cycle parameters
-#'
-#' This dataset contains outputs for the 1000 Hector runs driven with rcp 2.6 emissions, this
-#' data set only contains results from runs that also solved in for the Hector emissions driven
-#' rcp 4.5, rcp 6.0, and rcp 8.5 runs. The carbon cycle parameters were varied.
-#'
-#' @format Data frame with 9 columns
-#' \describe{
-#' \item{runid}{Contains integers to indicate that results are from the same Hector run}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{scenario}{Hector scenario name.}
-#' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
-#' \item{year}{Year being described (1850 -- 2100).}
-#' \item{value}{Value of the variable being reported.}
-#' \item{S}{Value of the Hector run climate sensitivity.}
-#' \item{alpha}{Value of the Hector run aerosol scaling factor.}
-#' \item{diff}{Value of the Hector run ocean heat diffusivity.}
-#' }
-#' @family PCA hector ensemble
-'PCA_hector_ensemble-emissConstantC-esmrcp26'
-
-#' Emission driven CMIP5 ESM mean comparison data
-#'
-#' This dataset contains the CMIP5 ensmeble mean output for the emission driven historical and
-#' rcp85 experiments. The multi-model mean is the average of each model intital conditions ensemble
-#' average. This multi-model mean does not account for how models may be related to one aother. The
-#' historical experiment name has been replaced with the rcp experiment name.
-#'
-#' @format Data frame with 4 columns
-#' \describe{
-#' \item{year}{Year being described (1851 -- 2100).}
-#' \item{variable}{Variable being reported "tas" or "co2", temperatures are anomalies.}
-#' \item{experiment}{Experiment being reported, "esmrcp85"}
-#' \item{value}{The multimodel mean.}
-#' }
-#' @family PCA hector ensemble
-'PCA_ESMmean-emiss'
-
-#' Concentration driven CMIP5 ESM mean comparison data
-#'
-#' This dataset contains the CMIP5 ensmeble mean output for the concentration driven historical and
-#' rcp85 experiments. The multi-model mean is the average of each model intital conditions ensemble
-#' average. This multi-model mean does not account for how models may be related to one aother. The
-#' historical experiment name has been replaced with the rcp experiment name.
-#'
-#' @format Data frame with 4 columns
-#' \describe{
-#' \item{year}{Year being described (1851 -- 2100).}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
-#' \item{experiment}{Experiment being reported, "esmrcp85"}
-#' \item{value}{The multimodel mean.}
-#' }
-#' @family PCA hector ensemble
-'PCA_ESMmean-concen'
+'hector_emiss_ensemble'
 
 
 #' Hector concentration driven principal compoents (PCs)
 #'
 #' This oject contains the sd, rotation, center, and scale for the PCs calculated with
 #' \code{prcomp} on an enemsble of Hector concentration driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
-#' along with some meta data information about the Hector data that went into the runs
+#' along with metadata about the Hector data that went into the runs.
 #'
 #' @format A list with 5 elements
 #' \describe{
-#' \item{sdev}{A vector of the standard deviations of the principal componets.}
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
 #' \item{rotation}{A matrix of the variable loadings.}
 #' \item{center}{The centering used in the PCA.}
 #' \item{scale}{The scale used in the PCA.}
 #' \item{meta_data}{a list of meta data information about the data that went into the PCA}
+#' }
+#' The metadata element is itself a list with four elements:
+#' \describe{
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
 #' \item{variable}{The variables that describe the values used in the PCA ("tas").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
-'PC_hector_concen-rcp26_concen-rcp45_concen-rcp60_concen-rcp85'
+'pc_conc'
 
-#' Hector emission driven principal compoents (PCs) with constant carbon cycle paramters
+#' Hector emission driven principal compoents (PCs)
 #'
 #' This oject contains the sd, rotation, center, and scale for the PCs calculated with
-#' \code{prcomp} on an enemsble of Hector emission driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' \code{prcomp} on an enemsble of Hector runs driven with RCP 8.5 emissions,
 #' along with some meta data information about the Hector data that went into the runs.
 #'
 #' @format A list with 5 elements
 #' \describe{
-#' \item{sdev}{A vector of the standard deviations of the principal componets.}
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
 #' \item{rotation}{A matrix of the variable loadings.}
 #' \item{center}{The centering used in the PCA.}
 #' \item{scale}{The scale used in the PCA.}
 #' \item{meta_data}{a list of meta data information about the data that went into the PCA}
-#' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas").}
-#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
-#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
-#' @family PC hector
-'PC_hector_emissConstantC-esmrcp26_emissConstantC-esmrcp45_emissConstantC-esmrcp60_emissConstantC-esmrcp85'
-
-#' Hector emission driven principal compoents (PCs) with varying carbon cycle paramters
-#'
-#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
-#' \code{prcomp} on an enemsble of Hector emission driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
-#' along with some meta data information about the Hector data that went into the runs.
-#'
-#' @format A list with 5 elements
+#' The metadata element is itself a list with four elements:
 #' \describe{
-#' \item{sdev}{A vector of the standard deviations of the principal componets.}
-#' \item{rotation}{A matrix of the variable loadings.}
-#' \item{center}{The centering used in the PCA.}
-#' \item{scale}{The scale used in the PCA.}
-#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas" and "co2").}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas"
+#' and "co2").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
-'PC_hector_emissCC-esmrcp26_emissCC-esmrcp45_emissCC-esmrcp60_emissCC-esmrcp85'
+'pc_emiss'
 
 
 
