@@ -80,3 +80,83 @@ run_hector_samples <- function(allsamps, nsamp, hcores, times, pnames, vars)
             }
 
 }
+
+
+#' Make plots of principal components
+#'
+#' @param pc Principal components structure
+#' @param nc Number of components to plot.  Default is to plot up to
+#' \code{vartot} total variance.
+#' @param vartot Cumulative variance cutoff for determining how many components
+#' to plot.  Ignored if \code{nc} is specified.
+#' @param rscl If true, reverse the rotation and scale factors applied by the
+#' PCA. This will have the effect of displaying the variables in their natural
+#' units.
+#' @param swap_layout Swap the layout of the facet grid from the default.
+#' Ignored if \code{rscl} is true, since then we need to have variables in
+#' columns to make the scales come out right.
+#' @return ggplot plot structure.
+#' @export
+plot_pc <- function(pc, nc=NA, vartot=0.995, rscl=FALSE, swap_layout=FALSE)
+{
+    if(is.na(nc)) {
+        pcvar <- pc$sdev^2
+        cumvar <- cumsum(pcvar)/sum(pcvar)
+        nc <- min(which(cumvar >= vartot))
+    }
+
+    r <- pc$rotation[ , 1:nc]
+    if(rscl) {
+        r <- r * pc$scale
+        r <- r + pc$center
+        facet_scale='free_y'
+        facet_layout <- var~expt
+    }
+    else {
+        facet_scale='fixed'
+        if(swap_layout) {
+            facet_layout <- expt~var
+        }
+        else {
+            facet_layout <- var~expt
+        }
+    }
+
+    df <- as.data.frame(r)
+    df$key <- row.names(r)
+
+    df <- tidyr::extract(df, key, c('expt', 'var', 'year'),
+                         '([:alnum:]+)\\.([:alnum:]+)\\.([:alnum:]+)')
+    df$year <- as.integer(df$year)
+
+    pltdata <- tidyr::gather(df, 'PC', 'value', -expt, -var, -year)
+
+    ggplot2::ggplot(data=pltdata, ggplot2::aes(x=year, y=value, color=PC)) +
+      ggplot2::geom_line() + ggplot2::facet_grid(facet_layout, scales=facet_scale) +
+      ggthemes::theme_solarized_2(light=FALSE) +
+      ggthemes::scale_color_solarized()
+}
+
+
+#' Plot the fraction of variance captured by the PCs
+#'
+#' @param pca A pca structure
+#' @param nc Number of components to plot (default is all)
+#' @return  ggplot dot plot of the fraction of the variance accounted for by
+#' each PC
+#' @export
+plot_varfrac <- function(pca, nc=NA)
+{
+    pcvar <- pc$sdev^2
+    cumvar <- cumsum(pcvar)/sum(pcvar)
+
+    if(!is.na(nc)) {
+        cumvar <- cumvar[1:nc]
+    }
+
+    ggplot2::ggplot(mapping=ggplot2::aes(x=seq_along(cumvar), y=cumvar)) +
+      ggplot2::geom_point(size = 1.5, col=ggthemes::solarized_pal()(1)) +
+      ggplot2::labs(y = 'Cumulative variance fraction',
+                    x = 'Number of PCs') +
+      ggthemes::theme_solarized_2(base_size=16, light=FALSE)
+}
