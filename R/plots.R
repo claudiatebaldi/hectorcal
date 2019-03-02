@@ -201,3 +201,24 @@ plot_varfrac <- function(pca_l, nc=NA, cvthresh=NA, labels=NULL)
     }
     plt
 }
+
+#' Plot the first two PC coordinates for a table of ESM projections
+#'
+#' @param pctable Data frame containing the ESM projections by model
+#' @importFrom dplyr %>%
+#' @export
+esm_pcplot <- function(pctable)
+{
+    pltdata <- dplyr::filter(pctable, PC %in% c(1,2)) %>%
+        tidyr::spread('PC','value')
+    names(pltdata) <- c('model','PC1','PC2')
+    xmid <- 0.5*(min(pltdata$PC1) + max(pltdata$PC1))
+    xrng <- 1.1*(max(pltdata$PC1) - min(pltdata$PC1))
+    xlo <- xmid - 0.5*xrng
+    xhi <- xmid + 0.5*xrng
+
+    ggplot2::ggplot(data=pltdata, ggplot2::aes(x=PC1, y=PC2, label=model)) +
+        ggplot2::geom_label() +
+        ggplot2::xlim(c(xlo,xhi)) +
+        ggthemes::theme_solarized_2(light=FALSE, base_size=14)
+}

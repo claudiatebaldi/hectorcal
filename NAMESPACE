@@ -2,6 +2,7 @@
 
 export(build_mcmc_post)
 export(calc_variance)
+export(esm_pcplot)
 export(hector_output_stats)
 export(mesa)
 export(metrosamp2coda)

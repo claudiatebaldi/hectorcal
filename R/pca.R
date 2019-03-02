@@ -46,15 +46,20 @@ project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 
     ## Filter the data to include just the required data, and put the rows into
     ## canonical order
-    ishist <- grepl('[Hh]istorical', climate_data$experiment)
     cd <- dplyr::filter(climate_data,
                         experiment %in% principal_components$meta_data$experiment,
-                        variable %in% principal_components$meta_data$variable,
-                        (ishist & year %in%
-                         principal_components$meta_data$histyear) |
-                          (!ishist & year %in%
-                           principal_components$meta_data$year)) %>%
-      dplyr::arrange(experiment, variable, year)
+                        variable %in% principal_components$meta_data$variable)
+    ishist <- grepl('[Hh]istorical', cd$experiment)
+
+    ## Handle the filtering by year separately for historical and future, since
+    ## some of the CMIP inputs have overlapping years for the two types.
+    cd <-
+        dplyr::bind_rows(
+            dplyr::filter(cd,
+                          ishist & year %in% principal_components$meta_data$histyear),
+            dplyr::filter(cd,
+                          !ishist & year %in% principal_components$meta_data$year)) %>%
+          dplyr::arrange(experiment, variable, year)
 
     assert_that(nrow(cd) == nrow(principal_components$rotation))
 
