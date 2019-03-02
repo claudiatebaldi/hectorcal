@@ -4,8 +4,8 @@
 \name{hector_emiss_ensemble}
 \alias{hector_emiss_ensemble}
 \title{Ensembles of Hector emission driven runs}
-\format{List of 5 data frames: rcp26, rcp45, rcp60, rcp85, and params.  The
-four output data frames have 6 columns:
+\format{List of 6 data frames: esmHistorical, esmrcp26, esmrcp45, esmrcp60,
+esmrcp85, and params.  The four output data frames have 6 columns:
 \describe{
 \item{runid}{Unique identifier for each run.}
 \item{variable}{Variable being reported "tas", temperatures are anomalies.}
