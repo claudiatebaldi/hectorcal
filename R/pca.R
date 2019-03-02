@@ -11,16 +11,6 @@ check_columns <- function(input, req_cols){
     }
 }
 
-#' Determine the elements that are different between two vectors.
-#'
-#' @param x a vector
-#' @param y a second vector
-#' @return a vector containing the elements that are unique to the two input vectors
-difference_between <- function(x, y){
-
-    c(setdiff(x, y), setdiff(y, x))
-
-}
 
 
 #' Project a data frame of climate data on to a principal componet basis
@@ -56,10 +46,14 @@ project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 
     ## Filter the data to include just the required data, and put the rows into
     ## canonical order
+    ishist <- grepl('[Hh]istorical', climate_data$experiment)
     cd <- dplyr::filter(climate_data,
                         experiment %in% principal_components$meta_data$experiment,
                         variable %in% principal_components$meta_data$variable,
-                        year %in% principal_components$meta_data$year) %>%
+                        (ishist & year %in%
+                         principal_components$meta_data$histyear) |
+                          (!ishist & year %in%
+                           principal_components$meta_data$year)) %>%
       dplyr::arrange(experiment, variable, year)
 
     assert_that(nrow(cd) == nrow(principal_components$rotation))

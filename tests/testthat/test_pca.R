@@ -1,5 +1,6 @@
 context('PCA functions')
 
+library(magrittr)
 
 test_that('Helper functions work', {
 
@@ -18,12 +19,13 @@ test_that('project_climate works', {
     # Load the test climate data and principal components.
     test_climdata <- readRDS('test_climdata.rds')
     test_pca <- readRDS('test_pca.rds')
+    ncomp <- ncol(test_pca$rotation)
 
-    p1 <- rep(0, 50); p1[1] <- 1        # expected result for runid==1
-    p2 <- rep(0, 50); p2[1] <- 1; p2[2] <- 0.5 # expected result for runid==2
-    p3 <- rep(NA, 50)                          # runid==3 is real model output,
-                                        # so we don't have an expected projection
-                                        # for it.
+    p1 <- rep(0, ncomp); p1[1] <- 1        # expected result for runid==1
+    p2 <- rep(0, ncomp); p2[1] <- 1; p2[2] <- 0.5 # expected result for runid==2
+    p3 <- rep(NA, ncomp)               # runid==3 is real model output,
+                                       # so we don't have an expected projection
+                                       # for it.
     expected_proj <- list(p1, p2, p3)
     for(i in 1:3) {
         ## Pull out data from a single run to use as the input climate data.
@@ -41,8 +43,11 @@ test_that('project_climate works', {
 
         ## We expect that the reconstructed climate data and the input climare
         ## data are equal to one another.  However, we need to ensure that the
-        ## input data is in canonical order
-        cd <- dplyr::arrange(climate_data, experiment, variable, year)
+        ## input data is in canonical order.  We also need to filter out rows
+        ## prior to the start year
+        cd <- dplyr::arrange(climate_data, experiment, variable, year) %>%
+            dplyr::filter(year >= min(test_pca$meta_data$histyear),
+                          year <= max(test_pca$meta_data$year))
         expect_equal(recon_climate$value, cd$value,
                      info=paste("Reconstructed climate not equal to input for runid=",i),
                      tolerance=1e-3)    # The round-trip procedure can induce a
@@ -52,7 +57,7 @@ test_that('project_climate works', {
     ## Verify that the row-vector version of project_climate works
     cd <- test_climdata[test_climdata$runid==1, ]
     p <- project_climate(cd, test_pca)
-    expect_equal(dim(p), c(1, 50))
+    expect_equal(dim(p), c(1, ncomp))
     expect_equal(as.vector(p), p1)
     rclim <- reconstruct_climate(p, test_pca)
     expect_equal(rclim$value, cd$value)
