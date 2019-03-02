@@ -163,5 +163,28 @@
 'pc_emiss'
 
 
+#' Principal component projection coefficients for ESM outputs
+#'
+#' These tables give the projection coefficients onto the hector principal
+#' components for each of the CMIP5 models that provided sufficient data to make
+#' the projection.  The concentration-driven runs are projected onto
+#' \code{\link{pc_conc}}, and the emissions-driven runs are projected onto
+#' \code{\link{pc_emiss}}.
+#'
+#' @format A data frame with 3 columns
+#' \describe{
+#' \item{model}{Name of the model.}
+#' \item{PC}{Index of the principal component.}
+#' \item{value}{Projection coefficient.}
+#' }
+#' @family comparison data
+#' @name esm_pcdata
+NULL
 
+#' cmip_conc_pcproj: Projection coefficients for concentration-driven ESMs
+#' @rdname esm_pcdata
+'cmip_conc_pcproj'
 
+#' cmip_emiss_pcproj: Projection coefficients for emissions-driven ESMs
+#' @rdname esm_pcdata
+'cmip_emiss_pcproj'

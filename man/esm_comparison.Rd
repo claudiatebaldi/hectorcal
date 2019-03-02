@@ -39,7 +39,8 @@ influence on how the statistics turn out.
 }
 
 \seealso{
-Other comparison data: \code{\link{cmip_individual}}
+Other comparison data: \code{\link{cmip_individual}},
+  \code{\link{esm_pcdata}}
 }
 \concept{comparison data}
 \keyword{datasets}
