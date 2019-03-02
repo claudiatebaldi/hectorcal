@@ -4,12 +4,17 @@
 \alias{plot_varfrac}
 \title{Plot the fraction of variance captured by the PCs}
 \usage{
-plot_varfrac(pca, nc = NA)
+plot_varfrac(pca_l, nc = NA, cvthresh = NA, labels = NULL)
 }
 \arguments{
-\item{pca}{A pca structure}
+\item{pca_l}{A list of pca structures}
 
 \item{nc}{Number of components to plot (default is all)}
+
+\item{cvthresh}{Cumulative variance threshold to mark with a horizontal
+line.  If omitted, no line will be drawn.}
+
+\item{labels}{Labels for the principal components being plotted}
 }
 \value{
 ggplot dot plot of the fraction of the variance accounted for by
