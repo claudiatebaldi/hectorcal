@@ -24,7 +24,7 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
     ## create a mean output dataset
     meanout <-
         dplyr::group_by(sampout, variable, year) %>%
-          summarise(value = mean(value))
+          dplyr::summarise(value = mean(value))
 
     ggplot2::ggplot(data=sampout, ggplot2::aes(x=year, y=value)) +
       ggplot2::geom_line(ggplot2::aes(group=scenario), color='blue', alpha=alpha) +

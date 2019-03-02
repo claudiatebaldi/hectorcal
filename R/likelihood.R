@@ -116,10 +116,10 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
 
     ## Check to see if user has requested the lognormal prior
     if(use_lnorm_ecs) {
-        s_prior <- function(s) {dlnorm(s, log(ecsmu), log(ecssig), log=TRUE)}
+        s_prior <- function(s) {stats::dlnorm(s, log(ecsmu), log(ecssig), log=TRUE)}
     }
     else{
-        s_prior <- function(s) {dnorm(s, ecsmu, ecssig, log=TRUE)}
+        s_prior <- function(s) {stats::dnorm(s, ecsmu, ecssig, log=TRUE)}
     }
 
     ## truncated normal functions for constrained params
@@ -132,13 +132,13 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
     {
         ## Get the normally distributed priors for the parameters that are
         ## always present.
-        lp <- sum(dnorm(p[c(iaero, ikappa)],
+        lp <- sum(stats::dnorm(p[c(iaero, ikappa)],
                         c(aeromu, kappamu),
                         c(aerosig, kappasig),
                         log=TRUE),
                   s_prior(p[iecs]))
         if(use_c_cycle) {
-            lp <- lp + sum(dnorm(p[ic0],
+            lp <- lp + sum(stats::dnorm(p[ic0],
                                  c0mu,
                                  c0sig,
                                  log=TRUE),
@@ -156,7 +156,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
                 sigvals <- p[isigt]
                 sclvals <- sigtscale
             }
-            lp <- lp + sum(ifelse(sigvals<0, -Inf, dcauchy(sigvals, 0, sclvals, log=TRUE)))
+            lp <- lp + sum(ifelse(sigvals<0, -Inf, stats::dcauchy(sigvals, 0, sclvals, log=TRUE)))
         }
         ## return lp value
         lp
@@ -189,7 +189,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
 
         htemps <- hdata[hdata$variable==hector::GLOBAL_TEMP(), 'value']
         if(cal_mean) {
-            ll <- sum(dnorm(htemps, mean=esmtemps$cmean, sd=p[isigt], log=TRUE))
+            ll <- sum(stats::dnorm(htemps, mean=esmtemps$cmean, sd=p[isigt], log=TRUE))
         }
         else {
             ll <- sum(log(mesa(htemps, esmtemps[[lowcol]], esmtemps[[hicol]], 0.4)))
@@ -197,7 +197,7 @@ build_mcmc_post <- function(comp_data, inifile, years=seq(2010, 2100, 20),
         if(use_c_cycle) {
             hco2 <- hdata[hdata$variable==hector::ATMOSPHERIC_CO2(), 'value']
             if(cal_mean) {
-                ll <- ll + sum(dnorm(hco2, esmco2$cmean, sd=p[isigco2], log=TRUE))
+                ll <- ll + sum(stats::dnorm(hco2, esmco2$cmean, sd=p[isigco2], log=TRUE))
             }
             else {
                 ll <- ll + sum(log(mesa(hco2, esmco2[[lowcol]], esmco2[[hicol]], smooth_co2)))

@@ -1,21 +1,24 @@
 Package: hectorcal
 Title: Support code for the Hector calibration project
-Version: 0.0.0.9000
+Version: 0.1.0.9000
 Authors@R: c(person("Robert", "Link", email="robert.link@pnnl.gov", role = "aut"),
           person("Kalyn", "Dorheim", 
           email = "kalyn.dorheim@pnnl.gov", 
           role = c("cre", "aut"), comment = c(ORCID = "0000-0001-8093-8397")))
-Description: Support code for the Hector calibration project
+Description: Support code for the Hector calibration project.
 Depends: R (>= 3.3.3)
 Imports:
     hector (>= 0.2.0),
+    dplyr (>= 0.7),
+    ggthemes (>= 3.4),
+    ggplot2 (>= 2.2.1),
+    assertthat (>= 0.2),
+    foreach (>= 1.4.3),
+    tidyr (>= 0.7.2),
+    coda (>= 0.19),
 Suggests:
     metrosamp (>= 0.1.0),
     testthat,
-    ggplot2,
-    ggthemes,
-    foreach,
-    dplyr
 License: GPL-2
 Encoding: UTF-8
 LazyData: true

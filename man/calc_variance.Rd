@@ -10,9 +10,11 @@ calc_variance(pca)
 \item{pca}{object returned by \code{\link[stats]{prcomp}}}
 }
 \value{
-Vector of of the portion of variance expalained by the PCs, should be
-plotted with using \code{\link{plot_var}} function
+Vector of of the portion of variance expalained by the PCs.
 }
 \description{
 Calculate the fraction of the variance of PCA restlts
+}
+\seealso{
+\code{\link{plot_varfrac}}
 }
