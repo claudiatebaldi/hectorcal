@@ -13,6 +13,12 @@ ensemble_size <- 1000
 read_data <- function(filename) {
     d <- readRDS(filename)
     row.names(d) <- NULL
+    dfacts <- sapply(d, is.factor)
+    if(any(dfacts)) {
+        for(i in which(dfacts)) {
+            d[[i]] <- as.character(d[[i]])
+        }
+    }
     d
 }
 
@@ -98,6 +104,28 @@ add_experiment <- function(d, regex, grp=2)
     d
 }
 
+## Separate the historical years from the future years.  Since we will often
+## have multiple scenario runs we also check to see that the historical pieces
+## are all equal.
+## dl: list of data frames for all scenarios
+## scentag: what to call the scenario created from the historical runs
+separate_historical <- function(dl, scentag)
+{
+    hist_l <- lapply(dl, function(d) {dplyr::filter(d, year < 2006)})
+    dl <- lapply(dl, function(d) {dplyr::filter(d, year >= 2006)})
+
+    if(length(hist_l) > 1) {
+        hc <- dplyr::select(hist_l[[1]], -scenario)
+        for(h in hist_l[-1]) {
+            assert_that(isTRUE(all.equal(dplyr::select(h, -scenario), hc, tolerance=1e-4)))
+        }
+    }
+
+    hist <- hist_l[[1]]
+    hist$scenario <- scentag
+
+    c(dl, list(hist))
+}
 
 ### Start with the concentration-driven runs
 concpattern <- '^concen-RCP'
@@ -113,8 +141,10 @@ for(p in params_conc_l[-1]) {
 data_conc_l <- lapply(concdata_full, strip_params, params=tempparams)
 concvalid <- valid_runs(data_conc_l)
 assert_that(length(concvalid) >= ensemble_size)
-data_conc_l <- filter_runs(data_conc_l, ensemble_size, concvalid) %>%
-  lapply(add_experiment, regex='concen-(rcp[0-9]+)')
+data_conc_l <- filter_runs(data_conc_l, ensemble_size, concvalid)
+data_conc_l <-
+    separate_historical(data_conc_l, 'concen-historical') %>%
+      lapply(add_experiment, regex='concen-([A-Za-z0-9]+)')
 assert_that(all(sapply(data_conc_l, isgood, n=ensemble_size)))
 
 ## Write the output.  Use the scenario as the name
@@ -144,8 +174,11 @@ for(p in params_emissconst_l[-1]) {
 data_emissconst_l <- lapply(emissconstdata_full, strip_params, params=emissconstparams)
 emissconstvalid <- valid_runs(data_emissconst_l)
 assert_that(length(emissconstvalid) >= ensemble_size)
-data_emissconst_l <- filter_runs(data_emissconst_l, ensemble_size, emissconstvalid) %>%
-  lapply(add_experiment, regex='emissConstantC-(esmrcp[0-9]+)')
+data_emissconst_l <- filter_runs(data_emissconst_l, ensemble_size,
+                                 emissconstvalid)
+data_emissconst_l <-
+    separate_historical(data_emissconst_l, 'emissConstantC-esmHistorical') %>%
+      lapply(add_experiment, regex='emissConstantC-([A-Za-z0-9]+)')
 assert_that(all(sapply(data_emissconst_l, isgood, n=ensemble_size)))
 
 ## Write the output.  Use the scenario as the name
@@ -173,8 +206,10 @@ for(p in params_emiss_l[-1]) {
 data_emiss_l <- lapply(emissdata_full, strip_params, params=emissparams)
 emissvalid <- valid_runs(data_emiss_l)
 assert_that(length(emissvalid) >= ensemble_size)
-data_emiss_l <- filter_runs(data_emiss_l, ensemble_size, emissvalid) %>%
-  lapply(add_experiment, regex='emissCC-(esmrcp[0-9]+)')
+data_emiss_l <- filter_runs(data_emiss_l, ensemble_size, emissvalid)
+data_emiss_l <-
+    separate_historical(data_emiss_l, 'emissCC-esmHistorical') %>%
+      lapply(add_experiment, regex='emissCC-([A-Za-z0-9]+)')
 assert_that(all(sapply(data_emiss_l, isgood, n=ensemble_size)))
 
 ## Write the output.  Use the corrected scenario as the name

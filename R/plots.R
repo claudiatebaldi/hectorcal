@@ -24,7 +24,7 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
     ## create a mean output dataset
     meanout <-
         dplyr::group_by(sampout, variable, year) %>%
-          summarise(value = mean(value))
+          dplyr::summarise(value = mean(value))
 
     ggplot2::ggplot(data=sampout, ggplot2::aes(x=year, y=value)) +
       ggplot2::geom_line(ggplot2::aes(group=scenario), color='blue', alpha=alpha) +
@@ -105,22 +105,29 @@ plot_pc <- function(pc, nc=NA, vartot=0.995, rscl=FALSE, swap_layout=FALSE)
         nc <- min(which(cumvar >= vartot))
     }
 
-    r <- pc$rotation[ , 1:nc]
+    r <- pc$rotation[ , 1:nc, drop=FALSE]
+
+    ## swap sign of PCs so that final value is always positive.
+    rt <- t(r)
+    signs <- sign(rt[ , nrow(r)])       # signs of the last value of each PC
+    r <- t(rt*signs)
+
     if(rscl) {
         r <- r * pc$scale
         r <- r + pc$center
-        facet_scale='free_y'
-        facet_layout <- var~expt
+        facet_scale='free'
     }
     else {
-        facet_scale='fixed'
-        if(swap_layout) {
-            facet_layout <- expt~var
-        }
-        else {
-            facet_layout <- var~expt
-        }
+        facet_scale='free_x'
     }
+
+    if(swap_layout) {
+        facet_layout <- ~var+expt
+    }
+    else {
+        facet_layout <- ~expt+var
+    }
+
 
     df <- as.data.frame(r)
     df$key <- row.names(r)
@@ -132,31 +139,86 @@ plot_pc <- function(pc, nc=NA, vartot=0.995, rscl=FALSE, swap_layout=FALSE)
     pltdata <- tidyr::gather(df, 'PC', 'value', -expt, -var, -year)
 
     ggplot2::ggplot(data=pltdata, ggplot2::aes(x=year, y=value, color=PC)) +
-      ggplot2::geom_line() + ggplot2::facet_grid(facet_layout, scales=facet_scale) +
-      ggthemes::theme_solarized_2(light=FALSE) +
+      ggplot2::geom_line() + ggplot2::facet_wrap(facet_layout, scales=facet_scale) +
+      ggthemes::theme_solarized_2(base_size=16, light=FALSE) +
       ggthemes::scale_color_solarized()
 }
 
 
 #' Plot the fraction of variance captured by the PCs
 #'
-#' @param pca A pca structure
+#' @param pca_l A list of pca structures
 #' @param nc Number of components to plot (default is all)
+#' @param cvthresh Cumulative variance threshold to mark with a horizontal
+#' line.  If omitted, no line will be drawn.
+#' @param labels Labels for the principal components being plotted
 #' @return  ggplot dot plot of the fraction of the variance accounted for by
 #' each PC
 #' @export
-plot_varfrac <- function(pca, nc=NA)
+plot_varfrac <- function(pca_l, nc=NA, cvthresh=NA, labels=NULL)
 {
-    pcvar <- pc$sdev^2
-    cumvar <- cumsum(pcvar)/sum(pcvar)
-
-    if(!is.na(nc)) {
-        cumvar <- cumvar[1:nc]
+    if(inherits(pca_l, 'prcomp')) {
+        ## user passed a bare prcomp strucutre
+        pca_l <- list(pca_l)
     }
 
-    ggplot2::ggplot(mapping=ggplot2::aes(x=seq_along(cumvar), y=cumvar)) +
-      ggplot2::geom_point(size = 1.5, col=ggthemes::solarized_pal()(1)) +
+    if(is.null(labels)) {
+        labels <-
+            if(is.null(names(pca_l))) {
+                as.character(seq_along(pca_l))
+            }
+            else {
+                names(pca_l)
+            }
+    }
+
+    pltdata <- dplyr::bind_rows(
+        lapply(seq_along(pca_l),
+               function(i) {
+                   pca <- pca_l[[i]]
+                   pcvar <- pca$sdev^2
+                   cumvar <- cumsum(pcvar)/sum(pcvar)
+
+                   if(!is.na(nc)) {
+                       cumvar <- cumvar[1:nc]
+                   }
+
+                   data.frame(npc=seq_along(cumvar), cv=cumvar,
+                              pc_set=labels[i], stringsAsFactors=FALSE)
+               }))
+
+    plt <-
+      ggplot2::ggplot(data=pltdata, mapping=ggplot2::aes(x=npc, y=cv, col=pc_set)) +
+      ggplot2::geom_point(size = 1.5) +
       ggplot2::labs(y = 'Cumulative variance fraction',
                     x = 'Number of PCs') +
-      ggthemes::theme_solarized_2(base_size=16, light=FALSE)
+      ggthemes::theme_solarized_2(base_size=16, light=FALSE) +
+      ggthemes::scale_color_solarized()
+
+    if(!is.na(cvthresh)) {
+        plt <- plt + ggplot2::geom_hline(yintercept=cvthresh, color='lightgrey',
+                                         linetype=2)
+    }
+    plt
+}
+
+#' Plot the first two PC coordinates for a table of ESM projections
+#'
+#' @param pctable Data frame containing the ESM projections by model
+#' @importFrom dplyr %>%
+#' @export
+esm_pcplot <- function(pctable)
+{
+    pltdata <- dplyr::filter(pctable, PC %in% c(1,2)) %>%
+        tidyr::spread('PC','value')
+    names(pltdata) <- c('model','PC1','PC2')
+    xmid <- 0.5*(min(pltdata$PC1) + max(pltdata$PC1))
+    xrng <- 1.1*(max(pltdata$PC1) - min(pltdata$PC1))
+    xlo <- xmid - 0.5*xrng
+    xhi <- xmid + 0.5*xrng
+
+    ggplot2::ggplot(data=pltdata, ggplot2::aes(x=PC1, y=PC2, label=model)) +
+        ggplot2::geom_label() +
+        ggplot2::xlim(c(xlo,xhi)) +
+        ggthemes::theme_solarized_2(light=FALSE, base_size=14)
 }
