@@ -86,7 +86,7 @@ isgood <- function(d, n)
 }
 
 ## Add the experiment column to a dataset.  Also fix variable names
-##   (Tgav -> tas, atmos_c -> co2)
+##   (Tgav -> tas, Ca -> co2)
 ## d: data frame with runs for an experiment
 ## regex: Regular expression for extracting the experiment from the scenario
 ##        name.
@@ -100,7 +100,7 @@ add_experiment <- function(d, regex, grp=2)
     d$experiment <- stringr::str_match(scen, regex)[1,grp]
     d$variable <- as.character(d$variable)
     d$variable <- dplyr::if_else(d$variable=='Tgav', 'tas',
-                                 dplyr::if_else(d$variable=='atmos_c', 'co2', d$variable))
+                                 dplyr::if_else(d$variable=='Ca', 'co2', d$variable))
     d
 }
 
@@ -192,7 +192,7 @@ assert_that(!any(is.na(dplyr::left_join(data_emissconst_l[[1]], params_emisscons
 saveRDS(params_emissconst, file.path(outdir, 'params-emissConstantC.rds'), compress='xz')
 
 
-### emissions-driven runs, carbon cycle parameters constant.
+### emissions-driven runs, carbon cycle parameters varied
 emisspattern <- '^emissCC-RCP'
 emissfiles <- list.files(indir, emisspattern, full.names=TRUE)
 emissparams <- c('S', 'alpha', 'diff', 'C0', 'q10_rh', 'beta')
