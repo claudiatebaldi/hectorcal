@@ -201,4 +201,158 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param){
 }
 
 
+#' Emulate a single ESM by calibrating Hector to ESM output data.
+#'
+#' @param inifiles A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.
+#' @param hector_names A vector of the Hector core names, should reflect experiment names in the esm CMIP comparion data.
+#' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
+#' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
+#' @param initial_param A named vector of inital paramters to be optimized over.
+#' @param maxit The max number of itterations for optim, default set to 500.
+#' @return An object returned by \code{optim}
+#' @export
+
+singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500){
+
+    # Set up the Hector cores.
+    cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
+
+    # Make the function that will calculate the mean squared error between Hector output and the esm comparison data,
+    # this function will be minimized by optim.
+    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, param = initial_param)
+
+    # Use optim to minimize the MSE between Hector and ESM output data
+    stats::optim(par = initial_param, fn = fn, control = list('maxit' = maxit))
+
+}
+
+#' Emulate a single ESM by calibrating Hector to ESM output data and return diagnostic materials.
+#'
+#' Calibrate Hector so that is emulates a single ESM. Calcaulte the mean squared error between the calibrated Hector and the
+#' ESM comparison data, plot the Hector output vs the ESM comparison data, and a plot of the residuals.
+#'
+#' @param inifiles A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.
+#' @param hector_names A vector of the Hector core names, should reflect experiment names in the esm CMIP comparion data.
+#' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
+#' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
+#' @param initial_param A named vector of inital paramters to be optimized over.
+#' @param maxit The max number of itterations for optim, default set to 500.
+#' @return A list containing the following elements, copmarison_plot a plot comparing Hector and ESM output data, residual_plot a plot comparing the
+#' normalized residuals, MSE a data frame of the mean squared error for each experiment and variable optim minimizes the sum of the MSE values, and
+#' optim_rslt is the object returned by \code{optim}.
+#' @export
+
+singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500){
+
+    # Make an empty list to return the output in.
+    output <- list()
+
+    # Parse out information from the ESM comparison data. This will be used to extract data from the Hector cores.
+    yrs <- unique(esm_data$year)
+    var <- unique(esm_data$variable)
+    var <- ifelse(var == 'tas', hector::GLOBAL_TEMP(), hector::ATMOSPHERIC_CO2()) # Rename to Hector strings.
+    esm_model_name <- unique(esm_data$model)                                      # Save the esm model name for latter.
+
+
+    # Get the best parameter fit for Hector and the ESM.
+    calibration_rslts <- singleESM_calibration(inifiles = inifiles, hector_names = hector_names, esm_data = esm_data,
+                                               normalize = normalize, initial_param = initial_param, maxit = maxit)
+
+    if(calibration_rslts$convergence == 0){
+
+    # Make a new set of Hector cores that will be parameterized with the results returned from singleESM_calibration.
+    cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
+
+    # Make the function that will be used to reset the Hector parameters.
+    reset_hector_cores <- make_parameterize_cores(calibration_rslts$par)
+
+    # Run all of the Hector cores with the new parameters and extract results.
+    lapply(cores, function(x){
+
+        # Reset the Hector cores.
+        reset_hector_cores(core = x, param = calibration_rslts$par)
+
+        # Run Hector.
+        hector::run(core = x, runtodate = max(yrs))
+
+        # Extract the results.
+        hector::fetchvars(core = x, dates = yrs, vars = var) %>%
+            dplyr::mutate(variable = if_else(variable == hector::GLOBAL_TEMP(), 'tas', 'co2'))
+
+         }) %>%
+        dplyr::bind_rows() %>%
+        dplyr::rename(experiment = scenario,
+                      hector = value) ->
+        hector_output
+
+    # Combine the Hector output and esm comparion data into a single data frame.
+    esm_data %>%
+        dplyr::select(esm = value, experiment, variable, year) %>%
+        dplyr::left_join(hector_output, by = c("experiment", "variable", "year")) %>%
+        dplyr::mutate(variable = paste0(variable, ' ', units)) ->
+        esm_hector_df
+
+    # Make a caption for the plots out the parameter values.
+    param_caption <- paste(paste0(names(calibration_rslts$par), ' = ', signif(calibration_rslts$par, digits = 4)), collapse = ', ')
+
+    # Compare the Hector and ESM output data.
+    esm_hector_df %>%
+        tidyr::gather(model, value, hector, esm) %>%
+        dplyr::mutate(model = dplyr::if_else(model == 'hector', model, esm_model_name)) %>%
+        ggplot(aes(year, value, color = model, linetype = experiment)) +
+        geom_line() +
+        facet_wrap('variable', scales = 'free') +
+        labs(title = paste0(esm_model_name, '  vs. Hector Output'),
+             caption = param_caption,
+             y = NULL,
+             x = 'Year') +
+        theme_bw() ->
+        output[['comparison_plot']]
+
+    # Calculate the residuals
+    esm_hector_df %>%
+        dplyr::mutate(var1 = substr(variable, 1, 3)) %>%
+        dplyr::mutate(index = paste0(experiment, '.', var1, '.', year)) %>%
+        dplyr::left_join(tibble::tibble(index = names(normalize$scale),
+                                        scale = normalize$scale,
+                                        center = normalize$center), by = 'index') %>%
+        dplyr::mutate(esm_norm = (esm - center) / scale,
+                      hec_norm = (hector - center) / scale,
+                      diff = hec_norm - esm_norm) ->
+        esm_hector_df
+
+    # plot the residuals.
+    ggplot(data = esm_hector_df) +
+        geom_point(aes(year, diff, color = experiment)) +
+        facet_wrap('variable', scales = 'free') +
+        labs(x = 'Year',
+             y = paste0('Difference Between Normalized Hector & ', esm_model_name),
+             caption = param_caption,
+             title = paste0('Residuals for Hector Calibrated to ', esm_model_name)) +
+        theme_bw()->
+        output[['residual_plot']]
+
+    # Make a data frame of the MSE for each experiment and variable.
+    esm_hector_df %>%
+        dplyr::group_by(experiment, variable) %>%
+        dplyr::summarise(MSE = mean(diff^2)) %>%
+        dplyr::ungroup() ->
+        output[['MSE']]
+
+    } else {
+
+        output[['message']] <- 'did not converge'
+
+    }
+
+    # Add the calibration results to the output list.
+    output[['optim_rslt']] <- calibration_rslts
+
+    # Return the output.
+    return(output)
+
+}
+
+
+
 
