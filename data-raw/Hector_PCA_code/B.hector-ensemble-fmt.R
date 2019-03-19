@@ -130,7 +130,7 @@ separate_historical <- function(dl, scentag)
 ### Start with the concentration-driven runs
 concpattern <- '^concen-RCP'
 concrunfiles <- list.files(indir, concpattern, full.names=TRUE)
-tempparams <- c('S', 'alpha', 'diff')
+tempparams <- c('S', 'alpha', 'volscl', 'diff')
 
 concdata_full <- lapply(concrunfiles, read_data)
 params_conc_l <- lapply(concdata_full, harvest_params, params=tempparams)
@@ -195,7 +195,7 @@ saveRDS(params_emissconst, file.path(outdir, 'params-emissConstantC.rds'), compr
 ### emissions-driven runs, carbon cycle parameters varied
 emisspattern <- '^emissCC-RCP'
 emissfiles <- list.files(indir, emisspattern, full.names=TRUE)
-emissparams <- c('S', 'alpha', 'diff', 'C0', 'q10_rh', 'beta')
+emissparams <- c('S', 'alpha', 'volscl', 'diff', 'C0', 'q10_rh', 'beta')
 
 emissdata_full <- lapply(emissfiles, read_data)
 params_emiss_l <- lapply(emissdata_full, harvest_params, params=emissparams)

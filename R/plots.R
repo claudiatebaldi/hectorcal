@@ -283,7 +283,7 @@ pc_rotplot <- function(pclimits, pcstruct, yrx=2006, yry=2100, var='tas', expt='
     ## Display names of the levels for facets
     levelnames <- c('zhi', 'med', 'low')
     ## Rejigger the names for linetype so that "medium" gets the solid line.  I
-    ## should really figure out how
+    ## should really figure out how to do this the right way.
     ltylevelnames <- c('zhi', 'amed', 'low')
 
     ## Discard any tibble attributes that pclimits might have
