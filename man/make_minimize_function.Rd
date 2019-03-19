@@ -4,7 +4,8 @@
 \alias{make_minimize_function}
 \title{Make the function to minimize}
 \usage{
-make_minimize_function(hector_cores, esm_data, normalize, param)
+make_minimize_function(hector_cores, esm_data, normalize, param,
+  n = NULL)
 }
 \arguments{
 \item{hector_cores}{A list of Hector cores that will be used.}
@@ -14,6 +15,8 @@ make_minimize_function(hector_cores, esm_data, normalize, param)
 \item{normalize}{A list of center and the scale values to use to noramlize the Hector and ESM output data.}
 
 \item{param}{A vector of parameter values.}
+
+\item{n}{The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}}
 }
 \value{
 A function that will calculate the mean squared error between a Hector run and ESM data.

@@ -21,47 +21,40 @@ test_that('setup_cores works', {
 
 })
 
-test_that('make_parameterize_cores throws expected errors', {
+test_that('parameterize_core throws expected errors', {
 
-    # Make sure the checks work and throw the correct error messages.
-    testthat::expect_error(make_parameterize_cores(param = 1:5), 'param must be a vector of 3 or 6 parameters.')
-    testthat::expect_error(make_parameterize_cores(param = 1:3), 'the param vector must be named.')
+    # If params is an unamed vector.
+    testthat::expect_error(parameterize_core(params = 1:3, core = out[[1]]), 'params must be named.')
 
-    clim_param_bad <- 1:3
-    names(clim_param_bad) <- rev(c(ECS(), AERO_SCALE(), DIFFUSIVITY()))
-    testthat::expect_error(make_parameterize_cores(param = clim_param_bad), 'param vector elements must be in the following order S, alpha, diff')
-
-    carbon_param_bad <- 1:6
-    names(carbon_param_bad) <- rev(c(ECS(), AERO_SCALE(), DIFFUSIVITY(), BETA(), Q10_RH(), PREINDUSTRIAL_CO2()))
-    testthat::expect_error(make_parameterize_cores(param = carbon_param_bad), 'param vector elements must be in the following order S, alpha, diff, beta, q10_rh, C0')
+    # If params contains a bad hector parameter.
+    params <- 1:3
+    names(params) <- c(hector::ECS(), 'fake', hector::AERO_SCALE())
+    testthat::expect_warning(testthat::expect_error(parameterize_core(params = params, core = out[[1]]), 'Bogus parameter names'), 'Units entries for the following variables not found: fake')
 
 })
 
-test_that('make sure that the functions returned by make_parameterize_cores work', {
+test_that('make sure that parameterize_core works', {
 
-    # Check to see that the climate parameters are reset correctly.
-    climate_param        <- seq(from = 5, by = 5, length.out = 3)
-    names(climate_param) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY())
-    reset_params         <- make_parameterize_cores(param = climate_param)
-
-    lapply(out, reset_params, param = climate_param)
+    # Check to see that the temperature parameters are reset correctly.
+    temp_param        <- seq(from = 5, by = 5, length.out = 3)
+    names(temp_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY())
+    lapply(X = out, FUN = parameterize_core, params = temp_param)
 
     new_cs   <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::ECS())[['value']]})
     new_aero <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::AERO_SCALE())[['value']]})
     new_dif  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::DIFFUSIVITY())[['value']]})
 
-    testthat::expect(any(new_cs == climate_param[[hector::ECS()]]))
-    testthat::expect(any(new_aero == climate_param[[hector::AERO_SCALE()]]))
-    testthat::expect(any(new_dif == climate_param[[hector::DIFFUSIVITY()]]))
+    testthat::expect(all(new_cs == temp_param[[hector::ECS()]]))
+    testthat::expect(all(new_aero == temp_param[[hector::AERO_SCALE()]]))
+    testthat::expect(all(new_dif == temp_param[[hector::DIFFUSIVITY()]]))
 
     # Check to make sure that the climate and the carbon parameters are reest correctly.
-    climate_carbon_param        <- seq(from = 25, by = 5, length.out = 6)
-    names(climate_carbon_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::BETA(),
+    temp_carbon_param        <- seq(from = 25, by = 5, length.out = 6)
+    names(temp_carbon_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::BETA(),
                                      hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
 
-    reset_params <- make_parameterize_cores(param = climate_carbon_param)
 
-    lapply(out, reset_params, param = climate_carbon_param)
+    lapply(X = out, FUN = parameterize_core, params = temp_carbon_param)
 
     new_ecs  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::ECS())[['value']]})
     new_aero <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::AERO_SCALE())[['value']]})
@@ -70,12 +63,12 @@ test_that('make sure that the functions returned by make_parameterize_cores work
     new_q10  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::Q10_RH())[['value']]})
     new_pre  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::PREINDUSTRIAL_CO2())[['value']]})
 
-    testthat::expect(any(new_ecs == climate_carbon_param[[hector::ECS()]]))
-    testthat::expect(any(new_aero == climate_carbon_param[[hector::AERO_SCALE()]]))
-    testthat::expect(any(new_dif == climate_carbon_param[[hector::DIFFUSIVITY()]]))
-    testthat::expect(any(new_beta == climate_carbon_param[[hector::BETA()]]))
-    testthat::expect(any(new_q10 == climate_carbon_param[[hector::Q10_RH()]]))
-    testthat::expect(any(new_pre == climate_carbon_param[[hector::PREINDUSTRIAL_CO2()]]))
+    testthat::expect(all(new_ecs == temp_carbon_param[[hector::ECS()]]))
+    testthat::expect(all(new_aero == temp_carbon_param[[hector::AERO_SCALE()]]))
+    testthat::expect(all(new_dif == temp_carbon_param[[hector::DIFFUSIVITY()]]))
+    testthat::expect(all(new_beta == temp_carbon_param[[hector::BETA()]]))
+    testthat::expect(all(new_q10 == temp_carbon_param[[hector::Q10_RH()]]))
+    testthat::expect(all(new_pre == temp_carbon_param[[hector::PREINDUSTRIAL_CO2()]]))
 
 })
 
@@ -87,7 +80,7 @@ test_that('make_minimize_function throws errors', {
 
     # Set up the param vector.
     param <- c(3, 1, 2)
-    names(param) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY())
+    names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY())
 
     # Should only work with one model.
     testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = cmip_individual, normalize =  pc, param = param),
@@ -112,12 +105,12 @@ test_that('make_minimize_function works with clim parameters', {
     ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
     ini_f2    <- system.file('input/hector_rcp45_constrained.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
-    new_cores <- hectorcal::setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
-    other_new <- hectorcal::setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
+    other_new <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
 
 
     # Climate model data to calibrated to.
-    esm_data <- dplyr::filter(hectorcal::cmip_individual, model == 'CESM1-CAM5' & experiment %in% c('rcp45', 'rcp60') &
+    esm_data <- dplyr::filter(cmip_individual, model == 'CESM1-CAM5' & experiment %in% c('rcp45', 'rcp60') &
                                   ensemble == 'r1i1p1' & variable == 'tas' & year <= 2100)
 
     # Run Hector with the default values and format the output.
@@ -135,10 +128,10 @@ test_that('make_minimize_function works with clim parameters', {
 
     # Normalize the Hector output data.
     hector_output %>%
-        dplyr::left_join(tibble::tibble(scale = hectorcal::pc_conc$scale,
-                                        index = names( hectorcal::pc_conc$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  hectorcal::pc_conc$center,
-                                        index = names( hectorcal::pc_conc$center)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(scale = pc_conc$scale,
+                                        index = names( pc_conc$scale)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(center =  pc_conc$center,
+                                        index = names( pc_conc$center)), by = 'index') %>%
         na.omit %>%
         dplyr::rename(hector_out = value) %>%
         dplyr::mutate(hec_norm_val = (hector_out - center) / scale) %>%
@@ -148,10 +141,10 @@ test_that('make_minimize_function works with clim parameters', {
     # Normalize the ESM output data.
     esm_data %>%
         dplyr::mutate(index = paste0(experiment, '.', variable, '.', year)) %>%
-        dplyr::left_join(tibble::tibble(scale =  hectorcal::pc_conc$scale,
-                                        index = names( hectorcal::pc_conc$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  hectorcal::pc_conc$center,
-                                        index = names( hectorcal::pc_conc$center)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(scale =  pc_conc$scale,
+                                        index = names( pc_conc$scale)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(center =  pc_conc$center,
+                                        index = names( pc_conc$center)), by = 'index') %>%
         dplyr::mutate(esm_norm_val = (value - center) / scale) %>%
         dplyr::rename(esm_out = value) %>%
         dplyr::select(index, esm_out, esm_norm_val, experiment) ->
@@ -176,8 +169,8 @@ test_that('make_minimize_function works with clim parameters', {
     # Use the default Hector S, aero, and diff parameters since we know that Hector should solve with them.
     param_default <- c(3, 1, 2.3)
     names(param_default) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY())
-    fn <- hectorcal::make_minimize_function(hector_cores = other_new, esm_data = esm_data,
-                                            normalize = hectorcal::pc_conc, param = param_default)
+    fn <- make_minimize_function(hector_cores = other_new, esm_data = esm_data,
+                                            normalize = pc_conc, param = param_default)
 
 
     # Make sure that the MSE calculated by the function matches the value calcualted by hand.
@@ -194,10 +187,10 @@ test_that('make_minimize_function works with clim and carbon parameters', {
     ini_f1    <- system.file('input/hector_rcp85_constrained.ini', package = 'hector')
     ini_f2    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
-    new_cores <- hectorcal::setup_hector_cores(inifile = input_ini, name = c('esmrcp85', 'esmHistorical'))
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('esmrcp85', 'esmHistorical'))
 
     # Climate model data to calibrated to.
-    esm_data <- dplyr::filter(hectorcal::cmip_individual, model == 'CanESM2' &
+    esm_data <- dplyr::filter(cmip_individual, model == 'CanESM2' &
                                   ensemble == 'r1i1p1' &
                                   year <= 2100 & year >= 1861 &
                                   grepl('esm', experiment))
@@ -217,10 +210,10 @@ test_that('make_minimize_function works with clim and carbon parameters', {
 
     # Normalize the Hector output data.
     hector_output %>%
-        dplyr::left_join(tibble::tibble(scale = hectorcal::pc_emiss$scale,
-                                        index = names( hectorcal::pc_emiss$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  hectorcal::pc_emiss$center,
-                                        index = names( hectorcal::pc_emiss$center)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(scale = pc_emiss$scale,
+                                        index = names( pc_emiss$scale)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(center =  pc_emiss$center,
+                                        index = names( pc_emiss$center)), by = 'index') %>%
         na.omit %>%
         dplyr::rename(hector_out = value) %>%
         dplyr::mutate(hec_norm_val = (hector_out - center) / scale) %>%
@@ -230,10 +223,10 @@ test_that('make_minimize_function works with clim and carbon parameters', {
     # Normalize the ESM output data.
     esm_data %>%
         dplyr::mutate(index = paste0(experiment, '.', variable, '.', year)) %>%
-        dplyr::left_join(tibble::tibble(scale =  hectorcal::pc_emiss$scale,
-                                        index = names( hectorcal::pc_emiss$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  hectorcal::pc_emiss$center,
-                                        index = names( hectorcal::pc_emiss$center)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(scale =  pc_emiss$scale,
+                                        index = names( pc_emiss$scale)), by = 'index') %>%
+        dplyr::left_join(tibble::tibble(center =  pc_emiss$center,
+                                        index = names( pc_emiss$center)), by = 'index') %>%
         dplyr::mutate(esm_norm_val = (value - center) / scale) %>%
         dplyr::rename(esm_out = value) %>%
         dplyr::select(index, esm_out, esm_norm_val, experiment) ->
@@ -259,8 +252,8 @@ test_that('make_minimize_function works with clim and carbon parameters', {
     param_default <- c(3, 1, 2.3, 0.36, 2, 276.0897)
     names(param_default) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(),
                               hector::BETA(),  hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
-    fn <- hectorcal::make_minimize_function(hector_cores = new_cores, esm_data = esm_data,
-                                            normalize = hectorcal::pc_emiss, param = param_default)
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = esm_data,
+                                            normalize = pc_emiss, param = param_default)
 
     # Make sure that the MSE calculated by the function matches the value calcualted by hand.
     testthat::expect_equal(fn(param = param_default), expected_MSE)
