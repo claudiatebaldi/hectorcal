@@ -166,43 +166,6 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, n =
 
         # Calculate the mean squared error between the Hector output and ESM data for the runs in the
         # batches.
-       # # out <- foreach::foreach(exp = 1:length(cores_to_use), .combine = 'c') %do% {
-       #
-       #      # Pull out the years and variable names from the esm data for the experiment.
-       #      yrs <- unique(esm_experiment_list[[exp]]$year)
-       #      var <- ifelse(unique(esm_experiment_list[[exp]]$variable) == 'co2', hector::ATMOSPHERIC_CO2(), hector::GLOBAL_TEMP())
-       #
-       #      # Run the Hector core and calculate the MSE for the Hector and ESM output data.
-       #      MSE <- suppressWarnings(suppressMessages(tryCatch({
-       #
-       #          # Reset the core with the new parameters.
-       #          parameterize_core(core = cores_to_use[[exp]], params = param)
-       #
-       #          # Run the Hector core.
-       #          hector::run(core = cores_to_use[[exp]], runtodate = max(yrs))
-       #
-       #          # Fetch the output data of intrest for the years to compare with the ESM data and arrange to match order
-       #          # of the information in the ESM data frame.
-       #          hector::fetchvars(core = cores_to_use[[exp]], yrs, var) %>%
-       #              dplyr::arrange(scenario, variable, year) %>%
-       #              dplyr::mutate(variable = dplyr::if_else(variable == 'Tgav', 'tas', 'co2')) %>%
-       #              dplyr::left_join(esm_experiment_list[[exp]],
-       #                               by = c('scenario' = 'experiment', 'year', 'variable')) %>%
-       #              na.omit() %>%
-       #              dplyr::mutate(hector_norm = (value - center) / scale) %>%
-       #              dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
-       #              dplyr::pull(SE) %>%
-       #              mean
-       #
-       #          }, error = errhandler)))
-       #
-       #      if(is.null(MSE)){
-       #          Inf
-       #      } else {
-       #          MSE
-       #      }
-       #
-       #  }
 
         if(nbatch > 0){
 
