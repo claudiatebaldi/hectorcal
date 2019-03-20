@@ -5,7 +5,7 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data.}
 \usage{
 singleESM_calibration(inifiles, hector_names, esm_data, normalize,
-  initial_param, maxit = 500)
+  initial_param, maxit = 500, n = NULL)
 }
 \arguments{
 \item{inifiles}{A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.}
@@ -19,6 +19,8 @@ singleESM_calibration(inifiles, hector_names, esm_data, normalize,
 \item{initial_param}{A named vector of inital paramters to be optimized over.}
 
 \item{maxit}{The max number of itterations for optim, default set to 500.}
+
+\item{n}{The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.}
 }
 \value{
 An object returned by \code{optim}
