@@ -36,21 +36,23 @@ test_that('parameterize_core throws expected errors', {
 test_that('make sure that parameterize_core works', {
 
     # Check to see that the temperature parameters are reset correctly.
-    temp_param        <- seq(from = 5, by = 5, length.out = 3)
-    names(temp_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY())
+    temp_param        <- seq(from = 5, by = 5, length.out = 4)
+    names(temp_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::VOLCANIC_SCALE())
     lapply(X = out, FUN = parameterize_core, params = temp_param)
 
     new_cs   <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::ECS())[['value']]})
     new_aero <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::AERO_SCALE())[['value']]})
     new_dif  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::DIFFUSIVITY())[['value']]})
+    new_vol  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::VOLCANIC_SCALE())[['value']]})
 
     testthat::expect(all(new_cs == temp_param[[hector::ECS()]]))
     testthat::expect(all(new_aero == temp_param[[hector::AERO_SCALE()]]))
     testthat::expect(all(new_dif == temp_param[[hector::DIFFUSIVITY()]]))
+    testthat::expect(all(new_vol == temp_param[[hector::VOLCANIC_SCALE()]]))
 
     # Check to make sure that the climate and the carbon parameters are reest correctly.
-    temp_carbon_param        <- seq(from = 25, by = 5, length.out = 6)
-    names(temp_carbon_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::BETA(),
+    temp_carbon_param        <- seq(from = 25, by = 5, length.out = 7)
+    names(temp_carbon_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::VOLCANIC_SCALE(), hector::BETA(),
                                      hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
 
 
@@ -62,6 +64,7 @@ test_that('make sure that parameterize_core works', {
     new_beta <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::BETA())[['value']]})
     new_q10  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::Q10_RH())[['value']]})
     new_pre  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::PREINDUSTRIAL_CO2())[['value']]})
+    new_vol  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::VOLCANIC_SCALE())[['value']]})
 
     testthat::expect(all(new_ecs == temp_carbon_param[[hector::ECS()]]))
     testthat::expect(all(new_aero == temp_carbon_param[[hector::AERO_SCALE()]]))
@@ -69,6 +72,8 @@ test_that('make sure that parameterize_core works', {
     testthat::expect(all(new_beta == temp_carbon_param[[hector::BETA()]]))
     testthat::expect(all(new_q10 == temp_carbon_param[[hector::Q10_RH()]]))
     testthat::expect(all(new_pre == temp_carbon_param[[hector::PREINDUSTRIAL_CO2()]]))
+    testthat::expect(all(new_vol == temp_carbon_param[[hector::VOLCANIC_SCALE()]]))
+
 
 })
 
