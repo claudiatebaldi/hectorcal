@@ -1,0 +1,306 @@
+---
+title: "Experiment 2A"
+output:
+  html_notebook: default
+  pdf_document: default
+---
+
+## Setup
+
+This is another way of looking at the question of whether evaluating model parameters in
+the PCA basis is consistent with our intuition about evaluating in the natural basis.  In
+the first step of this experiment we will filter the Hector ensemble to the output gates
+in the natural basis, and we will evaluate those models' performance on the PCA basis 
+gates for each of the first 10 principal components.  This should answer the question, 
+"If a set of parameters appears to produce valid output, how likely is it to pass the 
+gates in each of the PCs?"
+
+In the second part of the experiment we will go in the other direction, filtering based
+on PC gates and evaluating on the future.  This answers the converse question, "If a set
+of parameters passes the gates in the PC basis, how likely is it to produce valid output?"
+
+In the third part of the experiment, we will define likelihood functions in both the PC
+space and the natural space, and we will compare the results over the Hector ensemble.  
+We are most interested in the correspondence of _rank ordering_ and _likelihood ratio_
+between the two formulations.
+
+```{r setup}
+library('dplyr')
+library('ggplot2')
+library('ggthemes')
+library('hector')
+library('hectorcal')
+```
+
+```{r hectorproj}
+## We need the PC projections for the ensemble
+hector_proj <- compute_pc(hector_conc_ensemble, c('historical','rcp26','rcp45','rcp60','rcp85'), 
+                          'tas', 2006:2100, 1861:2005, retx=TRUE)$x
+## ESM projections are stored as package data: cmip_conc_pcproj
+```
+
+## Part 1: PC performance of models selected in the natural basis
+
+
+### Concentration-driven runs
+
+Start by filtering the ensemble to just the members that pass all of the gates in all the experiments.
+
+```{r concfilter}
+hcdata <- bind_rows(hector_conc_ensemble[1:5])      # drop the params structure and merge into a single df
+cids <- chkgates(hcdata, 'tas')
+length(cids)
+```
+Only `r length(cids)` out of `r length(unique(hector_conc_ensemble[[1]]$runid))` make the cut, which
+is a bit of a small sample size.  Evidently, the parameter space defined by our priors is a lot larger
+than the space that actually leads to good model agreement, which is not too surprising.  From here we
+want to grab the PC projections for the models that make the cut.
+
+```{r getfilterproj}
+projid <- as.integer(row.names(hector_proj))
+hpfilter <- hector_proj[projid %in% cids, ]
+```
+
+We want to compare these to the gates established by the ESM runs, so we'll need to pull those too.
+```{r getpcgates}
+maxpc <- 15
+esm_pc_stats <- group_by(cmip_conc_pcproj, PC) %>% 
+    summarise(min=min(value), max=max(value)) %>%
+    filter(PC <= maxpc) %>% select(-PC) %>%
+    as.matrix() %>% t()
+colnames(esm_pc_stats) <- paste0('PC', seq(1,maxpc))
+```
+
+Now do the comparison
+```{r compare_conc_pc}
+conc_pc_cmp <- apply(hpfilter[,1:maxpc], 1, function(x) {x >= esm_pc_stats[1,] & x <= esm_pc_stats[2,]})
+conc_pc_all <- apply(conc_pc_cmp, 2, all)
+frac_pc_pass <- sum(conc_pc_all)/length(conc_pc_all)
+conc_pc_pct <- structure(matrix(apply(conc_pc_cmp, 1, function(x) {sum(x)/length(x)}), ncol=1),
+                         dimnames = list(row.names(conc_pc_cmp), 'frac'))
+conc_pc_pct
+cat('Overall pass fraction: ', frac_pc_pass, '\n')
+```
+What we see here is that correspondence between filtering in the PCA basis and in the natural
+basis is ok, but nowhere near perfect.  Only `r round(100*frac_pc_pass)`% of the models from our
+ensemble that we would have called "good" models pass all of the principal component gates.  PC3
+and PC4 in particular seem to be doing their own thing.  
+
+We did all this using hard boundaries, so it's worth asking, how far outside of the PC gates are
+we?  How big is the discrepancy here?
+
+```{r pcviol}
+pcviol <- apply(hpfilter[ , 1:maxpc], 1, function(x) {
+    width <- esm_pc_stats[2,] - esm_pc_stats[1,]
+    if_else(x < esm_pc_stats[1,], (esm_pc_stats[1,]-x)/width,
+            if_else(x > esm_pc_stats[2,], (x-esm_pc_stats[2,])/width, 0))
+})
+row.names(pcviol) <- colnames(esm_pc_stats)
+apply(pcviol, 1, function(x){mean(x[x>0])})
+```
+The violations for PCs 1,2,4,and 5 are pretty small, but PC3 once again stands out as being
+way out of line.  What I'm wondering here is, is there any discernible difference between the
+models that pass the PC gates and the ones that fail?
+
+```{r plot.1}
+pcpass <- data.frame(pass3=conc_pc_cmp[3,], allpass=apply(conc_pc_cmp, 2, all), 
+                     runid = as.integer(colnames(conc_pc_cmp)))
+pltdata_conc <- filter(bind_rows(hector_conc_ensemble[1:5]), runid %in% cids) %>% 
+    left_join(pcpass, by='runid')
+pltgates <- bind_rows(lapply(c('historical','rcp26','rcp45','rcp60','rcp85'), get_gates, var='tas'))
+ggplot(data=pltdata_conc, aes(x=year, y=value, color=allpass, group=runid)) + geom_line(alpha=0.35) +
+    geom_errorbar(data=pltgates, aes(x=year, ymin=mina, ymax=maxb), linetype=2, color='lightgrey', width=1,
+                  inherit.aes = FALSE) +
+    facet_wrap(~experiment, scales='free_x') + scale_color_solarized() + theme_solarized_2(light=FALSE) +
+    guides(color=guide_legend(title='Pass all PC gates?'))
+```
+This is _very_ interesting.  All of the runs pass the output gates, by design.  The blue runs, 
+fail one or more of the PC gates, while the red runs pass all of the PC gates.  There is
+no discernible difference between the red and blue runs in the future, but they are very
+different in the past.  However, by happenstance most of the difference is in between the
+gate years.  Because of this, filtering in the output coordinates doesn't pick up the
+difference between these parameter sets.  Therefore, the discrepancy between the filtering
+in natural coordinates and the filtering in PC coordinates is due to the fact that the 
+PC filtering is picking up some legitimate behavior that is being missed in the natural
+coordinates.  Many of those blue models _should_ be rejected because they are misbehaving
+at times when we weren't looking at them.
+
+If we wanted to be sure to see all of those differences, we would have to put gates at more 
+times.  However, since we don't know a priori what the critical times are to sample, we 
+would have to lay down a _lot_ of gates.  That would cause us to get unreasonably narrow
+posterior distributions for our parameters because our Bayesian calculation would be seeing
+some models accrue miss after miss on all those gates, and each one would impose a penalty
+in the likelihood function.  A model that made a brief excursion outside the 
+envelope would be excessively penalized, and its contribution to the posterior distribution 
+would be wrongly deweighted.
+
+### Emissions driven runs
+
+```{r concfilter.emiss}
+hedata <- bind_rows(hector_emiss_ensemble[pc_emiss$meta_data$experiment])
+emiss_cids <- chkgates(hedata, pc_emiss$meta_data$variable)
+length(emiss_cids)
+```
+That's right.  _None_ of the ensemble members passes all 
+`r 3*length(pc_emiss$meta_data$experiment)*length(pc_emiss$meta_data$variable)` output gates for 
+the emission-driven runs.  We could probably do some kind of thing where we select for models
+that pass 10 or 11 gates, but we'll defer that for now, instead moving on to part 2.
+
+## Part 2: Output performance of models selected in the PC basis
+
+```{r getcoefs.conc}
+## Tables of min, max, mean values by PC, for both sets
+maxpc <- 6
+esm_pc_stats <- group_by(cmip_conc_pcproj, PC) %>% 
+    summarise(mina=min(value), maxb=max(value)) %>%
+    filter(PC <= maxpc)
+## 
+chkpcpass <- function(proj, pc_stats) {
+    hpt <- t(proj[, 1:maxpc])
+    pass <- hpt >= pc_stats$mina & hpt <= pc_stats$maxb
+    allpass <- apply(pass, 2, all)
+    as.integer(row.names(hector_proj))[allpass]
+}
+pccids <- chkpcpass(hector_proj, esm_pc_stats)
+length(pccids)
+```
+Not very many ensemble members pass the PC gates.  Since we know that only `r sum(conc_pc_all)` 
+ensemble members passed both the output and PC gates, so `r length(pccids) - sum(conc_pc_all)` of 
+these will fail in the output gates.  As before, let's see what the failures look like and how they
+differ from the ones that succeed.
+
+```{r outspace.conc}
+hcpass <- filter(hcdata, runid %in% pccids)
+cidsboth <- chkgates(hcpass, 'tas')
+hcpass <- mutate(hcpass, outgates = runid %in% cidsboth)
+ggplot(data=hcpass, aes(x=year, y=value, color=outgates, group=runid)) + geom_line(alpha=0.5) +
+    geom_errorbar(data=pltgates, aes(x=year, ymin=mina, ymax=maxb), linetype=2, color='lightgrey', width=1,
+                  inherit.aes = FALSE) +
+    facet_wrap(~experiment, scales='free_x') + scale_color_solarized() + theme_solarized_2(light=FALSE) +
+    guides(color=guide_legend(title='Pass output gates?'))
+```
+As expected, a few of the selected ensemble members don't pass the gates, but the 
+violations are relatively small.  These models would be slightly disfavored, but 
+their log-likelihood scores probably wouldn't be terrible.  I'm reasonably pleased
+with the performance of the PC-selected runs on the output gates.
+
+```{r parms.conc}
+pltparms <- filter(hector_conc_ensemble$params, runid %in% pccids) %>% 
+    mutate(outgates=runid %in% cidsboth) %>%
+    tidyr::gather(key='parameter', value='value', -runid, -outgates)
+ggplot(data=pltparms, aes(x=value, fill=outgates)) + 
+    geom_dotplot(binwidth=0.25, stackgroups=TRUE, binpositions='all', method='histodot') + 
+    facet_wrap(~parameter) + 
+    guides(fill=guide_legend(title='Pass output gates?')) + 
+    theme_solarized_2(light=FALSE) + scale_fill_solarized()
+```
+For the most part, it looks as if output gate violations are associated with exceptionally 
+large or small values of climate sensitivity ($S$).  Only one violation occurred with $S$ 
+in the interior core of the distribution; that was run #474, which had $\alpha = 2.1$.  Large
+$\alpha$ values also seemed to be associated with violations, but there were a few values
+in the interior core of the distribution that also showed violations.  Diffusion and volcanic
+scaling didn't show any obvious pattern.
+
+This suggests we might see somewhat larger values for $S$ and $\alpha$ than we might have seen,
+had we filtered on the output gates.
+Let's compare this with the patterns shown by the concentration-selected runs and see if this 
+is true.
+```{r params.conc2}
+pltdata2 <- filter(hector_conc_ensemble$params, runid %in% cids) %>% 
+    left_join(pcpass, by='runid') %>%
+    tidyr::gather(key='parameter', value='value', -runid, -pass3, -allpass)
+ggplot(data=pltdata2, aes(x=value, fill=allpass)) + 
+    geom_dotplot(binwidth=0.25, stackgroups=TRUE, binpositions='all', method='histodot') + 
+    facet_wrap(~parameter) + 
+    guides(fill=guide_legend(title='Pass PC gates?')) +
+    theme_solarized_2(light=FALSE) + scale_fill_solarized()
+```
+The largest values of $S$ in the PC-selected runs are a little larger, but not as much
+so as you might think.  There are a lot of output-selected runs with $S$ values around
+5, and one a bit over 6.  By comparison, the PC-selected values top out between 7 and 8.
+Meanwhile, the top end of the $\alpha$ distribution seems the same between the two runs
+methods, and in the output-selected version the bottom end of $\alpha$ seems unrealistically
+low.  
+
+## Part 3: Correspondence between likelihood functions defined in output and PC spaces
+
+At the beginning of this exercise we said that we expected to see good correspondence between
+likelihood functions defined in the output and PC spaces.  Now that we know that looking in
+the output space misses some important features, it's not clear that that correspondence will
+be all that great, but we will still want to know how they compare.  Join us, won't you?
+```{r likelihood}
+runids <- as.integer(row.names(hector_proj))
+likelihood_pc <- function(runid) {
+    maxpc <- nrow(esm_pc_stats)
+    i <- which(runids == runid)
+    pcvals <- hector_proj[i,1:maxpc]
+    mina <- esm_pc_stats$mina[1:maxpc]
+    maxb <- esm_pc_stats$maxb[1:maxpc]
+    sig <- 0.1*(maxb-mina)
+    sum(log(mesa(pcvals, mina, maxb, sig)))
+}
+
+conc_lldata <- filter(hcdata, 
+                      variable %in% unique(pltgates$variable),
+                      experiment %in% unique(pltgates$experiment),
+                      year %in% unique(pltgates$year)) %>%
+    select(runid, year, variable, experiment, value) %>%
+    arrange(runid, experiment, variable, year)
+likelihood_out <- function(rid) {
+    outdata <- filter(conc_lldata, runid==rid)
+    mina <- pltgates$mina
+    maxb <- pltgates$maxb
+    sig <- 0.1*(maxb-mina)
+    sum(log(mesa(outdata$value, mina, maxb, sig)))
+}
+
+llpc <- sapply(runids, likelihood_pc)
+llpc <- llpc - max(llpc)
+llpc[is.infinite(llpc)] <- -100       # We get a fair few -Inf values.  Set them to an arbitrary large negative value.
+llout <- sapply(runids, likelihood_out)
+llout <- llout - max(llout)
+llout[is.infinite(llout)] <- -350
+ispc <- runids %in% pccids
+isout <- runids %in% cids
+class <- if_else(ispc,
+                 if_else(isout, 'both', 'PC'),
+                 if_else(isout, 'output', 'neither'))
+llvals_conc <- data.frame(llpc=llpc, llout=llout, class=class) %>% filter(class != 'neither')
+ggplot(data=llvals_conc, mapping=aes(x=llout, y=llpc, color=class)) + geom_point(alpha=0.7) + 
+    theme_solarized_2(light=FALSE) + scale_color_solarized()
+```
+I've filtered the "neither" class of parameters that fail both sets of gates because both
+likelihood functions are saying those parameter combinations are terrible, and we don't really care 
+about the nuances of exactly how terrible they are.  In the data that remains, we see that
+there is a large group of runs that the output likelihood says are pretty good, but to which
+the PC likelihood assigns varying degrees of badness.  We think we know why that is, so we'll
+filter those and replot.
+```{r likelihood.plt2}
+llvals_conc2 <- filter(llvals_conc, class != 'output')
+ggplot(data=llvals_conc2, mapping=aes(x=llout, y=llpc, color=class)) + geom_point() + 
+    theme_solarized_2(light=FALSE) + scale_color_solarized()
+```
+The parameter combinations that fail the output gates are, understandably, assigned 
+very large penalties by that likelihood, at least most of the time.  We'll do one last 
+plot where we adjust the scales so that we can see what's going on with the models
+that the output likelihood doesn't hate.
+```{r likelihood.plt3}
+ggplot(data=llvals_conc2, mapping=aes(x=llout, y=llpc, color=class)) + geom_point() + 
+    theme_solarized_2(light=FALSE) + scale_color_solarized() + xlim(c(-7,0)) +
+    geom_abline(slope=1, intercept=0, color='lightgrey')
+```
+
+I'm not sure we learned much in this part ot the experiment.  The two methods generally
+agree on which parameters are mostly ok and which ones are terrible, except in cases
+where we think the output gates are letting through runs that have bad behavior in 
+between the gates.  Amongst runs that both methods agree are generally plausible, 
+they don't really agree on _how_ good or bad the runs are.  The Spearman rank-order
+correlation between the two methods is only 
+`r signif(cor(llvals_conc2$llpc, llvals_conc2$llout, method='spearman'),2)`, which isn't spectacular.
+
+Then again, if the two methods agreed perfectly, there wouldn't be any reason to go to the
+trouble of computing the principal components in the first place.  What we're trying to do
+here is argue that the the PC method _generally_ comports with our intuition about what 
+constitutes a good model, which I think it does.  We will, however, probably have to give
+some careful thought to how we explain this choice in the paper.
+
