@@ -43,7 +43,7 @@ hector_proj <- compute_pc(hector_conc_ensemble, c('historical','rcp26','rcp45','
 
 ```{r getcoefs}
 ## Tables of min, max, mean values by PC, for both sets
-maxpc <- 10
+maxpc <- 20
 esm_pc_stats <- group_by(cmip_conc_pcproj, PC) %>% 
     summarise(min=min(value), max=max(value), mean=mean(value), sd=sd(value)) %>%
     filter(PC <= maxpc)
@@ -58,8 +58,8 @@ bind_cols(select(esm_pc_stats, PC, esm.min=min, esm.max=max, esm.mean=mean, esm.
 ```
 The first thing we can see from these statistics is that though the ESM
 statistics exclude a lot of the range covered by the Hector ensemble, the
-ensemble average passes all of the gates for the first 10 PCs, except for PC7,
-which marginally excludes zero.  For PCs $\geq$ 9, the coefficients of all of
+ensemble average passes all of the gates for the first 10 PCs.
+For PCs $\geq$ 13, the coefficients of all of
 the hector ensemble members are all very close to zero, indicating that for this
 ensemble there is _definitely_ no useful calibration to be done using those
 components because for any such test either the enitre parameter space will
@@ -74,7 +74,7 @@ esm_pcplot(cmip_conc_pcproj) + geom_abline(slope=-0.6, intercept=-3, color='ligh
 One noticeable trend is that although these dimensions are uncorrelated in the 
 Hector ensemble, the ESMs appear to cluster around a line with a slope of about
 $-0.6$.  The sample here is very small, so it's not clear how seriously we
-should take this possible relationship.  Is there no model around $(-7.5, -4)$
+should take this possible relationship.  Is there no model around $(-7.5, -7.5)$
 because that model is excluded by the ESMs' calibration process, or because 
 nobody happens to have written the model with that behavior?  We are not in a
 position to answer that question right now, but it's worth keeping in mind.
@@ -160,20 +160,18 @@ is a bit different), PC1 shifts the temperature nearly uniformly up and down
 appears to control the average slope of the temperature curve over time (compare
 the sequence of lines in any single color).
 
-PC3 (horizontal facets in the grid) appears to control the tendency of the
+PC4 (column facets in the grid) appears to control the tendency of the
 temperature curve to bend downward in the late 21st century.  Consider, for
-example, the RCP 2.6 experiment. With PC3 at the _high_ level (right column),
+example, the RCP 2.6 experiment. With PC4 at the _low_ level (left column),
 none of these scenarios show the peak and decline that we normally associate 
-with RCP 2.6.  PC3 also has a clear effect in the historical experiment, where
-it is clearly related to the strength of the aerosol effect.  
+with RCP 2.6.  
 
-The effect of PC4 (vertical facets) is a little hard to discern in the future
+The effect of PC3 (row facets) is a little hard to discern in the future
 runs.  It looks to be a little duplicative of PC3, inducing some downward
-curvature late in the century. However, in the historical period PC4 is clearly
-influencing the behavior in the early part of the run.  With PC4 _low_,
-scenarios tend to be below or at the low end of the 1933 gate.  With PC4
-_medium_, all scenarios go through the 1933 gate, irrespective of the other PC
-values, and with PC4 _high_, the scenarios tend to be high at the 1933 gate.
+curvature late in the century. However, in the historical period PC3 is clearly
+reflecting the effect of the volcanic scaling parameter.  With PC3 _low_, the 
+effect of the major historical volcanic eruptions is pronounced.  With PC3 _medium_
+the effect is muted, and with PC3 _high_ the effect is reversed.
 
 The conclusion from all of this is that notwithstanding the small fraction of
 the total variance accounted for by PC3 and PC4, if we want our PC methodology
@@ -236,14 +234,14 @@ the high or low end of its range.  At the risk of inducing plot overload, here i
 same set with PC5 low.
 
 ```{r gateplots.pc5lo, fig.height=7.5, fig.width=9}
-### -2.76 is the low value for PC5 (from the table above)
+### -0.64 is the low value for PC5 (from the table above)
 climout_pc5lo <- 
     foreach(lpc1=levels, .combine=bind_rows) %do% {
         foreach(lpc2=levels, .combine=bind_rows) %do% {
             foreach(lpc3=levels, .combine=bind_rows) %do% {
                 foreach(lpc4=levels, .combine=bind_rows) %do% {
                     coef <- c(pc1lvls_pc34[[lpc1]], pc2lvls_pc34[[lpc2]], 
-                              pc3lvls_pc34[[lpc3]], pc4lvls_pc34[[lpc4]], -2.76)
+                              pc3lvls_pc34[[lpc3]], pc4lvls_pc34[[lpc4]], -0.64)
                     reconstruct_climate(coef, pc_conc, 5) %>%
                         mutate(PC1=lpc1, PC2=lpc2, PC3=lpc3, PC4=lpc4)
                 }
@@ -271,14 +269,14 @@ at the 2100 gate.
 
 
 ```{r gateplots.pc5hi, fig.height=7.5, fig.width=9}
-### 0.382 is the high value for PC5 (from the table above)
+### 6.10 is the high value for PC5 (from the table above)
 climout_pc5hi <- 
     foreach(lpc1=levels, .combine=bind_rows) %do% {
         foreach(lpc2=levels, .combine=bind_rows) %do% {
             foreach(lpc3=levels, .combine=bind_rows) %do% {
                 foreach(lpc4=levels, .combine=bind_rows) %do% {
                     coef <- c(pc1lvls_pc34[[lpc1]], pc2lvls_pc34[[lpc2]], 
-                              pc3lvls_pc34[[lpc3]], pc4lvls_pc34[[lpc4]], 0.382)
+                              pc3lvls_pc34[[lpc3]], pc4lvls_pc34[[lpc4]], 6.10)
                     reconstruct_climate(coef, pc_conc, 5) %>%
                         mutate(PC1=lpc1, PC2=lpc2, PC3=lpc3, PC4=lpc4)
                 }
@@ -304,13 +302,13 @@ for(expt in unique(climout_pc5hi$experiment)) {
 These actually don't look too bad.  However, given the poor performance at the low end, it's
 pretty clear that we will need to constrain PC5.
 
-We could continue this line of analysis, but if we look at the range for PC6, the ESM maximum
-doesn't constrain the ensemble at all because the ensemble maximum is actually lower than the
-ESM maximum.  There is some constraint at the low end, but it's a much weaker constraint than
+We could continue this line of analysis, but if we look at the range for PC6, the ESM minimum
+doesn't constrain the ensemble at all because the ensemble minimum is actually higher than the
+ESM minimum  There is some constraint at the high end, but it's a much weaker constraint than
 we see for PC5, so I'm pretty confident that constraining PC6 won't make much difference.  Note
-also that for PCs 8-10 the ESM range includes the entire ensemble range, so constraining these
+also that for 10 and beyond the ESM range includes the entire ensemble range, so constraining these
 components _definitely_ won't have any effect.  Therefore, we will probably end up running 
-MCMC runs with constraints on PC1-5, 1-6, and 1-7, and we'll compare the parameter distributions
+MCMC runs with constraints on PC1-5, 1-6, and 1-7, 1-8, 1-9, and we'll compare the parameter distributions
 that we get from these to see if there is any significant difference.
 
 #### Another way to look at the PC gates

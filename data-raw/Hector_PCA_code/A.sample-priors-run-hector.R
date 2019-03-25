@@ -20,6 +20,8 @@ hyper_params <- list(ecsmu = 3,.0,
                      ecssig = 3.0,
                      aeromu = 1.0,
                      aerosig = 1.4,
+                     volcanomu = 1.0,
+                     volcanosig = 1.4,
                      kappamu = 2.3,
                      kappasig = 2.0,
                      betamu = 0.3,
@@ -33,7 +35,7 @@ hyper_params <- list(ecsmu = 3,.0,
 # Set the seed to ensure reproducible results
 set.seed(867-5309)
 
-# This should be equal to the number of nodes selected in the
+# This should be equal to the number of nodes selected in the...
 nodes <- 6
 
 # The number of Hector runs per rcp scenario
@@ -55,14 +57,16 @@ years  <- 1850:2100
 # Returns: a list of functions that will sample the climate sensitivity, aero scaler, and ocean diffusivity
 # parameter spaces. Each function in the list will sample the prior distribution n times.
 make_concen_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ecssig,
-                             aeromu = hyper_params$aeromu, aerosig = hyper_params$ecssig,
+                             aeromu = hyper_params$aeromu, aerosig = hyper_params$aerosig,
+                             volcanomu = hyper_params$volcanomu, volcanosig = hyper_params$volcanosig,
                              kappamu = hyper_params$kappamu, kappasig = hyper_params$kappasig){
 
     list <- list(function(n) {rlnorm(n = n, meanlog = log(ecsmu), sdlog = log(ecssig))},
                  function(n) {rnorm(n = n, mean = aeromu, sd = aerosig)},
+                 function(n) {rnorm(n = n, mean = volcanomu, sd = volcanosig)},
                  function(n) {rnorm(n = n, mean = kappamu, sd = kappasig)})
     # Name the functions returned in the list by hector parameter
-    names(list) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY())
+    names(list) <- c(ECS(), AERO_SCALE(), VOLCANIC_SCALE(), DIFFUSIVITY())
 
     list
 }
@@ -85,6 +89,7 @@ make_concen_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$e
 # beta, q10, and pre industrial CO2. Each function in the list will sample the prior distribution n times.
 make_emiss_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ecssig,
                             aeromu = hyper_params$aeromu, aerosig = hyper_params$ecssig,
+                            volcanomu = hyper_params$volcanomu, volcanosig = hyper_params$volcanosig,
                             kappamu = hyper_params$kappamu, kappasig = hyper_params$kappasig,
                             c0mu = hyper_params$c0mu,  c0sig = hyper_params$c0sig,
                             q10mu = hyper_params$q10mu, q10sig = hyper_params$q10sig,
@@ -92,14 +97,15 @@ make_emiss_dist <- function(ecsmu = hyper_params$ecsmu, ecssig = hyper_params$ec
 
 
     concentration_dists <- make_concen_dist(ecsmu = ecsmu, ecssig = ecssig,
-                                            aeromu = hyper_params$aeromu, aerosig = hyper_params$ecssig,
-                                            kappamu = hyper_params$kappamu, kappasig = hyper_params$kappasig)
+                                            aeromu = aeromu, aerosig = aerosig,
+                                            volcanomu = volcanomu, volcanosig = volcanosig,
+                                            kappamu = kappamu, kappasig = kappasig)
 
     emission_dists <- append(concentration_dists, list(function(n){ rnorm(n = n, mean = c0mu, sd = c0sig) },
                                                        function(n){ hectorcal::rtruncnorm(n = n, a = 0, b = Inf, mu = q10mu, sig = q10sig) },
                                                        function(n){ hectorcal::rtruncnorm(n = n, a = 0, b = Inf, mu = betamu, sig = betasig)}))
     # Name the functions returned in the list by hector parameter
-    names(emission_dists) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY(), PREINDUSTRIAL_CO2(), Q10_RH(), BETA())
+    names(emission_dists) <- c(ECS(), AERO_SCALE(), VOLCANIC_SCALE(), DIFFUSIVITY(), PREINDUSTRIAL_CO2(), Q10_RH(), BETA())
 
     emission_dists
 }
@@ -128,14 +134,8 @@ setup_cores <- function(inifile,name, n) {
 run_sample <- function(core, idx, param_vals, keeptimes, keepvars, runid)
 {
     for(param in names(param_vals)) {
-
-        # Figure out the paramter units
-        units_list        <- c('degC', '(unitless)', 'cm2/s', 'ppmv CO2', '(unitless)', '(unitless)')
-        names(units_list) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY(), PREINDUSTRIAL_CO2(), Q10_RH(), BETA())
-        unit_indx <- which(names(units_list) == param)
-
         # Set the Hector paramter values
-        setvar(core, NA, param, param_vals[[param]][idx], units_list[[unit_indx]])
+        setvar(core, NA, param, param_vals[[param]][idx], getunits(param))
     }
     reset(core)
     stat <- tryCatch(
@@ -155,9 +155,6 @@ run_sample <- function(core, idx, param_vals, keeptimes, keepvars, runid)
         fetchvars(core, keeptimes, keepvars) %>%
             mutate(runid = runid[idx]) %>%
             select(runid, value, variable, scenario, year)
-
-
-
     }
 }
 
@@ -247,7 +244,9 @@ hectorSample <- function(n, hcores, keeptime =1850:2100, keepvars =c(GLOBAL_TEMP
 # 2. Runs ------------------------------------------------------------------------------------------------
 # Make the output directory
 output_dir <- file.path(pic_dir, 'PCA_pic_results')
-dir.create(output_dir)
+if(!dir.exists(output_dir)) {
+    dir.create(output_dir)
+}
 
 # Make the concentration and the emission prior distribution functions.
 concentration_dists <- make_concen_dist()
@@ -268,6 +267,7 @@ saveRDS(object = rcp26_emissionCC, file = file.path(output_dir, 'emissCC-RCP26.r
 # Format the parameters back into a list to reuse in the hectorSample function
 emission_params <- list('S' = unique(rcp26_emissionCC$S),
                         'alpha' = unique(rcp26_emissionCC$alpha),
+                        'volscl' = unique(rcp26_emissionCC$volscl),
                         'diff' = unique(rcp26_emissionCC$diff),
                         'C0' = unique(rcp26_emissionCC$C0),
                         'q10_rh' = unique(rcp26_emissionCC$q10_rh),
@@ -297,6 +297,7 @@ saveRDS(object = rcp26_concen, file = file.path(output_dir, 'concen-RCP26.rds'))
 # Format the parameters back into a list to reuse in the hectorSample function
 concen_params <- list('S' = unique(rcp26_concen$S),
                       'alpha' = unique(rcp26_concen$alpha),
+                      'volscl' = unique(rcp26_concen$volscl),
                       'diff' = unique(rcp26_concen$diff))
 
 # RCP 45
@@ -320,6 +321,7 @@ saveRDS(object = rcp85_concen, file = file.path(output_dir, 'concen-RCP85.rds'))
 # Format the parameters back into a list to reuse in the hectorSample function
 emission_params_Constant_carbon <- list('S' = unique(rcp26_emissionCC$S),
                                         'alpha' = unique(rcp26_emissionCC$alpha),
+                                        'volscl' = unique(rcp26_emissionCC$volscl),
                                         'diff' = unique(rcp26_emissionCC$diff))
 
 
