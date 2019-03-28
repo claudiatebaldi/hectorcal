@@ -102,6 +102,17 @@ test_that('make_minimize_function throws errors', {
    testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = pc, param = param),
                           'Missing scale and center values for :rcp45.tas.2101, rcp45.tas.2102, rcp60.tas.2101, rcp60.tas.2102')
 
+   # Make sure that if center and scale are missing names that an error message is thrown.
+   missing_scale_names <- pc
+   names(missing_scale_names$scale) <- NA
+   testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_scale_names, param = param),
+                          'normalize scale needs names')
+
+   missing_center_names <- pc
+   names(missing_center_names$center) <- NA
+   testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_center_names, param = param),
+                          'normalize center needs names')
+
 })
 
 test_that('make_minimize_function works with clim parameters', {
@@ -111,164 +122,126 @@ test_that('make_minimize_function works with clim parameters', {
     ini_f2    <- system.file('input/hector_rcp45_constrained.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
     new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
-    other_new <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
 
+    # Define Hector parameters.
+    param <- c(1, 1, 1)
+    names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
 
-    # Climate model data to calibrated to.
-    esm_data <- dplyr::filter(cmip_individual, model == 'CESM1-CAM5' & experiment %in% c('rcp45', 'rcp60') &
-                                  ensemble == 'r1i1p1' & variable == 'tas' & year <= 2100)
+    # Run Hector with the parameters to generate comparison data.
+    lapply(new_cores, function(core){
 
-    # Run Hector with the default values and format the output.
-    lapply(new_cores, function(input){
+        # Parameterize the core
+        x <- parameterize_core(core = core, params = param)
 
-        hector::reset(input)
-        hector::run(input)
+        # Run Hector
+        x <- hector::run(core)
 
-        hector::fetchvars(input, dates = 2000:2100, vars = hector::GLOBAL_TEMP()) %>%
-            dplyr::mutate(index = paste0(scenario, '.tas.', year))
+        # Extract the Hector results
+        hector::fetchvars(core = core, vars = hector::GLOBAL_TEMP(), dates = 2006:2100) %>%
+            dplyr::rename('experiment' = scenario)
 
-    }) %>%
-        dplyr::bind_rows() ->
-        hector_output
-
-    # Normalize the Hector output data.
-    hector_output %>%
-        dplyr::left_join(tibble::tibble(scale = pc_conc$scale,
-                                        index = names( pc_conc$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  pc_conc$center,
-                                        index = names( pc_conc$center)), by = 'index') %>%
-        na.omit %>%
-        dplyr::rename(hector_out = value) %>%
-        dplyr::mutate(hec_norm_val = (hector_out - center) / scale) %>%
-        dplyr::select(index, hector_out, hec_norm_val) ->
-        hector_comp_data
-
-    # Normalize the ESM output data.
-    esm_data %>%
-        dplyr::mutate(index = paste0(experiment, '.', variable, '.', year)) %>%
-        dplyr::left_join(tibble::tibble(scale =  pc_conc$scale,
-                                        index = names( pc_conc$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  pc_conc$center,
-                                        index = names( pc_conc$center)), by = 'index') %>%
-        dplyr::mutate(esm_norm_val = (value - center) / scale) %>%
-        dplyr::rename(esm_out = value) %>%
-        dplyr::select(index, esm_out, esm_norm_val, experiment) ->
-        esm_comp_data
-
-    # Calcualte the difference between the normalized Hector and ESM output data.
-    hector_comp_data %>%
-        dplyr::left_join(esm_comp_data, by = 'index') %>%
-        na.omit() %>%
-        dplyr::mutate(SE = (hec_norm_val - esm_norm_val)^2) %>%
-        split(.$experiment) %>%
-        lapply(function(input){
-
-            mean(input$SE)
 
         }) %>%
-        unlist %>%
-        sum ->
-        expected_MSE
+        dplyr::bind_rows() %>%
+        dplyr::mutate(model = 'selfTest',
+                      variable = 'tas') ->
+        comp_data
 
-    # Calculate the MSE using the function returned by make_minimize_function.
-    # Use the default Hector S, aero, and diff parameters since we know that Hector should solve with them.
-    param_default <- c(3, 1, 2.3)
-    names(param_default) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY())
-    fn <- make_minimize_function(hector_cores = other_new, esm_data = esm_data,
-                                            normalize = pc_conc, param = param_default)
+    # Expect a MSE value of 0 when Hector output data is compared with itself.
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = pc_conc, param, n = 1)
+    testthat::expect_equal(fn(param), 0)
+
+    # Make sure that the make minimize function works when parallelized.
+    fn <- make_minimize_function(new_cores, comp_data, normalize = pc_conc, param, n = 2)
+    testthat::expect_equal(fn(param), 0)
+
+    # Make sure that the minimize function returns a different answer when different parameters are used.
+    param2 <- c(2, 1, 1)
+    names(param2) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
+    testthat::expect_condition(fn(param2) != 0)
+
+    # What happens when the comparison data shifts by a values of 1? If the average
+    # difference between the comparison data for each experiment is 1 then we expect that
+    # sum of the MSE for the two experiments will equal 2.
+    #
+    # Shift the comparison data by 1
+    comp_data_shifted <- comp_data
+    comp_data_shifted$value <- comp_data_shifted$value - 1
+
+    # Change the center values to 0 and the scale values to 1 so that the noramlizing
+    # process does not will not change the hector output or comparison data values.
+    scale  <- pc_conc$scale / pc_conc$scale
+    center <- pc_conc$center * 0
+    names(scale) <- names(pc_conc$scale)
+    names(center) <- names(pc_conc$center)
+    norm = list("scale" = scale, "center" = center)
+
+    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+                                            normalize = norm, param, n = 1)
+    testthat::expect_equal(fn_shifted(param), 1 * length(new_cores))
 
 
-    # Make sure that the MSE calculated by the function matches the value calcualted by hand.
-    testthat::expect_equal(fn(param = param_default), expected_MSE)
 
-    # When the CS is unrealistic we expect the function to return Inf.
-    testthat::expect_equal(fn(c(-6, 1, 4)), Inf)
+    # Make sure that the weights work as expected. Since we shifted the comparison data by 1
+    # and we expect that the MSE for each hector core or experiment to be equal to 1 then we
+    # would expect the weighted sum of the MSE to equal the sum of the weights * 1.
+    my_weights <- c(1/8, 1/3)
+    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+                                            normalize = norm, param, n = 1, core_weights = my_weights)
+    testthat::expect_equal(fn_shifted(param), sum(my_weights))
+
+
 
 })
 
-test_that('make_minimize_function works with clim and carbon parameters', {
+test_that('make_minimize_function works with co2 parameters', {
 
     # Hector ini files
-    ini_f1    <- system.file('input/hector_rcp85_constrained.ini', package = 'hector')
-    ini_f2    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
+    ini_f1    <- system.file('input/hector_rcp60.ini', package = 'hector')
+    ini_f2    <- system.file('input/hector_rcp85.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
-    new_cores <- setup_hector_cores(inifile = input_ini, name = c('esmrcp85', 'esmHistorical'))
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('esmHistorical', 'esmrcp85'))
 
-    # Climate model data to calibrated to.
-    esm_data <- dplyr::filter(cmip_individual, model == 'CanESM2' &
-                                  ensemble == 'r1i1p1' &
-                                  year <= 2100 & year >= 1861 &
-                                  grepl('esm', experiment))
+    # Define Hector parameters.
+    param <- c(1, 200, 0.5, 0.5)
+    names(param) <- c(hector::BETA(), hector::PREINDUSTRIAL_CO2(), hector::Q10_RH(), hector::ECS())
 
-    # Run Hector with the default values and format the output.
-    lapply(new_cores, function(input){
+    # Run Hector with the parameters to generate comparison data.
+    lapply(new_cores, function(core){
 
-        hector::reset(input)
-        hector::run(input)
+        # Parameterize the core
+        x <- parameterize_core(core = core, params = param)
 
-        hector::fetchvars(input, dates = 1861:2100, vars = c(hector::GLOBAL_TEMP(), hector::ATMOSPHERIC_CO2())) %>%
-            dplyr::mutate(index = dplyr::if_else(variable == 'Tgav', paste0(scenario, '.tas.', year), paste0(scenario, '.co2.', year)))
+        # Run Hector
+        x <- hector::run(core)
+
+        # Extract the Hector results
+        hector::fetchvars(core = core, vars = c(hector::GLOBAL_TEMP(), hector::ATMOSPHERIC_CO2()), dates = 1861:2100) %>%
+            dplyr::rename('experiment' = scenario)
+
 
     }) %>%
-        dplyr::bind_rows() ->
+        dplyr::bind_rows() %>%
+        dplyr::mutate(model = 'selfTest',
+                      variable = dplyr::if_else(variable == 'Tgav', 'tas', 'co2')) ->
         hector_output
 
-    # Normalize the Hector output data.
+    # Subset the comparison data so that the comparison data only contains values there is center / scale
+    # values to normalize the data.
     hector_output %>%
-        dplyr::left_join(tibble::tibble(scale = pc_emiss$scale,
-                                        index = names( pc_emiss$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  pc_emiss$center,
-                                        index = names( pc_emiss$center)), by = 'index') %>%
-        na.omit %>%
-        dplyr::rename(hector_out = value) %>%
-        dplyr::mutate(hec_norm_val = (hector_out - center) / scale) %>%
-        dplyr::select(index, hector_out, hec_norm_val) ->
-        hector_comp_data
+        dplyr::filter(experiment == 'esmrcp85' & year > 2006) ->
+        comp_data1
 
-    # Normalize the ESM output data.
-    esm_data %>%
-        dplyr::mutate(index = paste0(experiment, '.', variable, '.', year)) %>%
-        dplyr::left_join(tibble::tibble(scale =  pc_emiss$scale,
-                                        index = names( pc_emiss$scale)), by = 'index') %>%
-        dplyr::left_join(tibble::tibble(center =  pc_emiss$center,
-                                        index = names( pc_emiss$center)), by = 'index') %>%
-        dplyr::mutate(esm_norm_val = (value - center) / scale) %>%
-        dplyr::rename(esm_out = value) %>%
-        dplyr::select(index, esm_out, esm_norm_val, experiment) ->
-        esm_comp_data
+    hector_output %>%
+        dplyr::filter(experiment == 'esmHistorical' & year < 2006) ->
+        comp_data2
 
-    # Calcualte the difference between the normalized Hector and ESM output data.
-    hector_comp_data %>%
-        dplyr::left_join(esm_comp_data, by = 'index') %>%
-        na.omit() %>%
-        dplyr::mutate(SE = (hec_norm_val - esm_norm_val)^2) %>%
-        split(.$experiment) %>%
-        lapply(function(input){
+    comp_data <- dplyr::bind_rows(comp_data1, comp_data2)
 
-            mean(input$SE)
 
-        }) %>%
-        unlist %>%
-        sum ->
-        expected_MSE
-
-    # Calculate the MSE using the function returned by make_minimize_function.
-    # Use the default Hector S, aero, and diff parameters since we know that Hector should solve with them.
-    param_default <- c(3, 1, 2.3, 0.36, 2, 276.0897)
-    names(param_default) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(),
-                              hector::BETA(),  hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
-    fn <- make_minimize_function(hector_cores = new_cores, esm_data = esm_data,
-                                            normalize = pc_emiss, param = param_default)
-
-    # Make sure that the MSE calculated by the function matches the value calcualted by hand.
-    testthat::expect_equal(fn(param = param_default), expected_MSE)
-
-    # Make sure that when the input paramters change a bit that the MSE also changes.
-    testthat::expect_true(fn(param = c(3.5, 1, 2.3, 0.36, 2, 276.0897)) != expected_MSE)
-
-    # When the CS is unrealistic we expect the function to return Inf.
-    testthat::expect_equal(fn(c(-6, 1, 4, 0.36, 2, 276.0897)), Inf)
+    # Expect a MSE value of 0 when Hector output data is compared with itself.
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = pc_emiss, param, n = 1)
+    testthat::expect_equal(fn(param), 0)
 
 })
-
 
