@@ -222,3 +222,123 @@ esm_pcplot <- function(pctable)
         ggplot2::xlim(c(xlo,xhi)) +
         ggthemes::theme_solarized_2(light=FALSE, base_size=14)
 }
+
+#' Plot the rotation of the principal components into the output space.
+#'
+#' Show what a gate defined in the principal components space looks like in the
+#' output space.
+#'
+#' Six principal components can be used in the plot.  Two of them will be used
+#' to draw the boxes in the output space.  The other four will be assigned to
+#' the color, linetype, facet row, and facet column aesthetics.  These
+#' assignments are referred to as x, y, col, lty, facetrow, and facetcol,
+#' respectively.  By default they are assigned to PCs 1-6 in that order.  This
+#' assignment can be changed by passing a named vector to the pccords
+#' parameter.  The names give the roles to rebind, and the (integer) values
+#' give the PC to bind to them.  You only need to pass the ones you want to change
+#' from their defaults, so for example, passing \code{c(x=3, lty=1)} would swap
+#' the roles of PC1 and PC3, while leaving the other roles unchanged.
+#'
+#' Note that if any of the PCs used in pccords are not in the pclimits table, or
+#' if any of them occur more than once, you will get an error.
+#'
+#' @param pclimits Data frame giving the high, medium, and low values for each
+#' PC.
+#' @param pcstruct Principal components structure.
+#' @param yrx Year to plot as the x-value in the output space
+#' @param yry Year to plot as tye y-value in the output space
+#' @param var Variable to plot in the output space
+#' @param expt Experiment to use for the output variable assignment.
+#' @param pccords Assignment of coordinates to principal components (see details)
+#' @param HML Names of the columns in pclimits containing the High, Medium, and
+#' Low values for the gates.  (Also, my grandmother's initials.  Miss you.)
+#' @importFrom foreach foreach %do%
+#' @importFrom dplyr %>%
+#' @export
+pc_rotplot <- function(pclimits, pcstruct, yrx=2006, yry=2100, var='tas', expt='rcp85',
+                       pccords=NULL, HML=c('max', 'mean', 'min'))
+{
+    year <- variable <- NULL
+
+    npc <- 6
+    pccords_default <- seq(1,npc)
+    names(pccords_default) <- c('x','y','col','lty','facetrow', 'facetcol')
+    if(is.null(pccords)) {
+        pccords <- pccords_default
+    }
+    for(n in names(pccords_default)) {
+        if(!(n %in% names(pccords))) {
+            pccords[[n]] <- pccords_default[[n]] # Use double braket for all
+                                        # this stuff so that if someone passes
+                                        # in a list instead of a vector it still
+                                        # works.
+        }
+    }
+
+    ## combinations of x and y roles to use to draw a box.  The indices refer to
+    ## the entries in the HML vector
+    boxx <- c(3,3,3, 2, 1,1,1, 2)
+    boxy <- c(3,2,1, 1, 1,2,3, 3)
+
+    ## Display names of the levels for facets
+    levelnames <- c('zhi', 'med', 'low')
+    ## Rejigger the names for linetype so that "medium" gets the solid line.  I
+    ## should really figure out how to do this the right way.
+    ltylevelnames <- c('zhi', 'amed', 'low')
+
+    ## Discard any tibble attributes that pclimits might have
+    pclimits <- as.data.frame(pclimits)
+
+    plotcolnames <- paste0('PC', pccords[names(pccords_default)])
+
+    pltdata <-
+        foreach (col3 = 1:3, .combine=dplyr::bind_rows) %do% {
+            x3 <- pclimits[pclimits$PC == pccords[['col']], HML[[col3]]]
+            foreach (col4 = 1:3, .combine=dplyr::bind_rows) %do% {
+                x4 <- pclimits[pclimits$PC == pccords[['lty']], HML[[col4]]]
+                foreach (col5 = 1:3, .combine=dplyr::bind_rows) %do% {
+                    x5 <- pclimits[pclimits$PC == pccords[['facetrow']], HML[[col5]]]
+                    foreach(col6 = 1:3, .combine=dplyr::bind_rows) %do% {
+                        x6 <- pclimits[pclimits$PC == pccords[['facetcol']], HML[[col6]]]
+
+                        foreach(i = seq_along(boxx), .combine=dplyr::bind_rows) %do% {
+                            x1 <- pclimits[pclimits$PC == pccords[['x']],
+                                           HML[[boxx[i]]]]
+                            x2 <- pclimits[pclimits$PC == pccords[['y']],
+                                           HML[[boxy[i]]]]
+                            pcvec <- rep(0, npc)
+                            ## The names of pccords_default are guaranteed to be
+                            ## in the right order.  pccords, not so much.
+                            pcvec[pccords[names(pccords_default)]] <-
+                                c(x1,x2,x3,x4,x5,x6)
+
+                            cd <- reconstruct_climate(pcvec, pcstruct, npc) %>%
+                              dplyr::filter(year %in% c(yrx, yry),
+                                            variable==var, experiment==expt) %>%
+                              as.data.frame()
+
+                            rslt <-
+                                data.frame(v1 = cd[cd$year==yrx, 'value'],
+                                           v2 = cd[cd$year==yry, 'value'],
+                                           v3 = levelnames[col3],
+                                           v4 = ltylevelnames[col4],
+                                           v5 = levelnames[col5],
+                                           v6 = levelnames[col6], stringsAsFactors = FALSE)
+                            names(rslt) <- plotcolnames
+
+                            rslt
+                        }
+                    }
+                }
+            }
+        }
+
+    ggplot2::ggplot(data=pltdata,
+                    mapping=
+                      ggplot2::aes_string(plotcolnames[1], plotcolnames[2],
+                                          color=plotcolnames[3],
+                                          linetype=plotcolnames[4])) +
+      ggplot2::geom_path() +
+      ggplot2::facet_grid(paste(plotcolnames[5], '~', plotcolnames[6])) +
+      xlab(paste(var,'(', yrx, ')')) + ylab(paste(var,'(', yry, ')'))
+}

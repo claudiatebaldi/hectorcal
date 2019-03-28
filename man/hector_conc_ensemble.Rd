@@ -19,6 +19,7 @@ The params data frame has 4 columns:
 \item{runid}{Unique identifier for each run.}
 \item{S}{Equilibrium climate sensitivity.}
 \item{alpha}{Aerosol scaling factor.}
+\item{volscl}{Volcanic forcing scaling factor.}
 \item{diff}{Diffusivity parameter.}
 }}
 \usage{
