@@ -5,18 +5,22 @@
 \title{Make the function to minimize}
 \usage{
 make_minimize_function(hector_cores, esm_data, normalize, param,
-  n = NULL)
+  core_weights = NULL, n = NULL, showMessages = FALSE)
 }
 \arguments{
 \item{hector_cores}{A list of Hector cores that will be used.}
 
-\item{esm_data}{A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.}
+\item{esm_data}{A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment, weight.}
 
 \item{normalize}{A list of center and the scale values to use to noramlize the Hector and ESM output data.}
 
 \item{param}{A vector of parameter values.}
 
+\item{core_weights}{An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.}
+
 \item{n}{The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}}
+
+\item{showMessages}{Default set to FALSE, will supress Hector error messages.}
 }
 \value{
 A function that will calculate the mean squared error between a Hector run and ESM data.
