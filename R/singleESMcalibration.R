@@ -230,7 +230,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
 
         # Calculate the weighted sum for the non NA values.
         final_values <- c(rslt1, rslt2)[!is.na(c(rslt1, rslt2))]
-        sum(final_values * weights_to_use)
+        weighted.mean(x = final_values, w = weights_to_use)
     }
 }
 
@@ -384,6 +384,9 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
 
     # Add the calibration results to the output list.
     output[['optim_rslt']] <- calibration_rslts
+
+    output[['weights']]    <- core_weights
+
 
     # Return the output.
     return(output)

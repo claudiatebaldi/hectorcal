@@ -164,9 +164,10 @@ test_that('make_minimize_function works with clim parameters', {
     # difference between the comparison data for each experiment is 1 then we expect that
     # sum of the MSE for the two experiments will equal 2.
     #
-    # Shift the comparison data by 1
+    # Shift the comparison data by a set numer.
+    shift_by <- 1
     comp_data_shifted <- comp_data
-    comp_data_shifted$value <- comp_data_shifted$value - 1
+    comp_data_shifted$value <- comp_data_shifted$value - shift_by
 
     # Change the center values to 0 and the scale values to 1 so that the noramlizing
     # process does not will not change the hector output or comparison data values.
@@ -178,17 +179,23 @@ test_that('make_minimize_function works with clim parameters', {
 
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                             normalize = norm, param, n = 1)
-    testthat::expect_equal(fn_shifted(param), 1 * length(new_cores))
+    testthat::expect_equal(fn_shifted(param), shift_by)
 
 
 
     # Make sure that the weights work as expected. Since we shifted the comparison data by 1
     # and we expect that the MSE for each hector core or experiment to be equal to 1 then we
     # would expect the weighted sum of the MSE to equal the sum of the weights * 1.
-    my_weights <- c(1/8, 1/3)
-    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+    my_weights <- c(0.75, 0.25)
+
+    # Now shift the values for one of the experiments a second time.
+    comp_data_shifted %>%
+        dplyr::mutate(value = dplyr::if_else(experiment == 'rcp60', value - shift_by, value)) ->
+        comp_data_shifted_twice
+
+    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted_twice,
                                             normalize = norm, param, n = 1, core_weights = my_weights)
-    testthat::expect_equal(fn_shifted(param), sum(my_weights))
+    testthat::expect_equal(fn_shifted(param), weighted.mean(c((2 * shift_by) ^2, shift_by), my_weights))
 
 
 
