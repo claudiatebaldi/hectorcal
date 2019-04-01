@@ -5,10 +5,13 @@
 ## See the setup section for user sepficic changes.
 
 # 0. Set Up -----------------------------------------------------------------------------------
+# The directory location of the project on pic -- this will have to be changed by other users.
+PIC_HECCAL_DIR <- '/pic/projects/GCAM/Dorheim/hectorcal'
+setwd(PIC_HECCAL_DIR)
+PIC_HECCAL_DIR <- getwd()
 
-
-OUTPUT_DIR <- file.path(getwd(), 'analysis', 'singleESMcalibration', 'rslts')
-dir.create(OUTPUT_DIR, showWarnings = F, recursive = T)
+OUTPUT_DIR <- file.path(PIC_HECCAL_DIR, 'analysis', 'singleESMcalibration', 'rslts')
+dir.create(OUTPUT_DIR, recursive = T, showWarnings = F)
 
 # Load hector cal package
 devtools::load_all()

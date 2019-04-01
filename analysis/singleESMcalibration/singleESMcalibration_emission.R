@@ -5,9 +5,12 @@
 ## See the setup section for user sepficic changes.
 
 # 0. Set Up -----------------------------------------------------------------------------------
-
 # The directory location of the project on pic -- this will have to be changed by other users.
-OUTPUT_DIR <- file.path(getwd(), 'analysis', 'singleESMcalibration', 'rslts')
+PIC_HECCAL_DIR <- '/pic/projects/GCAM/Dorheim/hectorcal'
+setwd(PIC_HECCAL_DIR)
+PIC_HECCAL_DIR <- getwd()
+
+OUTPUT_DIR <- file.path(PIC_HECCAL_DIR, 'analysis', 'singleESMcalibration', 'rslts')
 dir.create(OUTPUT_DIR, recursive = T, showWarnings = F)
 
 # Load hector cal package
@@ -117,7 +120,7 @@ system.time(lapply(names(esm_data_list), function(X){
                                            normalize = normalize,
                                            initial_param = param,
                                            core_weights = NULL,
-                                           n_parallel = 6)
+                                           n_parallel = 3)
 
         saveRDS(rslt, file = file.path(OUTPUT_DIR, paste0('esm_', X, '.rds')))
 
