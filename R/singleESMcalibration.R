@@ -121,48 +121,6 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
         NULL
     }
 
-    # This function calcualtes the mean squared error between the hector output and the comparison data.
-    # It is defined here as an internal function to close over objects that have been created in the
-    # make_minimize_function environment and so that the different foreach calls in the following section
-    # execute the same code.
-    #
-    # Args:
-    #   exp - an integer that will be used to index through the list of the comparison data data frames called
-    #         esm_experiment_list, this list is defined in the prep data section of the make_minimize_function.
-    # Returns: the mean squared difference between the hector output data and the comparison data for each experiment and variable compared.
-    internal_MSE <- function(exp){
-
-        # Pull out the years and variable names from the esm data for the experiment.
-        yrs <- unique(esm_experiment_list[[exp]]$year)
-        var <- ifelse(unique(esm_experiment_list[[exp]]$variable) == 'co2', hector::ATMOSPHERIC_CO2(), hector::GLOBAL_TEMP())
-
-        # Run the Hector core and calculate the MSE for the Hector and ESM output data.
-        tryCatch({
-            # Reset the core with the new parameters.
-            parameterize_core(core = cores_to_use[[exp]], params = param)
-
-            # Run the Hector core.
-            hector::run(core = cores_to_use[[exp]], runtodate = max(yrs))
-
-            # Fetch the output data of intrest for the years to compare with the ESM data and arrange to match order
-            # of the information in the ESM data frame.
-            hector::fetchvars(core = cores_to_use[[exp]], yrs, var) %>%
-                dplyr::arrange(scenario, variable, year) %>%
-                dplyr::mutate(variable = dplyr::if_else(variable == 'Tgav', 'tas', 'co2'),
-                              scenario = as.character(scenario)) %>%
-                dplyr::left_join(esm_experiment_list[[exp]] %>%
-                                     dplyr::mutate(experiment = as.character(experiment)),
-                                 by = c('scenario' = 'experiment', 'year', 'variable')) %>%
-                na.omit() %>%
-                dplyr::mutate(hector_norm = (value - center) / scale) %>%
-                dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
-                dplyr::pull(SE) %>%
-                mean
-
-        },error=debug_errhandler)
-
-    }
-
     # Set Up Parallel Cores ------
     # Parllel runs set up.
     if(is.null(n)){
@@ -192,7 +150,35 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
 
 
                     exp <- (k-1) * n + i        # Define the experiment index based  on the setup of the parallel batches.
-                    MSE <- internal_MSE(exp)    # Average squared difference.
+
+                    # Pull out the years and variable names from the esm data for the experiment.
+                    yrs <- unique(esm_experiment_list[[exp]]$year)
+                    var <- ifelse(unique(esm_experiment_list[[exp]]$variable) == 'co2', hector::ATMOSPHERIC_CO2(), hector::GLOBAL_TEMP())
+
+                    # Run the Hector core and calculate the MSE for the Hector and ESM output data.
+                    MSE <- tryCatch({
+                        # Reset the core with the new parameters.
+                        parameterize_core(core = cores_to_use[[exp]], params = param)
+
+                        # Run the Hector core.
+                        hector::run(core = cores_to_use[[exp]], runtodate = max(yrs))
+
+                        # Fetch the output data of intrest for the years to compare with the ESM data and arrange to match order
+                        # of the information in the ESM data frame.
+                        hector::fetchvars(core = cores_to_use[[exp]], yrs, var) %>%
+                            dplyr::arrange(scenario, variable, year) %>%
+                            dplyr::mutate(variable = dplyr::if_else(variable == 'Tgav', 'tas', 'co2'),
+                                          scenario = as.character(scenario)) %>%
+                            dplyr::left_join(esm_experiment_list[[exp]] %>%
+                                                 dplyr::mutate(experiment = as.character(experiment)),
+                                             by = c('scenario' = 'experiment', 'year', 'variable')) %>%
+                            na.omit() %>%
+                            dplyr::mutate(hector_norm = (value - center) / scale) %>%
+                            dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
+                            dplyr::pull(SE) %>%
+                            mean
+
+                    },error=debug_errhandler)
 
                     if(is.null(MSE)){
                         Inf
@@ -212,7 +198,38 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
             rslt2 <- foreach::foreach(i=1:nextra, .combine='c') %dopar% {
 
                 exp <- nbatch * n + i       # Define the experiment list inex based on batch position.
-                MSE <- internal_MSE(exp)    # Average squared difference.
+
+                # Pull out the years and variable names from the esm data for the experiment.
+                yrs <- unique(esm_experiment_list[[exp]]$year)
+                var <- ifelse(unique(esm_experiment_list[[exp]]$variable) == 'co2', hector::ATMOSPHERIC_CO2(), hector::GLOBAL_TEMP())
+
+                # Run the Hector core and calculate the MSE for the Hector and ESM output data.
+                MSE <- tryCatch({
+                    # Reset the core with the new parameters.
+                    parameterize_core(core = cores_to_use[[exp]], params = param)
+
+                    # Run the Hector core.
+                    hector::run(core = cores_to_use[[exp]], runtodate = max(yrs))
+
+                    # Fetch the output data of intrest for the years to compare with the ESM data and arrange to match order
+                    # of the information in the ESM data frame.
+                    hector::fetchvars(core = cores_to_use[[exp]], yrs, var) %>%
+                        dplyr::arrange(scenario, variable, year) %>%
+                        dplyr::mutate(variable = dplyr::if_else(variable == 'Tgav', 'tas', 'co2'),
+                                      scenario = as.character(scenario)) %>%
+                        dplyr::left_join(esm_experiment_list[[exp]] %>%
+                                             dplyr::mutate(experiment = as.character(experiment)),
+                                         by = c('scenario' = 'experiment', 'year', 'variable')) %>%
+                        na.omit() %>%
+                        dplyr::mutate(hector_norm = (value - center) / scale) %>%
+                        dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
+                        dplyr::pull(SE) %>%
+                        mean
+
+                },error=debug_errhandler)
+
+
+
 
                 if(is.null(MSE)){
                     Inf
@@ -231,6 +248,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
         # Calculate the weighted sum for the non NA values.
         final_values <- c(rslt1, rslt2)[!is.na(c(rslt1, rslt2))]
         weighted.mean(x = final_values, w = weights_to_use)
+
     }
 }
 
