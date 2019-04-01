@@ -5,7 +5,8 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data and return diagnostic materials.}
 \usage{
 singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
-  initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL)
+  initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL,
+  showMessages = FALSE)
 }
 \arguments{
 \item{inifiles}{A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.}
@@ -23,6 +24,8 @@ singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
 \item{maxit}{The max number of itterations for optim, default set to 500.}
 
 \item{n_parallel}{The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.}
+
+\item{showMessages}{Default set to FALSE, will supress Hector error messages.}
 }
 \value{
 A list containing the following elements, copmarison_plot a plot comparing Hector and ESM output data, residual_plot a plot comparing the

@@ -263,16 +263,17 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
 #' @param core_weights An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
+#' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return An object returned by \code{optim}
 #' @export
-singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL){
+singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Set up the Hector cores.
     cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
 
     # Make the function that will calculate the mean squared error between Hector output and the esm comparison data,
     # this function will be minimized by optim.
-    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, core_weights = core_weights, param = initial_param, n = n_parallel)
+    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, core_weights = core_weights, param = initial_param, n = n_parallel, showMessages = showMessages)
 
     # Use optim to minimize the MSE between Hector and ESM output data
     stats::optim(par = initial_param, fn = fn, control = list('maxit' = maxit))
@@ -293,11 +294,12 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' @param core_weights An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
+#' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return A list containing the following elements, copmarison_plot a plot comparing Hector and ESM output data, residual_plot a plot comparing the
 #' normalized residuals, MSE a data frame of the mean squared error for each experiment and variable optim minimizes the sum of the MSE values, and
 #' optim_rslt is the object returned by \code{optim}.
 #' @export
-singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL){
+singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Make an empty list to return the output in.
     output <- list()
@@ -312,7 +314,7 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
     # Get the best parameter fit for Hector and the ESM.
     calibration_rslts <- singleESM_calibration(inifiles = inifiles, hector_names = hector_names, esm_data = esm_data,
                                                normalize = normalize, initial_param = initial_param, core_weights = core_weights,
-                                               maxit = maxit, n = n_parallel)
+                                               maxit = maxit, n = n_parallel, showMessages = showMessages)
 
     if(calibration_rslts$convergence == 0){
 
