@@ -145,7 +145,7 @@ system.time(lapply(names(esm_data_list), function(X){
                                            core_weights = weight_df$weight,
                                            n_parallel = 6)
 
-        saveRDS(rslt, file = file.path(OUTPUT_DIR, paste0('weighted_conc_', X, '.rds')))
+        saveRDS(rslt, file = file.path(OUTPUT_DIR, paste0('weightedConc_', X, '.rds')))
 
     }}))
 

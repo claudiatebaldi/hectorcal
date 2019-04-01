@@ -1,5 +1,5 @@
 ## Find the Hector climate system paramters so that Hector emulates individual CMIP5 models.
-## Right now this code is set up to emulate the concentration driven experiments only to be
+## Right now this code is set up to emulate the emission driven experiments only to be
 ## run on pic.
 ##
 ## See the setup section for user sepficic changes.
@@ -7,11 +7,7 @@
 # 0. Set Up -----------------------------------------------------------------------------------
 
 # The directory location of the project on pic -- this will have to be changed by other users.
-PIC_HECCAL_DIR <- '/pic/projects/GCAM/Dorheim/hectorcal'
-setwd(PIC_HECCAL_DIR)
-PIC_HECCAL_DIR <- getwd()
-
-OUTPUT_DIR <- file.path(PIC_HECCAL_DIR, 'analysis', 'singleESMcalibration', 'rslts')
+OUTPUT_DIR <- file.path(getwd(), 'analysis', 'singleESMcalibration', 'rslts')
 dir.create(OUTPUT_DIR, recursive = T, showWarnings = F)
 
 # Load hector cal package
@@ -30,17 +26,17 @@ library(ggplot2)
 
 # First extrapolate the center and scale values so that are sufficent entires for all of the
 # years of output data.
-tibble::tibble(index = names(hectorcal::pc_conc$scale),
-               scale = hectorcal::pc_conc$scale,
-               center = hectorcal::pc_conc$center) %>%
+tibble::tibble(index = names(hectorcal::pc_emiss$scale),
+               scale = hectorcal::pc_emiss$scale,
+               center = hectorcal::pc_emiss$center) %>%
     tidyr::separate(index, into = c('experiment', 'variable', 'year')) %>%
     dplyr::mutate(year = as.integer(year)) %>%
     dplyr::right_join(hectorcal::cmip_individual %>%
                           dplyr::select(year, variable, experiment) %>%
-                          dplyr::filter(!grepl(pattern = 'esm', experiment)) %>%
+                          dplyr::filter(grepl(pattern = 'esm', experiment)) %>%
                           dplyr::distinct(),
                       by = c("experiment", "variable", "year")) %>%
-    dplyr::filter(!grepl(pattern = 'esm', experiment) & variable == 'tas') %>%
+    dplyr::filter(grepl(pattern = 'esm', experiment)) %>%
     dplyr::distinct() %>%
     dplyr::arrange(experiment, variable, year) %>%
     split(., interaction(.$experiment, .$variable)) %>%
@@ -61,7 +57,7 @@ tibble::tibble(index = names(hectorcal::pc_conc$scale),
 # Start by determing the combinations of the experimetns and the ensembles. Add a column that will contain
 # the new experiment name (a combination of the experiment and ensemble).
 hectorcal::cmip_individual %>%
-    filter(!grepl(pattern = 'esm', experiment) & variable == 'tas') %>%
+    filter(grepl(pattern = 'esm', experiment)) %>%
     select(experiment, ensemble) %>%
     distinct %>%
     mutate(new_experiment = paste0(experiment, '_', ensemble)) ->
@@ -82,25 +78,22 @@ names(scale)  <- exp_en_center_scale$new_index
 normalize     <- list('center' = center, 'scale' = scale)
 
 # Make a mapping file of the hector ini file name and the experiment name
-tibble::tibble( file =  c(system.file('input/hector_rcp26_constrained.ini', package = 'hector'),
-                          system.file('input/hector_rcp26_constrained.ini', package = 'hector'),
-                          system.file('input/hector_rcp45_constrained.ini', package = 'hector'),
-                          system.file('input/hector_rcp60_constrained.ini', package = 'hector'),
-                          system.file('input/hector_rcp85_constrained.ini', package = 'hector')),
-                experiment = c('historical', 'rcp26', 'rcp45', 'rcp60', 'rcp85')) %>%
+tibble::tibble( file =  c(system.file('input/hector_rcp26.ini', package = 'hector'),
+                          system.file('input/hector_rcp85.ini', package = 'hector')),
+                experiment = c('esmHistorical', 'esmrcp85')) %>%
     left_join(experiment_ensembles, by = "experiment")  %>%
     select(ini_file = file, core_name = new_experiment, experiment, ensemble) ->
     ini_files_tib
 
 # Default parameters.
-param <- c(3.5, 1, 2.7, 0.5)
-names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::VOLCANIC_SCALE())
-
+param <- c(3.5, 1, 2.7, 0.5, 2.3, 3.5, 285)
+names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::VOLCANIC_SCALE(),
+                  hector::BETA(), hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
 
 # Format the esm data into of the data to use in the calibraiton, each element in the list should
 # contain the experiments (experiment - ensemble combinations) that will be used as the comparison data.
 hectorcal::cmip_individual %>%
-    filter(!grepl(pattern = 'esm', experiment) & variable == 'tas') %>%
+    filter(grepl(pattern = 'esm', experiment)) %>%
     # Save a copy of the experiment information, this is important for the weighted calibration.
     mutate(experiment_copy = experiment,
            experiment = paste0(experiment, '_', ensemble)) %>%
@@ -124,9 +117,9 @@ system.time(lapply(names(esm_data_list), function(X){
                                            normalize = normalize,
                                            initial_param = param,
                                            core_weights = NULL,
-                                           n_parallel = 1, maxit = 500)
+                                           n_parallel = 6)
 
-        saveRDS(rslt, file = file.path(OUTPUT_DIR, paste0('conc_', X, '.rds')))
+        saveRDS(rslt, file = file.path(OUTPUT_DIR, paste0('esm_', X, '.rds')))
 
     }}))
 
