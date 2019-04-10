@@ -121,22 +121,6 @@ climout <-
 #                  PC3 = ordered(PC3, labels=levels),
 #                  PC4 = ordered(PC4, labels=levels))
 
-## Get a data frame of gates for an experiment
-get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
-    if(grepl('[Hh]istorical', expt)) {
-        maxyear <- 2005
-    }
-    else {
-        minyear <- 2006
-    }
-    
-    exptdata <- filter(esm_comparison, experiment==expt, variable==var, 
-                       year <= maxyear, year >= minyear)
-    yrs <- c(min(exptdata$year),
-             max(exptdata$year[exptdata$year <= median(exptdata$year)]),
-             max(exptdata$year))
-    filter(exptdata, year %in% yrs)
-}
 
 for(expt in unique(climout$experiment)) {
     print(

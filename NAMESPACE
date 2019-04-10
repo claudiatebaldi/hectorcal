@@ -2,8 +2,10 @@
 
 export(build_mcmc_post)
 export(calc_variance)
+export(chkgates)
 export(compute_pc)
 export(esm_pcplot)
+export(get_gates)
 export(hector_output_stats)
 export(mesa)
 export(metrosamp2coda)
