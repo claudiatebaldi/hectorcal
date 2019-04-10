@@ -1,26 +1,5 @@
 #### Functions used in calibrating Hector to emulate an individual ESM.
 
-#' Parameterize a Hector core.
-#'
-#' @param params A named vector of Hector parameters.
-#' @param core A Hector core.
-#' @return A Hector set up to run with a new set of paramters.
-parameterize_core <- function(params, core) {
-
-    pnames <- names(params)
-    assertthat::assert_that(!is.null(pnames), msg = 'params must be named.')
-
-    punits <- hector::getunits(pnames)
-    assert_that(!any(is.na(punits)), msg='Bogus parameter names')
-
-    mapply(function(x, y, z){hector::setvar(core = core, dates = NA, var = x, values = y, unit = z)},
-           x = pnames, y = params, z = punits)
-
-    hector::reset(core = core)
-
-    }
-
-
 #' Make the function to minimize
 #'
 #' Create the function that will calculate the mean squared error between Hector and ESM CMIP5 output data. THis
