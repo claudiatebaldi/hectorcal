@@ -21,9 +21,7 @@ check_columns <- function(input, req_cols){
 #' from \code{prcomp} and meta data information.
 #' @param row_vector If \code{TRUE}, return the data as a row vector (a 1xN
 #' matrix)
-#' @return a list of three objects, rotation the PC loadings, scale the values
-#' used to scale the input climate data, and center the values used to center
-#' the climate data.
+#' @return A vector of projection coefficients for the climate data.
 #' @importFrom dplyr %>%
 #' @importFrom assertthat assert_that
 #' @export
