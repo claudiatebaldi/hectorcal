@@ -4,25 +4,22 @@
 \alias{build_mcmc_post}
 \title{Construct a log posterior probability function for Bayesian calibration}
 \usage{
-build_mcmc_post(comp_data, inifile, years = seq(2010, 2100, 20),
-  smooth_co2 = 15, cal_mean = TRUE, use_c_cycle = TRUE,
-  lowcol = "mina", hicol = "maxb", prior_params = NULL,
-  use_lnorm_ecs = TRUE)
+build_mcmc_post(comp_data, inifiles, pcs = NULL, smoothing = 0.1,
+  cal_mean = TRUE, lowcol = "mina", hicol = "maxb",
+  prior_params = NULL, use_lnorm_ecs = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
 
-\item{inifile}{Input file to initialize hector core.}
+\item{inifiles}{Vector of input files to initialize hector cores.}
 
-\item{years}{Years to use in the likelihood calculation.  Other years in the
-comparison data and the Hector output will be ignored.}
+\item{pcs}{Principal components structure.  If \code{NULL}, work directly
+with output values.}
 
-\item{smooth_co2}{Sig parameter to use in \code{\link{mesa}} for the CO2
-variable.}
+\item{smoothing}{Smoothing parameter for the mesa function, expressed as a
+fraction of the window size.}
 
 \item{cal_mean}{If true calibrate to mean; otherwise calibrate to range}
-
-\item{use_c_cycle}{If true, include carbon cycle parameters; if not, don't.}
 
 \item{lowcol}{Column in comparison data to use for the low edge of the mesa
 function.  Ignored if cal_mean is \code{TRUE}}
@@ -37,6 +34,9 @@ list will be set to their default values.}
 \item{use_lnorm_ecs}{If true, use a log-normal prior for climate
 sensitivity.  If false, use a normal prior.  The false setting is intended
 primarily for testing the influence of priors on the final result.}
+
+\item{verbose}{If \code{TRUE}, print diagnostic messages.  Otherwise,
+diagnostic messages will not be generated.}
 }
 \description{
 The function constructed by this call will be suitable for passing to either

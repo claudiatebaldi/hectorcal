@@ -211,3 +211,36 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
 
     pca
 }
+
+
+
+#' Create comparison data for principal components decomposition
+#'
+#' We have stored the principal components decomposition for each CMIP5 model as
+#' package data.  This function summarises that into a format similar to the
+#' \code{\link{esm_comparison}} dataset.
+#'
+#' @param pcdata Input principal components decomposition (probably either
+#' \code{\link{cmip_conc_pcproj}} or \code{\link{cmip_emiss_pcproj}}).
+#' @param pcmax Maximum PC to use.  PCs higher than this will be dropped.
+#' @param pcselect Individual PCs to select.  This is intersected with the list
+#' implied by pcmax.
+#' @importFrom dplyr %>%
+#' @export
+summarize_pcdecomp <- function(pcdecomp, pcmax=NULL, pcselect=NULL)
+{
+    PC <- NULL                          # bindings for NSE vars
+    if(!is.null(pcmax)) {
+        pcdecomp <- dplyr::filter(pcdecomp, PC <= pcmax)
+    }
+    if(!is.null(pcselect)) {
+        pcdecomp <- dplyr::filter(pcdecomp, PC %in% pcselect)
+    }
+    dplyr::group_by(pcdecomp, PC) %>%
+      dplyr::summarise(mina=min(value), maxb=max(value),
+                       a10=quantile(value, 0.1, names=FALSE),
+                       b90=quantile(value, 0.9, names=FALSE),
+                       cmean=mean(value), cmedian=median(value)) %>%
+      dplyr::ungroup() %>%
+      dplyr::arrange(PC)
+}

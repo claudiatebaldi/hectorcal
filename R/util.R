@@ -41,13 +41,7 @@ setup_hector_cores <- function(inifile, name) {
     assertthat::assert_that(length(inifile) == length(name),
                             msg = 'inifile and name must be vectors of equal lengths')
 
-    # Make a hector core of every ini file entry
-    # lapply(1:(length(inifile)), function(i) {
-    #     hector::newcore(inifile[i], name = name[i], suppresslogging=TRUE)
-    # })
-
     mapply(hector::newcore, inifile=inifile, name=name, suppresslogging=TRUE)
-
 }
 
 

@@ -89,3 +89,45 @@ test_that('project_climate works', {
     expect_error(project_climate(climate_data, missing_pc_rows), 'nrow.cd. not equal to nrow.principal_components')
 
 })
+
+
+test_that('summarize_pcdecomp works', {
+    ## Create some mock-up data
+    npc <- 50
+    nmodel <- 10                   # changing this will change the test answers,
+                                   # so don't
+    pcs <-
+        dplyr::bind_rows(
+            lapply(1:nmodel,
+                   function(modelid) {
+                       pcnum <- 1:npc
+                       value <- 1 + ((pcnum + modelid) %% nmodel) # number from 1-10
+                       data.frame(model=as.character(modelid), PC=pcnum,
+                                  value=value, stringsAsFactors=FALSE)
+                   }))
+
+    ## now the tests
+    t1 <- summarize_pcdecomp(pcs)       # summarize full
+    expect_equal(nrow(t1), npc)
+    expect_equal(t1$mina, rep(1, npc))
+    expect_equal(t1$maxb, rep(10, npc))
+    expect_equal(t1$a10, rep(1.9, npc))
+    expect_equal(t1$b90, rep(9.1, npc))
+    expect_equal(t1$cmedian, rep(5.5, npc))
+    expect_equal(t1$cmean, rep(5.5, npc))
+    expect_equal(t1$PC, 1:npc)
+
+    t2 <- summarize_pcdecomp(pcs, 10)   # First 10 only
+    expect_equal(nrow(t2), 10)
+    expect_equal(t2$PC, 1:10)
+    expect_true(all(t1$mina==1))
+    expect_true(all(t1$maxb==10))
+
+    t3 <- summarize_pcdecomp(pcs, pcselect=c(2,4,6,8,10))
+    expect_equal(nrow(t3), 5)
+    expect_equal(t3$PC, c(2,4,6,8,10))
+
+    t4 <- summarize_pcdecomp(pcs, 5, c(2,4,6,8,10)) # only 2 and 4
+    expect_equal(nrow(t4), 2)
+    expect_equal(t4$PC, c(2,4))
+})
