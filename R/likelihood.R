@@ -17,7 +17,10 @@
 #' settable for co2, but fixed at 0.4 for temperature.
 #'
 #' @param comp_data Table of esm summary statistics (mean, min, max) by year.
-#' @param inifiles Vector of input files to initialize hector cores.
+#' @param inifiles Named vector of names of Hector input files for the various
+#' experiments to be run. You do not need to provide ini files for historical
+#' experiments unless they are the only experiments present.  Extraneous files
+#' will be ignored, so it is safe to use a canoncial list of filenames.
 #' @param pcs Principal components structure.  If \code{NULL}, work directly
 #' with output values.
 #' @param smoothing Smoothing parameter for the mesa function, expressed as a
@@ -45,6 +48,112 @@ build_mcmc_post <- function(comp_data, inifiles,
                             use_lnorm_ecs=TRUE,
                             verbose=FALSE)
 {
+    ## Prior hyperparameters
+    default_prior_params <- c(
+        ecsmu=3.0, ecssig=log(3.0),
+        aeromu=1.0, aerosig=1.4,
+        volmu=1.0, volsig=1.4,
+        kappamu=2.3, kappasig=2.0,
+        betamu=0.3, betasig=0.7,
+        q10mu=2.0, q10sig=2.0,
+        c0mu=285, c0sig=14.0,
+        sigtscale=1.0,
+        sigco2scale=10.0)
+
+    ## Check to see if user has overridden any of the parameters
+    if(!is.null(prior_params)) {
+        for(param in names(default_prior_params)) {
+            if(! param %in% prior_params) {
+                ## Set any unmentioned parameter to its default value
+                prior_params[param] <- default_prior_params[param]
+            }
+        }
+    }
+    else {
+        prior_params <- default_prior_params
+    }
+
+
+    logprior <- make_logprior(prior_params, use_lnorm_ecs, cal_mean)
+
+    loglik <- make_loglikelihood(hcores, verbose, cal_mean, comp_data, pcs)
+
+    ## Return the final posterior function
+    make_logpost(logprior, loglik, verbose)
+}
+
+#' Internal functions for creating log-posterior functions
+#'
+#' These functions are called by \code{\link{build_mcmc_post}} to create the
+#' log-posterior functions
+#' @name likelihoodInternal
+#' @keywords internal
+NULL
+
+#' @describeIn likelihoodInternal Make a log prior function
+#'
+#' @param pprior Parameters for prior distributions.  This \emph{must} be a
+#' complete set (unlike the input to \code{build_mcmc_post})
+#' @param use_lnorm_ecs Flag indicating whether to use the lognormal prior for
+#' climate sensitivity
+make_logprior <- function(pprior, use_lnorm_ecs)
+{
+    ## Check to see if user has requested the lognormal prior
+    if(use_lnorm_ecs) {
+        s_prior <- function(s) {stats::dlnorm(s, log(pprior['ecsmu']), pprior['ecssig'], log=TRUE)}
+    }
+    else{
+        s_prior <- function(s) {stats::dnorm(s, pprior['ecsmu'], pprior['ecssig'], log=TRUE)}
+    }
+
+    ## truncated normal functions for constrained params
+    betalprior <- mktruncnorm(0, Inf, pprior['betamu'], pprior['betasig'])
+    q10prior   <- mktruncnorm(0, Inf, pprior['q10mu'], pprior['q10sig'])
+
+    function(p) {
+        sigvals <- p[c('sigt','sigco2')] #use these later
+
+        sum(
+            ## normal priors
+            stats::dnorm(
+                p[c(hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
+                    hector::DIFFUSIVITY(), hector::PREINDUSTRIAL_CO2())],
+                pprior[c('aeromu', 'volmu', 'kappamu', 'c0mu')],
+                pprior[c('aerosig', 'volsig', 'kappasig', 'c0sig')],
+                log=TRUE),
+            ## custom priors
+            s_prior(p[hector::ECS()]),
+            betalprior(p[hector::BETA()]),
+            q10prior(p[hector::Q10_RH()]),
+            ## half-cauchy priors for the sigvals
+            ifelse(sigvals<0, -Inf, stats::dcauchy(sigvals, 0,
+                                                   pprior[c('sigtscale','sigco2scale')], log=TRUE)),
+            ## This will cause us to ignore any parameters not present
+            na.rm = TRUE
+            )
+    }
+}
+
+
+#' @describeIn likelihoodInternal Make a log likelihood function
+#'
+#' @param inifiles Named vector of names of ini files for the various
+#' experiments. You do not need to provide ini files for historical
+#' experiments unless they are the only experiments present.
+#' @param verbose Flag indicating whether diagnostic messages should be
+#' @param cal_mean Flag indicating whether we are calibrating to the mean. If
+#' \code{FALSE}, calibrate to the envelope.
+#' @param comp_data Observed comparison data, in summary format (see, for
+#' example, \code{\link{esm_comparison}}.
+#' @param smoothing Smoothing factor.
+#' @param hicol Name of the column with the high edge of the window.
+#' @param lowcol Name of the column with the low edge of the window.
+#' @param pcs Principal components structure.  If \code{NULL} outputs will be
+#' compared directly.
+#' produced.
+make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
+                               smoothing, hicol, lowcol, pcs)
+{
     ## create bindings for NSE vars
     experiment <- variable <- year <- scenario <- NULL
 
@@ -60,14 +169,6 @@ build_mcmc_post <- function(comp_data, inifiles,
             NULL
         }
     }
-
-    ## All of the following are valid hector parameters.  We might have some
-    ## other parameters, (e.g. sigma values), but those shouldn't be passed to
-    ## parameterize_cores, or it will throw an error.
-    hector_parms <- c(hector::ECS(), hector::DIFFUSIVITY(),
-                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
-                       hector::BETA(), hector::Q10(), hector::PREINDUSTRIAL_CO2())
-
 
     ## Figure out which parameters we will need to pull for comparison
     if(is.null(pcs)) {
@@ -118,91 +219,33 @@ build_mcmc_post <- function(comp_data, inifiles,
         names <- expts
     }
 
+    ## Set up the hector core
+    hcores <- setup_hector_cores(inifiles[names], names)
+
     ## If we are operating on output data, order the comparison data by
     ## experiment, variable, and year
     if(is.null(pcs)) {
         comp_data <- dplyr::arrange(comp_data, experiment, variable, year)
     }
 
-
-    ## Set up the hector core
-    hcores <- setup_hector_cores(inifiles, names)
-
-    ## Prior hyperparameters
-    ecsmu   <- 3.0; ecssig   <- 3.0
-    aeromu  <- 1.0; aerosig  <- 1.4
-    kappamu <- 2.3; kappasig <- 2.0
-    betamu  <- 0.3; betasig  <- 0.7
-    q10mu   <- 2.0; q10sig   <- 2.0
-    c0mu    <- 285; c0sig    <- 14.0
-    sigtscale <- 1.0
-    sigco2scale <- 10.0
-
-    ## Check to see if user has overridden any of the parameters
-    if(!is.null(prior_params)) {
-        for(param in names(prior_params)) {
-            assign(param, prior_params[[param]])
-        }
-    }
-
-    ## Check to see if user has requested the lognormal prior
-    if(use_lnorm_ecs) {
-        s_prior <- function(s) {stats::dlnorm(s, log(ecsmu), log(ecssig), log=TRUE)}
-    }
-    else{
-        s_prior <- function(s) {stats::dnorm(s, ecsmu, ecssig, log=TRUE)}
-    }
-
-    ## truncated normal functions for constrained params
-    betalprior <- mktruncnorm(0, Inf, betamu, betasig)
-    q10prior   <- mktruncnorm(0, Inf, q10mu, q10sig)
+    ## All of the following are valid hector parameters.  We might have some
+    ## other parameters, (e.g. sigma values), but those shouldn't be passed to
+    ## parameterize_cores, or it will throw an error.
+    hector_parms <- c(hector::ECS(), hector::DIFFUSIVITY(),
+                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
+                       hector::BETA(), hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
 
 
-#### construct a function to return the log prior
-    logprior <- function(p)
-    {
-        ## Get the normally distributed priors for the parameters that are
-        ## always present.
-        lp <- sum(stats::dnorm(p[c(iaero, ikappa)],
-                        c(aeromu, kappamu),
-                        c(aerosig, kappasig),
-                        log=TRUE),
-                  s_prior(p[iecs]))
-        if(use_c_cycle) {
-            lp <- lp + sum(stats::dnorm(p[ic0],
-                                 c0mu,
-                                 c0sig,
-                                 log=TRUE),
-                           betalprior(p[ibeta]),
-                           q10prior(p[iq10]))
-
-
-        }
-        if(cal_mean) {
-            if(use_c_cycle) {
-                sigvals <- p[c(isigt, isigco2)]
-                sclvals <- c(sigtscale, sigco2scale)
-            }
-            else {
-                sigvals <- p[isigt]
-                sclvals <- sigtscale
-            }
-            lp <- lp + sum(ifelse(sigvals<0, -Inf, stats::dcauchy(sigvals, 0, sclvals, log=TRUE)))
-        }
-        ## return lp value
-        lp
-    }
-
-#### Construct the likelihood function
+    ## Construct the likelihood function
     loglik <- function(p) {
         ## Protect all of these hector calls.  Any error will result in a
         ## -Inf result
+        parm <- p[names(p) %in% hector_parms]
         hdata <- tryCatch({
             foreach(hcore=hcores, .combine = dplyr::bind_rows) %dopar% {
                 ## Set the model parameters
-                parm <- p[names(p) %in% hector_parms]
-                parameterize_core(parm, hcore)
                 ## Run the model and retrieve variables.
+                parameterize_core(parm, hcore)
                 hector::run(hcore, futyrmax)
                 hector::fetchvars(hcore, futyears, compvars)
             }
@@ -216,6 +259,14 @@ build_mcmc_post <- function(comp_data, inifiles,
         ## If we have a historical experiment in the mix, get its data.  It doesn't matter which
         ## core we use for this, so pick the first one arbitrarily.
         if(length(histexpts) > 0) {
+            ## Ugh. When we run with dopar above, we can't be certain that the
+            ## cores we have access to here have actually had their parameters
+            ## set and been run.  This is really annoying, and we should
+            ## probably just create a separate core for the historical runs, but
+            ## that has hassles of its own.  For now, explicitly reset the
+            ## parameters and rerun the core.
+            parameterize_core(parm, hcores[[1]])
+            hector::run(hcores[[1]], max(histyears))
             ## This loop should only execute once, but we try to cover our bases
             for(expt in histexpts) {
                 hdata <- dplyr::bind_rows(hdata,
@@ -223,8 +274,10 @@ build_mcmc_post <- function(comp_data, inifiles,
             }
         }
 
-        ## The "scenario" column holds the experiment name.  Rename it
-        hdata <- dplyr::rename(hdata, experiment=scenario)
+        ## The "scenario" column holds the experiment name.  Rename it.  Also
+        ## correct the names of the variables.
+        hdata <- dplyr::rename(hdata, experiment=scenario) %>%
+          dplyr::mutate(variable=hvar2esmvar(variable))
 
         ## Prepare the data for comparison to the hector data
         if(is.null(pcs)) {
@@ -240,7 +293,7 @@ build_mcmc_post <- function(comp_data, inifiles,
             ## will be used to do the comparison.
             pcproj <- project_climate(hdata, pcs, row_vector = FALSE)
             npc <- comp_data$PC
-            cdata <- data.frame(PC=npc, value=pcproj[npc])
+            cdata <- data.frame(PC=npc, value=pcproj[npc], stringsAsFactors=FALSE)
         }
 
         if(cal_mean) {
@@ -249,12 +302,12 @@ build_mcmc_post <- function(comp_data, inifiles,
                 sigt <- if('sigt' %in% names(p)) p[['sigt']] else as.numeric(NA)
                 sigco2 <- if('sigco2' %in% names(p)) p[['sigco2']] else as.numeric(NA)
                 comp_data$sig <- dplyr::if_else(comp_data$variable == 'tas', sigt, sigco2)
-                assert_that(!any(is.na(com_data$sig)))   # If a sig parm is missing, that var must not be in the dataset
+                assert_that(!any(is.na(comp_data$sig)))   # If a sig parm is missing, that var must not be in the dataset
             }
             else {
                 comp_data$sig <- p[['sig']]  # Only one type of sig for pca cal
             }
-            ll <- sum(stats::dnorm(cdata$value, mean=compdata$cmean, sd=compdata$sig, log=TRUE))
+            ll <- sum(stats::dnorm(cdata$value, mean=comp_data$cmean, sd=comp_data$sig, log=TRUE))
         }
         else {
             ## Compute the mesa function.  This actually works the same for both output and pc
@@ -265,14 +318,21 @@ build_mcmc_post <- function(comp_data, inifiles,
         ## return the log of the likelihood
         ll
     }
+}
 
-    #### Finally, return a function that evaluates the prior and the likelihood
-    function(p)
-    {
-        lp <- logprior(p)
+
+#' @describeIn likelihoodInternal Combine prior and likelihood into a single function.
+#'
+#' @param lprior Function that computes the log-prior
+#' @param llik Function that computes the log-posterior
+#' @param verbose Flag indicating whether diagnostic output should be produced
+make_logpost <- function(lprior, llik, verbose)
+{
+    function(p) {
+        lp <- lprior(p)
         lpost <-
             if(is.finite(lp)) {
-                lp + loglik(p)
+                lp + llik(p)
             }
             else {
                 -Inf

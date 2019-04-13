@@ -11,7 +11,10 @@ build_mcmc_post(comp_data, inifiles, pcs = NULL, smoothing = 0.1,
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
 
-\item{inifiles}{Vector of input files to initialize hector cores.}
+\item{inifiles}{Named vector of names of Hector input files for the various
+experiments to be run. You do not need to provide ini files for historical
+experiments unless they are the only experiments present.  Extraneous files
+will be ignored, so it is safe to use a canoncial list of filenames.}
 
 \item{pcs}{Principal components structure.  If \code{NULL}, work directly
 with output values.}

@@ -25,6 +25,30 @@ metrosamp2coda <- function(mslist) {
         )
 }
 
+hv2esm <- c(Tgav='tas', Ca='co2')
+esm2hv <- c(tas='Tgav', co2='Ca')
+#' Translate between Hector and ESM variable names
+#'
+#' Translate hector variable names ("Tgav", etc.) to ESM names and vice versa.
+#'
+#' @name vartranslate
+NULL
+
+#' @describeIn vartranslate Translate hector variable names ('Tgav', etc.) to ESM names.
+#' @param hvarnames Vector of Hector variable names
+#' @return Translated names. Unknown names will be replaced with \code{NA}.
+#' @export
+hvar2esmvar <- function(hvarnames) {
+    hv2esm[hvarnames]
+}
+
+#' @describeIn vartranslate Translate ESM variable names ('tas', etc.) to hector names.
+#' @param esmvarnames Vector of ESM variable names
+#' @export
+esmvar2hvar <- function(esmvarnames) {
+    esm2hv[esmvarnames]
+}
+
 
 #' Make a list of Hector cores
 #'
