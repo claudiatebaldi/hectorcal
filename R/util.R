@@ -25,3 +25,30 @@ metrosamp2coda <- function(mslist) {
         )
 }
 
+
+#' Make a list of Hector cores
+#'
+#' The list of Hector cores will be passed into the \code{make_fn_minimize}
+#'
+#' @param inifile A vector of ini file paths that will be used to set up the Hector cores
+#' @param name A vector of the Hector core scenario names, it should reflect CMIP5 experiment names.
+#' @return A list of hector instances
+#' @export
+
+setup_hector_cores <- function(inifile, name) {
+
+    # Check inputs
+    assertthat::assert_that(length(inifile) == length(name),
+                            msg = 'inifile and name must be vectors of equal lengths')
+
+    # Make a hector core of every ini file entry
+    # lapply(1:(length(inifile)), function(i) {
+    #     hector::newcore(inifile[i], name = name[i], suppresslogging=TRUE)
+    # })
+
+    mapply(hector::newcore, inifile=inifile, name=name, suppresslogging=TRUE)
+
+}
+
+
+
