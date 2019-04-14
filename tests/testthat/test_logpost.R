@@ -73,35 +73,8 @@ test_that('log-likelihood with output comparisons works', {
                       'sigt','sigco2')
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
-    hcore45 <- newcore(ini45, name='rcp45')
-    parameterize_core(parms[1:nhectorparm], hcore45)
-    histyears <- 2000:2005
-    futyears <- 2006:2010
-    run(hcore45, 2010)
-    ## grab data from 1990-2000 as "historical" and 2001-2010 as "future".
-    ## Might as well use temperature and CO2 as the comparison variables.
-    dh <- fetchvars(hcore45, histyears, c(GLOBAL_TEMP(), ATMOSPHERIC_CO2()),
-                    'historical')
-    d45 <- fetchvars(hcore45, futyears, c(GLOBAL_TEMP(), ATMOSPHERIC_CO2()))
-    shutdown(hcore45)
 
-    ## Get some rcp85 too so that we can test having multiple future scenarios
-    hcore85 <- newcore(ini85, name='rcp85')
-    parameterize_core(parms[1:nhectorparm], hcore85)
-    run(hcore85, 2010)
-    d85 <- fetchvars(hcore85, futyears, c(GLOBAL_TEMP(), ATMOSPHERIC_CO2()))
-    shutdown(hcore85)
-
-    compdata <-
-        bind_rows(dh,d45,d85) %>%
-          rename(experiment=scenario, cmean=value) %>%
-          mutate(cmedian=cmean, mina=cmean-2, maxb=cmean+2, a10=cmean-1,
-                 b90=cmean+1) %>%
-          mutate(variable=if_else(variable=='Tgav', 'tas', 'co2')) %>%
-          select(year, variable, experiment, mina, maxb, a10, b90, cmean,
-                 cmedian) %>%
-          arrange(year)                 # This last one is to test that
-                                        # scrambled data gets sorted out.
+    compdata <- readRDS('out_compdata.rds')
 
     ## Now we've got comparison data.  Sort of.  It's hard to predict how
     ## changing the parameters will change the output, so we'll always run with
@@ -158,32 +131,11 @@ test_that('log-likelihood with PCA comparison works', {
     ini45 <- system.file('input/hector_rcp45_constrained.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85_constrained.ini', package='hector')
 
-    nhectorparm <- 4
     parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
     names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
                       'sig')
-    hcore45 <- newcore(ini45, name='rcp45')
-    parameterize_core(parms[1:nhectorparm], hcore45)
-    run(hcore45,2100)
 
-    dh <- fetchvars(hcore45, histyears, GLOBAL_TEMP(),
-                    'historical')
-    d45 <- fetchvars(hcore45, futyears, GLOBAL_TEMP())
-    shutdown(hcore45)
-
-    hcore85 <- newcore(ini85, name='rcp85')
-    parameterize_core(parms[1:nhectorparm], hcore85)
-    run(hcore85, 2100)
-    d85 <- fetchvars(hcore85, futyears, GLOBAL_TEMP())
-    shutdown(hcore85)
-
-    scendata <- bind_rows(dh,d45,d85) %>% rename(experiment=scenario) %>%
-      mutate(variable=hvar2esmvar(variable))
-    pcproj <- project_climate(scendata, pcs, FALSE)
-    pcproj <- pcproj[1:npc]
-
-    compdata <- data.frame(PC=seq_along(pcproj), cmean=pcproj, mina=pcproj-2,
-                           maxb=pcproj+2)
+    compdata <- readRDS('pc_compdata.rds')
 
     ## See notes in the previous test; we have 4 cases to run
 
@@ -224,3 +176,8 @@ test_that('log-likelihood with PCA comparison works', {
 
     doParallel::stopImplicitCluster()
 })
+
+
+## test_that('Posterior functions are assembled correctly from priors and posteriors',
+##       {
+
