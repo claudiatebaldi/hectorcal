@@ -136,6 +136,91 @@ test_that('log-likelihood with output comparisons works', {
     out <- expect_silent(llfun3(parms))
     expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
     expect_equal(out, expected)
+
+    ## 4. Envelope calibration, all values on the edge of the range
+    compdata4 <- dplyr::mutate(compdata,
+                               mina=mina+2, maxb=maxb+2)
+    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1,
+                                 'maxb','mina', NULL)
+    expected <- nrow(compdata) * log(mesa(0, 0, 4, 0.4))
+    out <- expect_silent(llfun4(parms))
+    expect_equal(out, expected)
+
+    doParallel::stopImplicitCluster()
 })
 
 
+test_that('log-likelihood with PCA comparison works', {
+    pcs <- readRDS('pc-conc-historical-rcp45-rcp85.rds')
+    histyears <- pcs$meta_data$histyear
+    futyears <- pcs$meta_data$year
+    npc <- 10
+    ini45 <- system.file('input/hector_rcp45_constrained.ini', package='hector')
+    ini85 <- system.file('input/hector_rcp85_constrained.ini', package='hector')
+
+    nhectorparm <- 4
+    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
+    names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
+                      'sig')
+    hcore45 <- newcore(ini45, name='rcp45')
+    parameterize_core(parms[1:nhectorparm], hcore45)
+    run(hcore45,2100)
+
+    dh <- fetchvars(hcore45, histyears, GLOBAL_TEMP(),
+                    'historical')
+    d45 <- fetchvars(hcore45, futyears, GLOBAL_TEMP())
+    shutdown(hcore45)
+
+    hcore85 <- newcore(ini85, name='rcp85')
+    parameterize_core(parms[1:nhectorparm], hcore85)
+    run(hcore85, 2100)
+    d85 <- fetchvars(hcore85, futyears, GLOBAL_TEMP())
+    shutdown(hcore85)
+
+    scendata <- bind_rows(dh,d45,d85) %>% rename(experiment=scenario) %>%
+      mutate(variable=hvar2esmvar(variable))
+    pcproj <- project_climate(scendata, pcs, FALSE)
+    pcproj <- pcproj[1:npc]
+
+    compdata <- data.frame(PC=seq_along(pcproj), cmean=pcproj, mina=pcproj-2,
+                           maxb=pcproj+2)
+
+    ## See notes in the previous test; we have 4 cases to run
+
+    doParallel::registerDoParallel()
+    inifiles <- c(rcp85=ini85, rcp45=ini45)
+    ## 1. Mean calibration, perfect model match
+    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
+                                 'mina', pcs)
+    out <- expect_silent(llfun1(parms))
+    expected <- nrow(compdata)*stats::dnorm(0,0,parms['sig'], log=TRUE) # assumes sigt==sigco2
+    expect_equal(out, expected)
+
+    ## 2. Mean calibration, imperfect model match
+    compdata2 <- dplyr::mutate(compdata, cmean = dplyr::if_else(PC%%2==0, cmean+1,
+                                         cmean-1))
+    llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2, 0.1,
+                                 'maxb','mina',pcs)
+    expected <- nrow(compdata)*stats::dnorm(1, 0, parms['sig'], log=TRUE)
+    out <- expect_silent(llfun2(parms))
+    expect_equal(out, expected)
+
+    ## 3. Envelope callibration, centered
+    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
+                                 'mina', pcs)
+    expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
+    out <- expect_silent(llfun3(parms))
+    expect_equal(out, expected)
+
+    ## 4. Envelope calibration, edge
+    compdata4 <- dplyr::mutate(compdata, mina=dplyr::if_else(PC%%2==0, mina+2,
+                                         mina-2),
+                               maxb=dplyr::if_else(PC%%2==0, maxb+2, maxb-2))
+    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1, 'maxb',
+                                 'mina', pcs)
+    expected <- nrow(compdata) * log(mesa(0,0,4,0.4))
+    out <- expect_silent(llfun4(parms))
+    expect_equal(out, expected)
+
+    doParallel::stopImplicitCluster()
+})
