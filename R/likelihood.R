@@ -58,12 +58,13 @@ build_mcmc_post <- function(comp_data, inifiles,
         q10mu=2.0, q10sig=2.0,
         c0mu=285, c0sig=14.0,
         sigtscale=1.0,
-        sigco2scale=10.0)
+        sigco2scale=10.0,
+        sigscale=1.0)
 
     ## Check to see if user has overridden any of the parameters
     if(!is.null(prior_params)) {
         for(param in names(default_prior_params)) {
-            if(! param %in% prior_params) {
+            if(! param %in% names(prior_params)) {
                 ## Set any unmentioned parameter to its default value
                 prior_params[param] <- default_prior_params[param]
             }
@@ -74,9 +75,10 @@ build_mcmc_post <- function(comp_data, inifiles,
     }
 
 
-    logprior <- make_logprior(prior_params, use_lnorm_ecs, cal_mean)
+    logprior <- make_logprior(prior_params, use_lnorm_ecs)
 
-    loglik <- make_loglikelihood(hcores, verbose, cal_mean, comp_data, pcs)
+    loglik <- make_loglikelihood(inifiles, verbose, cal_mean, comp_data,
+                                 smoothing, hicol, lowcol, pcs)
 
     ## Return the final posterior function
     make_logpost(logprior, loglik, verbose)
@@ -111,7 +113,7 @@ make_logprior <- function(pprior, use_lnorm_ecs)
     q10prior   <- mktruncnorm(0, Inf, pprior['q10mu'], pprior['q10sig'])
 
     function(p) {
-        sigvals <- p[c('sigt','sigco2')] #use these later
+        sigvals <- p[c('sigt','sigco2', 'sig')] #use these later
 
         sum(
             ## normal priors
@@ -127,7 +129,7 @@ make_logprior <- function(pprior, use_lnorm_ecs)
             q10prior(p[hector::Q10_RH()]),
             ## half-cauchy priors for the sigvals
             ifelse(sigvals<0, -Inf, stats::dcauchy(sigvals, 0,
-                                                   pprior[c('sigtscale','sigco2scale')], log=TRUE)),
+                                                   pprior[c('sigtscale','sigco2scale', 'sigscale')], log=TRUE)),
             ## This will cause us to ignore any parameters not present
             na.rm = TRUE
             )

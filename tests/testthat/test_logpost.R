@@ -13,7 +13,8 @@ test_that('log prior function works properly', {
         q10mu=1.0, q10sig=1.0,
         c0mu=1, c0sig=1.0,
         sigtscale=1.0,
-        sigco2scale=1.0)
+        sigco2scale=1.0,
+        sigscale=1.0)
 
     testlp <- make_logprior(test_prior_params, FALSE)
 
@@ -35,7 +36,7 @@ test_that('log prior function works properly', {
     ## Half-Cauchy.  We didn't actually renormalize this one for the
     ## truncation.  Also, it's always centered at zero.
     konst3 <- stats::dcauchy(1, 0, 1, log=TRUE)
-    for(parm in c('sigt', 'sigco2')) {
+    for(parm in c('sigt', 'sigco2', 'sig')) {
         p <- 1
         names(p) <- parm
         expect_equal(testlp(p), konst3, info=paste('parm=',parm))
@@ -99,7 +100,10 @@ test_that('log-likelihood with output comparisons works', {
     out <- expect_silent(llfun2(parms))
     k1 <- stats::dnorm(0,0,parms['sigt'], log=TRUE)
     k2 <- stats::dnorm(1,0,parms['sigt'], log=TRUE)
-    expected <- k1*(nrow(dh)+nrow(d45)) + k2*nrow(d85)
+    exptct <- dplyr::count(compdata2, experiment)
+    n <- exptct$n
+    names(n) <- exptct$experiment
+    expected <- as.vector(k1*(n['historical']+n['rcp85']) + k2*n['rcp85'])
     out <- expect_silent(llfun2(parms))
     expect_equal(out, expected)
 
@@ -178,6 +182,95 @@ test_that('log-likelihood with PCA comparison works', {
 })
 
 
-## test_that('Posterior functions are assembled correctly from priors and posteriors',
-##       {
+test_that('Posterior functions are assembled correctly from priors and posteriors', {
+    doParallel::registerDoParallel()
+    ## test with output comparison data
+    compdata <- readRDS('out_compdata.rds')
+    ini45 <- system.file('input/hector_rcp45.ini', package='hector')
+    ini85 <- system.file('input/hector_rcp85.ini', package='hector')
+    inifiles <- c(rcp45=ini45, rcp85=ini85)
+
+    ## test parameters for build_mcmc_post
+    test_prior_params <- c(
+        ecsmu=2.0, ecssig=1.0,
+        kappamu=2.5,
+        betamu=0.5, betasig=1.0,
+        sigtscale=1.5)
+
+    ## make_logprior needs a full set of parameters (including ones that will be
+    ## left at their default values)
+    full_prior_params <- c(
+        ecsmu=2.0, ecssig=1.0,
+        aeromu=1.0, aerosig=1.4,
+        volmu=1.0, volsig=1.4,
+        kappamu=2.5, kappasig=2.0,
+        betamu=0.5, betasig=1.0,
+        q10mu=2.0, q10sig=2.0,
+        c0mu=285, c0sig=14.0,
+        sigtscale=1.5,
+        sigco2scale=10.0,
+        sigscale=1.0)
+
+    ## output, mean cal
+    lpostfunc1 <- build_mcmc_post(compdata, inifiles,
+                                  prior_params=test_prior_params)
+    lp1 <- make_logprior(full_prior_params, TRUE)
+    ll1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
+                              'mina', NULL)
+    lpostfunc1a <- function(p) {lp1(p) + ll1(p)}
+
+    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
+    names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
+                      hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
+                      hector::BETA(), hector::Q10_RH(),
+                      hector::PREINDUSTRIAL_CO2(),
+                      'sigt','sigco2')
+    expect_equal(lpostfunc1(parms), lpostfunc1a(parms))
+
+    ## output, envelope cal
+    lpostfunc2 <- build_mcmc_post(compdata, inifiles,
+                                  cal_mean=FALSE,
+                                  use_lnorm_ecs=FALSE,
+                                  prior_params=test_prior_params)
+    lp2 <- make_logprior(full_prior_params, FALSE)
+    ll2 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
+                              'mina', NULL)
+    lpostfunc2a <- function(p) {lp2(p) + ll2(p)}
+    expect_equal(lpostfunc2(parms), lpostfunc2a(parms))
+
+    ## two more tests with PCA calibration
+    compdata <- readRDS('pc_compdata.rds')
+    pcs <- readRDS('pc-conc-historical-rcp45-rcp85.rds')
+    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
+    names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
+                      hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
+                      'sig')
+
+    ## pca, mean cal
+    lpostfunc3 <- build_mcmc_post(compdata, inifiles, pcs,
+                                  cal_mean=TRUE,
+                                  use_lnorm_ecs=FALSE,
+                                  prior_params=test_prior_params)
+    lp3 <- make_logprior(full_prior_params, FALSE)
+    ll3 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
+                              'mina', pcs)
+    lpostfunc3a <- function(p) {lp3(p) + ll3(p)}
+    expect_equal(lpostfunc3(parms), lpostfunc3a(parms))
+
+
+    ## home stretch: pca, envelope cal
+    lpostfunc4 <- build_mcmc_post(compdata, inifiles, pcs,
+                                  cal_mean=FALSE,
+                                  use_lnorm_ecs=TRUE,
+                                  prior_params=test_prior_params)
+    lp4 <- make_logprior(full_prior_params, TRUE)
+    ll4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
+                              'mina', pcs)
+    lpostfunc4a <- function(p) {lp4(p) + ll4(p)}
+    expect_equal(lpostfunc4(parms), lpostfunc4a(parms))
+
+    doParallel::stopImplicitCluster()
+})
+
+
 
