@@ -158,7 +158,7 @@ test_that('make_minimize_function works with clim parameters', {
     # Make sure that the minimize function returns a different answer when different parameters are used.
     param2 <- c(2, 1, 1)
     names(param2) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
-    testthat::expect_condition(fn(param2) != 0)
+    testthat::expect_true(fn(param2) != 0)
 
     # What happens when the comparison data shifts by a values of 1? If the average
     # difference between the comparison data for each experiment is 1 then we expect that
