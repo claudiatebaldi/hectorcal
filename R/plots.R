@@ -209,6 +209,9 @@ plot_varfrac <- function(pca_l, nc=NA, cvthresh=NA, labels=NULL)
 #' @export
 esm_pcplot <- function(pctable)
 {
+    ## create bindings of NSE vars
+    PC <- PC1 <- PC2 <- model <- NULL
+
     pltdata <- dplyr::filter(pctable, PC %in% c(1,2)) %>%
         tidyr::spread('PC','value')
     names(pltdata) <- c('model','PC1','PC2')

@@ -17,9 +17,7 @@ from \code{prcomp} and meta data information.}
 matrix)}
 }
 \value{
-a list of three objects, rotation the PC loadings, scale the values
-used to scale the input climate data, and center the values used to center
-the climate data.
+A vector of projection coefficients for the climate data.
 }
 \description{
 Project a data frame of climate data on to a principal componet basis
