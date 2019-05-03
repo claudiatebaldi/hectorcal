@@ -125,7 +125,7 @@ to_process <- read.csv('cmip_flux_data_to_process.csv', stringsAsFactors = FALSE
 # Seperate the cmip data files from the cmip meta data files.
 to_process %>%
     filter(!is.na(variable_file_path)) %>%
-    select(variable_file_path, domain, model, experiment, ensemble, variable) ->
+    select(variable_file_path, domain, model, experiment, ensemble, variable, date) ->
     cmip_data_files
 
 to_process %>%
@@ -139,6 +139,7 @@ to_process %>%
 # preperation to use the ocean_weights function to actually calculate the ocean area
 # weights.
 meta_data_files %>%
+    distinct %>%
     mutate(variable = if_else(variable == 'areacella', 'cellArea_nc', variable)) %>%
     mutate(variable = if_else(variable == 'sftlf', 'landFrac_nc', variable)) %>%
     spread(variable, meta_file_path) %>%
