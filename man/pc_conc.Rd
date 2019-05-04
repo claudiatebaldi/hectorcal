@@ -15,7 +15,8 @@
 The metadata element is itself a list with four elements:
 \describe{
 \item{year}{Year used in the PCA (1850 -- 2100).}
-\item{variable}{The variables that describe the values used in the PCA ("tas").}
+\item{variable}{The variables that describe the values used in the PCA ("tas"
+and "heatflux").}
 \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 }}
