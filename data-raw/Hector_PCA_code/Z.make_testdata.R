@@ -7,8 +7,8 @@ tc <- dplyr::bind_rows(lapply(file.path(datadir,
                                         c('emissCC-esmHistorical.rds','emissCC-esmrcp85.rds')),
                               readRDS))
 
-## trim the test data to just 10 PCs
-ncomp <- 10
+## trim the test data to just 20 PCs
+ncomp <- 20
 test_pca$sdev <- test_pca$sdev[1:ncomp]
 test_pca$rotation <- test_pca$rotation[ , 1:ncomp]
 

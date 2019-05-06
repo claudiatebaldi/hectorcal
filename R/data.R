@@ -62,11 +62,15 @@
 #' the four concentration pathways, along with the parameters used to drive the
 #' runs.
 #'
+#' Temperatures (\code{tas}) temperature anomalies reported in degC.  CO2
+#' concentrations (\code{co2}) are global concentrations reported in ppm.  Ocean
+#' heat flux (\code{heatflux}) is reported as downward flux in W/m2
+#'
 #' @format List of 6 data frames: historical, rcp26, rcp45, rcp60, rcp85, and
 #' params.  The four output data frames have 6 columns:
 #' \describe{
 #' \item{runid}{Unique identifier for each run.}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
+#' \item{variable}{Variable being reported: "tas" or "heatflux".}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
@@ -90,11 +94,15 @@
 #' the four concentration pathways, along with the parameters used to drive the
 #' runs.
 #'
+#' Temperatures (\code{tas}) temperature anomalies reported in degC.  CO2
+#' concentrations (\code{co2}) are global concentrations reported in ppm.  Ocean
+#' heat flux (\code{heatflux}) is reported as downward flux in W/m2
+#'
 #' @format List of 6 data frames: esmHistorical, esmrcp26, esmrcp45, esmrcp60,
 #' esmrcp85, and params.  The four output data frames have 6 columns:
 #' \describe{
 #' \item{runid}{Unique identifier for each run.}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
+#' \item{variable}{Variable being reported: "tas", "co2", or "heatflux".}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
@@ -132,7 +140,8 @@
 #' The metadata element is itself a list with four elements:
 #' \describe{
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas").}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas"
+#' and "heatflux").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
@@ -156,8 +165,8 @@
 #' The metadata element is itself a list with four elements:
 #' \describe{
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas"
-#' and "co2").}
+#' \item{variable}{The variables that describe the values used in the PCA
+#' ("tas", "co2", and "heatflux")}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }

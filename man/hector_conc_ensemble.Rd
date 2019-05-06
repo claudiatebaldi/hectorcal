@@ -8,7 +8,7 @@
 params.  The four output data frames have 6 columns:
 \describe{
 \item{runid}{Unique identifier for each run.}
-\item{variable}{Variable being reported "tas", temperatures are anomalies.}
+\item{variable}{Variable being reported: "tas" or "heatflux".}
 \item{scenario}{Hector scenario name.}
 \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 \item{year}{Year being described (1850 -- 2100).}
@@ -29,6 +29,11 @@ hector_conc_ensemble
 This dataset contains outputs for the 1000 Hector runs driven with each of
 the four concentration pathways, along with the parameters used to drive the
 runs.
+}
+\details{
+Temperatures (\code{tas}) temperature anomalies reported in degC.  CO2
+concentrations (\code{co2}) are global concentrations reported in ppm.  Ocean
+heat flux (\code{heatflux}) is reported as downward flux in W/m2
 }
 \seealso{
 Other PCA hector ensemble: \code{\link{hector_emiss_ensemble}}
