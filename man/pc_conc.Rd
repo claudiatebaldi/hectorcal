@@ -15,8 +15,7 @@
 The metadata element is itself a list with four elements:
 \describe{
 \item{year}{Year used in the PCA (1850 -- 2100).}
-\item{variable}{The variables that describe the values used in the PCA ("tas"
-and "heatflux").}
+\item{variable}{The variables that describe the values used in the PCA ("tas").}
 \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 }}
@@ -29,7 +28,8 @@ This oject contains the sd, rotation, center, and scale for the PCs calculated w
 along with metadata about the Hector data that went into the runs.
 }
 \seealso{
-Other PC hector: \code{\link{pc_emiss}}
+Other PC hector: \code{\link{pc_conc_hflux}},
+  \code{\link{pc_emiss_hflux}}, \code{\link{pc_emiss}}
 }
 \concept{PC hector}
 \keyword{datasets}
