@@ -140,15 +140,67 @@
 #' The metadata element is itself a list with four elements:
 #' \describe{
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas"
-#' and "heatflux").}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas").}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
 'pc_conc'
 
+
+#' Hector concentration driven principal compoents (PCs) with heat flux
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector concentration driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' along with metadata about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
+#' }
+#' The metadata element is itself a list with four elements:
+#' \describe{
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas"
+#' and "heatflux").}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
+#' }
+#' @family PC hector
+'pc_conc_hflux'
+
+
 #' Hector emission driven principal compoents (PCs)
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector runs driven with RCP 8.5 emissions,
+#' along with some meta data information about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
+#' }
+#' The metadata element is itself a list with four elements:
+#' \describe{
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA
+#' ("tas" and "co2")}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
+#' }
+#' @family PC hector
+'pc_emiss'
+
+
+#' Hector emission driven principal compoents (PCs) with heat flux included
 #'
 #' This oject contains the sd, rotation, center, and scale for the PCs calculated with
 #' \code{prcomp} on an enemsble of Hector runs driven with RCP 8.5 emissions,
@@ -171,7 +223,7 @@
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
-'pc_emiss'
+'pc_emiss_hflux'
 
 
 #' Principal component projection coefficients for ESM outputs

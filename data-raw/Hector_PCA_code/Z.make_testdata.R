@@ -2,9 +2,9 @@
 
 datadir <- 'PCA-data'
 
-test_pca <- readRDS(file.path(datadir, 'pc-emissCC-esmHistorical-esmrcp85.rds'))
+test_pca <- readRDS(file.path(datadir, 'pc-emissCC-hflux-esmHistorical-esmrcp85.rds'))
 tc <- dplyr::bind_rows(lapply(file.path(datadir,
-                                        c('emissCC-esmHistorical.rds','emissCC-esmrcp85.rds')),
+                                        c('emissCC-hflux-esmHistorical.rds','emissCC-hflux-esmrcp85.rds')),
                               readRDS))
 
 ## trim the test data to just 20 PCs
