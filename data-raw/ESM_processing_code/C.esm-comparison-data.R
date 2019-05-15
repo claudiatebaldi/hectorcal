@@ -2,6 +2,8 @@
 # Hector, we are calibrating to the full range and the multi model mean for serveral experiments.
 # Because of our experimental design we decided to exclude a number of models from our analysis.
 # See comments for reasons why particular models were removed.
+#
+# TODO make sure that the heat flux values being pased into the cmip mean are "good"
 
 # Load the required R pacakges
 library('readr')
@@ -10,7 +12,8 @@ library('tidyr')
 
 # Import the csv of the CMIP5 annual global average values for tas and co2. Some of these
 # models will need to be removed and some units will need to be converted.
-alldata <- read_csv('CMIP5_annual_global_average.csv')
+alldata <- read_csv('CMIP5_annual_global_average.csv') %>%
+    bind_rows(read_csv('CMIP5_heat_flux_final.csv'))
 
 # Convert CO2 units when applicable.
 fixdata <- mutate(alldata, value = if_else(variable=='co2' & value < 1, value*1e6, value))
@@ -42,8 +45,8 @@ fixdata %>%
 ## ensemble, min(co2) = 7.5 ppm, max(co2) = 991,012 ppm).  Everything seems to
 ## be in order in 1851, so we just drop 1850.
 gooddata1 <- filter(fixdata, !(model %in% c(bogusco2, bogustime, bogushadley)),
-                   year > 1850,
-                   experiment %in% c('rcp26', 'rcp45', 'rcp60', 'rcp85', 'esmrcp85', 'historical', 'esmHistorical'))
+                    year > 1850,
+                    experiment %in% c('rcp26', 'rcp45', 'rcp60', 'rcp85', 'esmrcp85', 'historical', 'esmHistorical'))
 ## Remove the models that have the incomplete emission driven runs for the emission driven experiments only.
 gooddata <- filter(gooddata1, !(model %in% incomplete_esm_runs & grepl('esm', experiment)))
 
@@ -75,8 +78,10 @@ baseline1850 <- function(d)
 gooddata <- left_join(gooddata, baseline1850(gooddata), by='model')
 greatdata <- mutate(gooddata,
                     value = if_else((experiment=='esmrcp85' | experiment=='esmHistorical') & variable=='tas', value-esm1850,  # esm runs temperature
-                            if_else(variable=='tas', value-conc1850,      # concentration runs temperature
-                            value)))                                   # not temperature
+                                    if_else(variable=='tas', value-conc1850,      # concentration runs temperature
+                                            value)))  %>%                                 # not temperature
+    fitler(year <= 2100)
+
 
 ## Make sure that all of the data starts at the same time for each experiment
 ## Start by finiding the start year for each experiment.
@@ -86,13 +91,15 @@ greatdata %>%
     experiment_start
 
 ## Subset the great data so that the final cmip5 data only includes years which
-## all the model reported datat for.
+## all the model reported data for.
 greatdata %>%
     left_join(experiment_start, by = 'experiment') %>%
     filter(year >= start_year) %>%
-    select(-start_year) ->
+    select(-start_year) %>%
+    # Beacuse inmcm4 heat flux values lie outside of what we suspect is the cmip envlop remove
+    # inmcm4 output data.
+    filter(model !="inmcm4" )->
     final_cmip5_data
-
 
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
