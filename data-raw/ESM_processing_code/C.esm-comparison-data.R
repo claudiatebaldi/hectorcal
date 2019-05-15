@@ -8,9 +8,11 @@ library('readr')
 library('dplyr')
 library('tidyr')
 
-# Import the csv of the CMIP5 annual global average values for tas and co2. Some of these
-# models will need to be removed and some units will need to be converted.
-alldata <- read_csv('CMIP5_annual_global_average.csv')
+
+# Import the csv of the CMIP5 annual global average values for tas and co2 and the
+# global average for heat flux data. Some of these models will need to be removed
+# and some units will need to be converted.
+alldata <- bind_rows(read_csv('CMIP5_annual_global_average.csv'), read_csv('CMIP5_heat_flux_final.csv'))
 
 # Convert CO2 units when applicable.
 fixdata <- mutate(alldata, value = if_else(variable=='co2' & value < 1, value*1e6, value))
@@ -42,8 +44,8 @@ fixdata %>%
 ## ensemble, min(co2) = 7.5 ppm, max(co2) = 991,012 ppm).  Everything seems to
 ## be in order in 1851, so we just drop 1850.
 gooddata1 <- filter(fixdata, !(model %in% c(bogusco2, bogustime, bogushadley)),
-                   year > 1850,
-                   experiment %in% c('rcp26', 'rcp45', 'rcp60', 'rcp85', 'esmrcp85', 'historical', 'esmHistorical'))
+                    year > 1850,
+                    experiment %in% c('rcp26', 'rcp45', 'rcp60', 'rcp85', 'esmrcp85', 'historical', 'esmHistorical'))
 ## Remove the models that have the incomplete emission driven runs for the emission driven experiments only.
 gooddata <- filter(gooddata1, !(model %in% incomplete_esm_runs & grepl('esm', experiment)))
 
@@ -75,8 +77,9 @@ baseline1850 <- function(d)
 gooddata <- left_join(gooddata, baseline1850(gooddata), by='model')
 greatdata <- mutate(gooddata,
                     value = if_else((experiment=='esmrcp85' | experiment=='esmHistorical') & variable=='tas', value-esm1850,  # esm runs temperature
-                            if_else(variable=='tas', value-conc1850,      # concentration runs temperature
-                            value)))                                   # not temperature
+                                    if_else(variable=='tas', value-conc1850,      # concentration runs temperature
+                                            value))) %>%                                   # not temperature
+    filter(year <= 2100)
 
 ## Make sure that all of the data starts at the same time for each experiment
 ## Start by finiding the start year for each experiment.
@@ -90,9 +93,21 @@ greatdata %>%
 greatdata %>%
     left_join(experiment_start, by = 'experiment') %>%
     filter(year >= start_year) %>%
-    select(-start_year) ->
+    select(-start_year) %>%
+    distinct ->
     final_cmip5_data
 
+# Make sure that the cmip
+final_cmip5_data %>%
+    mutate(value = 1) %>%
+    distinct %>%
+    select(year, model, ensemble, variable, experiment, value) %>%
+    spread(variable, value) %>%
+    dplyr::filter(!is.na(heatflux) & !is.na(tas)) %>%
+    select(model, ensemble, experiment) %>%
+    distinct %>%
+    mutate(remove = TRUE) ->
+    incomplete_ensembles
 
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
@@ -100,7 +115,16 @@ greatdata %>%
 ## consensus calibration), of all the model runs that performed that experiment.
 ## (The multi model mean and median will be calculated below).
 esm_comparison_range <-
-    group_by(final_cmip5_data, year, variable, experiment) %>%
+    final_cmip5_data %>%
+    # We are not intersted in data beyond 2100. Also inmcm4 has heat flux values
+    # that fall outside the range of the other models. We think that that data
+    # is fine to use in the "individual cmip5 best fit exercise" we do not to
+    # include it in the esm range comparison data set.
+    filter(year <= 2100 & model != 'inmcm4') %>%
+    left_join(incomplete_ensembles, by = c("model", "ensemble", "experiment")) %>%
+    filter(is.na(remove)) %>%
+    select(-remove) %>%
+    group_by(year, variable, experiment) %>%
     summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1), b90=quantile(value, 0.9)) %>%
     ungroup
 
@@ -108,6 +132,8 @@ esm_comparison_range <-
 ## ensemble average for each of the model to use to calculate the multimodel mean
 ## and median.
 final_cmip5_data %>%
+    left_join(incomplete_ensembles, by = c("model", "ensemble", "experiment")) %>%
+    filter(is.na(remove)) %>%
     ## Calculate the model ensemble mean
     group_by(year, model, variable, experiment, unit) %>%
     dplyr::summarise(value = mean(value)) %>%
