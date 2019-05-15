@@ -3,6 +3,7 @@
 # Because of our experimental design we decided to exclude a number of models from our analysis.
 # See comments for reasons why particular models were removed.
 
+
 # Load the required R pacakges
 library('readr')
 library('dplyr')
@@ -78,8 +79,10 @@ gooddata <- left_join(gooddata, baseline1850(gooddata), by='model')
 greatdata <- mutate(gooddata,
                     value = if_else((experiment=='esmrcp85' | experiment=='esmHistorical') & variable=='tas', value-esm1850,  # esm runs temperature
                                     if_else(variable=='tas', value-conc1850,      # concentration runs temperature
-                                            value))) %>%                                   # not temperature
-    filter(year <= 2100)
+                                            value)))  %>%                                 # not temperature
+    fitler(year <= 2100)
+
+
 
 ## Make sure that all of the data starts at the same time for each experiment
 ## Start by finiding the start year for each experiment.
@@ -89,25 +92,16 @@ greatdata %>%
     experiment_start
 
 ## Subset the great data so that the final cmip5 data only includes years which
-## all the model reported datat for.
+## all the model reported data for.
 greatdata %>%
     left_join(experiment_start, by = 'experiment') %>%
     filter(year >= start_year) %>%
     select(-start_year) %>%
-    distinct ->
+    # Beacuse inmcm4 heat flux values lie outside of what we suspect is the cmip envlop remove
+    # inmcm4 output data.
+    filter(model !="inmcm4" )->
     final_cmip5_data
 
-# Make sure that the cmip
-final_cmip5_data %>%
-    mutate(value = 1) %>%
-    distinct %>%
-    select(year, model, ensemble, variable, experiment, value) %>%
-    spread(variable, value) %>%
-    dplyr::filter(!is.na(heatflux) & !is.na(tas)) %>%
-    select(model, ensemble, experiment) %>%
-    distinct %>%
-    mutate(remove = TRUE) ->
-    incomplete_ensembles
 
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
