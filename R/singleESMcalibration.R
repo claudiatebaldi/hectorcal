@@ -71,14 +71,13 @@ translate_variable_name <- function(input){
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment, weight.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param param A vector of parameter values.
-#' @param core_weights An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.
 #' @param n The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return A function that will calculate the mean squared error between a Hector run and ESM data.
 #' @importFrom foreach %do% %dopar%
 #' @importFrom dplyr %>%
 #' @export
-make_minimize_function <- function(hector_cores, esm_data, normalize, param, core_weights = NULL, n = NULL, showMessages = FALSE){
+make_minimize_function <- function(hector_cores, esm_data, normalize, param, n = NULL, showMessages = FALSE){
 
     # Check Inputs -----
     # Check inputs for names.
@@ -95,14 +94,6 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
     # Make sure that the ESM data only contains values for tas, heatflux, and co2 (other variables may be added in the future).
     assertthat::assert_that(any(unique(esm_data$variable) %in% c('tas', 'co2', 'heatflux')), msg = 'esm_data can only contain tas, heatflux, or co2 as variables.')
 
-    # Make sure that if weights are povided that there is one for every experiment (hector core). If the
-    # weights argument is left to default use 1 as the weight value.
-    if(is.null(core_weights)){
-        core_weights <- rep(x = 1, length(hector_cores))
-    }
-    assertthat::assert_that(length(core_weights) == length(hector_cores), msg = 'core_weights and hector_cores must have the same length')
-
-
     # Make sure there is a hector core for each experiment in the ESM data. Then subset the core list so that is only
     # contains the cores there is ESM data for.
     hector_experiments <- unlist(lapply(hector_cores, hector::getname))
@@ -112,7 +103,6 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
 
     # Select the cores and the core weights to use, assume that they are in the same order.
     cores_to_use   <- hector_cores[which(hector_experiments %in% unique(esm_data$experiment))]
-    weights_to_use <- core_weights[which(hector_experiments %in% unique(esm_data$experiment))]
 
     # Prep Data -----
     # Use the order of the experiments in the Hector cores to determine the order of experiments in the esm data.
@@ -175,8 +165,9 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
     # The function that will be used as fn input to optim.
     function(param){
 
-        # Run the Hector in parallel for all of the scnearios.
-        rslt <- foreach::foreach(i = 1:length(cores_to_use), .combine = 'c') %dopar% {
+        # Run the Hector in parallel for all of the scnearios and calculate the
+        # mean squared error for each variable / experiment / ensemble.
+        rslt <- foreach::foreach(i = 1:length(cores_to_use), .combine = 'rbind') %dopar% {
 
             # Pull out the years and variable names from the esm data for the experiment.
             yrs <- unique(esm_experiment_list[[i]]$year)
@@ -202,10 +193,9 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
                     na.omit() %>%
                     dplyr::mutate(hector_norm = (value - center) / scale) %>%
                     dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
-                    dplyr::group_by(variable) %>%
-                    dplyr::summarise(SE = mean(SE)) %>%
-                    dplyr::pull(SE) %>%
-                    sum
+                    dplyr::group_by(scenario, variable) %>%
+                    dplyr::summarise(MSE = mean(SE)) %>%
+                    dplyr::ungroup()
 
             },error=debug_errhandler)
 
@@ -220,10 +210,18 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
         # Clean up partallel clusters.
         doParallel::stopImplicitCluster()
 
-        # Calculate the weighted sum for the non NA values.
-        final_values <- c(rslt)[!is.na(c(rslt))]
-        weighted.mean(x = final_values, w = weights_to_use)
-
+        # Calculate the sum of the mean squared error for each of the experiment with equal weights
+        # for each experiment / variable.
+        rslt %>%
+            tidyr::separate(col = scenario, sep = '_', into = c('experiment', 'ensemble')) %>%
+            dplyr::group_by(experiment, variable) %>%
+            dplyr::summarise(MSE = mean(MSE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::group_by(experiment) %>%
+            dplyr::summarise(value = sum(MSE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::pull(value) %>%
+            mean()
     }
 }
 
@@ -235,20 +233,19 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cor
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param initial_param A named vector of inital paramters to be optimized over.
-#' @param core_weights An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return An object returned by \code{optim}
 #' @export
-singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
+singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Set up the Hector cores.
     cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
 
     # Make the function that will calculate the mean squared error between Hector output and the esm comparison data,
     # this function will be minimized by optim.
-    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, core_weights = core_weights, param = initial_param, n = n_parallel, showMessages = showMessages)
+    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, param = initial_param, n = n_parallel, showMessages = showMessages)
 
     # Use optim to minimize the MSE between Hector and ESM output data
     stats::optim(par = initial_param, fn = fn, control = list('maxit' = maxit))
@@ -266,7 +263,6 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param initial_param A named vector of inital paramters to be optimized over.
-#' @param core_weights An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
@@ -274,7 +270,7 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' normalized residuals, MSE a data frame of the mean squared error for each experiment and variable optim minimizes the sum of the MSE values, and
 #' optim_rslt is the object returned by \code{optim}.
 #' @export
-singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
+singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Make an empty list to return the output in.
     output <- list()
@@ -287,7 +283,7 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
 
     # Get the best parameter fit for Hector and the ESM.
     calibration_rslts <- singleESM_calibration(inifiles = inifiles, hector_names = hector_names, esm_data = esm_data,
-                                               normalize = normalize, initial_param = initial_param, core_weights = core_weights,
+                                               normalize = normalize, initial_param = initial_param,
                                                maxit = maxit, n = n_parallel, showMessages = showMessages)
 
     if(calibration_rslts$convergence == 0){
@@ -368,6 +364,9 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
     esm_hector_df %>%
         dplyr::group_by(experiment, variable) %>%
         dplyr::summarise(MSE = mean(diff^2)) %>%
+        tidyr::separate(col = scenario, sep = '_', into = c('experiment', 'ensemble')) %>%
+        dplyr::group_by(experiment, variable) %>%
+        dplyr::summarise(value = mean(SE)) %>%
         dplyr::ungroup() ->
         output[['MSE']]
 
@@ -379,8 +378,6 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
 
     # Add the calibration results to the output list.
     output[['optim_rslt']] <- calibration_rslts
-
-    output[['weights']]    <- core_weights
 
 
     # Return the output.

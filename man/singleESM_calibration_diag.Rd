@@ -5,7 +5,7 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data and return diagnostic materials.}
 \usage{
 singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
-  initial_param, core_weights = NULL, maxit = 500, n_parallel = NULL,
+  initial_param, maxit = 500, n_parallel = NULL,
   showMessages = FALSE)
 }
 \arguments{
@@ -18,8 +18,6 @@ singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
 \item{normalize}{A list of center and the scale values to use to noramlize the Hector and ESM output data.}
 
 \item{initial_param}{A named vector of inital paramters to be optimized over.}
-
-\item{core_weights}{An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.}
 
 \item{maxit}{The max number of itterations for optim, default set to 500.}
 

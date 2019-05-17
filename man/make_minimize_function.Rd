@@ -5,7 +5,7 @@
 \title{Make the function to minimize}
 \usage{
 make_minimize_function(hector_cores, esm_data, normalize, param,
-  core_weights = NULL, n = NULL, showMessages = FALSE)
+  n = NULL, showMessages = FALSE)
 }
 \arguments{
 \item{hector_cores}{A list of Hector cores that will be used.}
@@ -15,8 +15,6 @@ make_minimize_function(hector_cores, esm_data, normalize, param,
 \item{normalize}{A list of center and the scale values to use to noramlize the Hector and ESM output data.}
 
 \item{param}{A vector of parameter values.}
-
-\item{core_weights}{An optional vector of experiment weights to get the weighted sum of experiment MSE, the default it set to NULL the no weights are used.}
 
 \item{n}{The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}}
 
