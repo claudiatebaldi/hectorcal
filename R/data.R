@@ -251,3 +251,36 @@ NULL
 #' cmip_emiss_pcproj: Projection coefficients for emissions-driven ESMs
 #' @rdname esm_pcdata
 'cmip_emiss_pcproj'
+
+#' ESM comparison data in principal components projection.
+#'
+#' This table gives the min-mean-max for the principal components projections of
+#' the ESM ensemble.  Optionally, it \emph{may} have a single heat flux value
+#' that can be used to supplement the principal components constraints.  If
+#' present, this value will always be the year 2100 value for the appropriate
+#' RCP 8.5 experiment (either rcp85 or esmrcp85)  Because the principal
+#' components span all of the years and experiments in the comparison data,
+#' there is no \code{year} or \code{experiment} column in this dataset;
+#' otherwise, it is organized much like \code{\link{esm_comparison}}.
+#'
+#' #' @format Data frame with 7 columns
+#' \describe{
+#' \item{variable}{Variable being reported (PC number or "heatflux").}
+#' \item{mina}{Minimum value reported in the ensemble}
+#' \item{maxb}{Maximum value reported in the ensemble}
+#' \item{a10}{First decile reported in the ensemble}
+#' \item{b90}{Ninth decile reported in the ensemble}
+#' \item{cmean}{Mean value reported in the ensemble}
+#' \item{cmedian}{Median value reported in the ensemble}
+#' }
+#' @family comparison data
+#' @name pccd
+NULL
+
+#' conc_pc_comparison: Principal components comparison data for concentration-driven runs
+#' @rdname pccd
+'conc_pc_comparison'
+
+#' emiss_pc_comparison: Principal components comparison data for emissions-driven runs
+#' @rdname pccd
+'emiss_pc_comparison'

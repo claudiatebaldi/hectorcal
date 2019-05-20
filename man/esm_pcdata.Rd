@@ -26,7 +26,7 @@ the projection.  The concentration-driven runs are projected onto
 }
 \seealso{
 Other comparison data: \code{\link{cmip_individual}},
-  \code{\link{esm_comparison}}
+  \code{\link{esm_comparison}}, \code{\link{pccd}}
 }
 \concept{comparison data}
 \keyword{datasets}
