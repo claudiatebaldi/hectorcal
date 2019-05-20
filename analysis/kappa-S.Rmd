@@ -1,0 +1,163 @@
+---
+title: "Reflections on Identifiability of Climate Sensitivity and Diffusivity"
+output: html_notebook
+---
+
+```{r setup}
+library('hector')
+library('ggplot2')
+library('ggthemes')
+```
+
+What we want to know is, how individually identifiable are the climate sensitivity
+$S$ and the ocean thermal diffusivity $\kappa$, given _just_ temperature data over
+the 21st century.  To do this, we will look at a range of $\kappa$ values, and for
+each one we will find the $S$ value that best reproduces the 21st century temperatures for 
+the baseline run.  Then we will look at how different those runs are over the 21st
+century, and whether they diverge with longer runs.
+
+Here is our function to return output data for a single $\kappa$ value.
+
+```{r kopt}
+compyears <- 2001:2100
+kopt <- function(hcore, kappa, temp2100)
+{
+    setvar(hcore, NA, DIFFUSIVITY(), kappa, 'cm2/s')
+    optfun <- function(S) {
+        hfail <- function(e) {1e6*(S-2)}  # return a large value on parameter out of range
+        tryCatch({
+            setvar(hcore, NA, ECS(), S, 'degC')
+            reset(hcore)
+            run(hcore, max(compyears))
+            sum((fetchvars(hcore, compyears, GLOBAL_TEMP())$value - temp2100)^2)
+        }, error=hfail) 
+    }
+    op <- optimize(optfun, c(0.1, 50))
+    # if(op$objective > 1e-4) {
+    #     warning('Optimization failed. kappa= ', kappa, ' val= ', op$objective)
+    # }
+    ## Have the location of the optimum, now get the data
+    setvar(hcore, NA, ECS(), op$minimum, 'degC')
+    runtodate <- function(date) {
+        reset(hcore)
+        run(hcore,date)
+        df <- fetchvars(hcore, 2000:date, GLOBAL_TEMP())
+        df$kappa <- kappa
+        df$S <- op$minimum
+        df
+    }
+    ## Some models won't be able to run to 2300, so back those down as necessary
+    rslt <- NULL
+    date <- 2301
+    hfail2 <- function(e) {NULL}
+    while(is.null(rslt)) {
+        date <- date-10
+        rslt <- tryCatch({
+            runtodate(date)
+        }, error=hfail2)
+    }
+    rslt
+}
+```
+
+To run this we'll need a Hector core.  My hunch is that the high emissions scenario 
+will give us the best discriminatory power, so we'll use that.  We also need the 21st
+century temperatures.
+```{r hector}
+inifile <- system.file('input/hector_rcp85.ini', package='hector')
+hc <- newcore(inifile)
+invisible(run(hc, max(compyears)))
+temps <- fetchvars(hc, compyears, GLOBAL_TEMP())$value
+kvals <- c(0.01, 2.3, 10.0, 20.0)
+rslts <- lapply(kvals,
+                function(k) {
+                    r <- kopt(hc, k, temps)
+                    message('k= ', k, ' S= ', r$S[1])
+                    r
+                })
+```
+
+Now, let's take a look at these runs.  We'll first plot only out to 2100, then we'll plot
+everything.
+```{r plotruns}
+pltdata <- dplyr::bind_rows(rslts)
+pltdata$kappa <- factor(pltdata$kappa, ordered=TRUE)
+pltdata2100 <- dplyr::filter(pltdata, year<=2100)
+ggplot(data=pltdata2100, aes(x=year, y=value, color=kappa)) + geom_line(size=1.1) +
+    ylab('Temperature') + theme_solarized_2(light=FALSE) + scale_color_solarized()
+ggplot(data=pltdata, aes(x=year, y=value, color=kappa)) + geom_line(size=1.1) +
+    ylab('Temperature') + theme_solarized_2(light=FALSE) + scale_color_solarized()
+```
+
+As expected, $S$ and $\kappa$ can to some extent trade off against one another, but 
+the tradeoff isn't perfect.  They look wildly different for the longer runs, of course.
+What matters is how this partial tradeoff compares to our ability to fit the ESMs.  We
+know the ESMs have noise that we won't ever be able to fit.  If the magnitude of that
+noise is comparable to or larger than the difference (in Hector temperatures) between 
+the largest and smallest $\kappa$ runs, then all the $\kappa$, $S$ pairings effectively
+look the same, and the parameters are not going to be identifiable.  Therefore, we'll
+calculate the mean squared error relative to the $\kappa = 2.3$ run for each of the
+other runs.
+
+```{r mse}
+sapply(rslts, 
+       function(r){
+           r2100 <- dplyr::filter(r, year<=2100)
+           cmp2100 <- dplyr::filter(rslts[[2]], year<=2100)
+           mean(
+               (r2100$value - cmp2100$value)^2
+           )
+       }) -> mse
+names(mse) <- kvals
+mse
+```
+The MSE for the total range of $\kappa$ values is only about `r signif(mse[1]+mse[4],2)`.  That's 
+pretty small.  I bet the noise in the ESMs is already higher than that.  We can estimate
+that noise by calculating the MSE between the ESM data and a smoothed version.  We'll
+use loess smoothing to make it easy on ourselves.
+```{r esmnoise}
+esmnoise <- function(mod) {
+    dd <- dplyr::filter(cmip_individual, model==mod, experiment=='rcp85')
+    ll <- loess(data=dd, value~year, span=0.5)
+    mean((predict(ll) - dd$value)^2)
+}
+mods <- unique(dplyr::filter(cmip_individual, experiment=='rcp85')$model)
+n <- sapply(mods, esmnoise)
+n
+summary(n)
+```
+Something clearly went wrong for `r names(n)[which.max(n)]`.  Other than that
+the results look interesting, though not good for identifiability.  The smallest MSE
+is `r signif(min(n), 1)` for `r names(n)[which.min(n)]`.  If the true value of $\kappa$
+were near the Hector canonical value of 2.3, we would have at least a fighting chance
+of ruling out $\kappa \approx 0$ or $\kappa \ge 10$, _assuming_ that high-frequency variability
+is the _only_ source of error (i.e, no fitting error and no compromise between experiments).  
+For 3/4 of the models the MSE is above `r signif(summary(n)[2], 1)`, which is comparable 
+to the difference between $\kappa \approx 2.3$ and $\kappa \approx 10$.  The range of 
+allowable $\kappa$ values covers essentially _all_ physically plausible values.
+
+By way of example, here's CESM1-CAM5 overlaid on the $\kappa$ plots.
+```{r ovlyplot}
+cesm_all <- dplyr::filter(cmip_individual, model=='CESM1-CAM5', experiment=='rcp85')
+ggplot(data=pltdata2100, aes(x=year, y=value, color=kappa)) + geom_line(size=1.1) +
+    ylab('Temperature') + theme_solarized_2(light=FALSE) + scale_color_solarized() +
+    geom_point(data=cesm_all, color='lightgrey')
+```
+Well, ok, not quite the illustration I'd hoped because these model runs weren't 
+optimized to that CESM run, but hopefully it's clear that when you include all
+the ensemble members, the band easily spans a width comparable to the width of
+the band of $\kappa$ values.  
+
+### What next?
+
+One thing that _might_ help would be to smooth the ESMs so that we have Hector
+trying to fit their smooth trend, which is all it can really hope to do anyhow.
+I'm curious to see if doing the fits in principal component space might accomplish
+this in a less ad-hoc way than using something like loess (more about the principal
+components angle tomorrow).  Of course, the discrepancies
+between experiments and ensemble members may still lead to non-identifiability between
+$S$ and $\kappa$.  Even if it doesn't, the fact that one $\kappa$ is favored 
+doesn't mean it's the _right_ value, so I'm not sure how much stock we should put in
+fits done with smoothed results.  However, I do think we want to know what happens
+when we try those other methods so that we can plan our next move, as well as so we
+can start to figure out what our findings are going to be for this paper.  

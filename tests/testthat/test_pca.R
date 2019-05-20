@@ -42,16 +42,19 @@ test_that('project_climate works', {
         recon_climate  <- reconstruct_climate(projected_rslt, principal_components = test_pca)
 
         ## We expect that the reconstructed climate data and the input climare
-        ## data are equal to one another.  However, we need to ensure that the
+        ## data are equal to one another.  (Well, actually, this is only
+        ## guaranteed if we kept all of the PCs for our test_pca data. In fact,
+        ## we trimmed that set to avoid having a gigantic test set, so this is
+        ## only approximately true.  As long as we keep enough components in the
+        ## test set, the results will be sufficiently equal to satisfy the test.)
+        ## However, we need to ensure that the
         ## input data is in canonical order.  We also need to filter out rows
         ## prior to the start year
         cd <- dplyr::arrange(climate_data, experiment, variable, year) %>%
             dplyr::filter(year >= min(test_pca$meta_data$histyear),
                           year <= max(test_pca$meta_data$year))
         expect_equal(recon_climate$value, cd$value,
-                     info=paste("Reconstructed climate not equal to input for runid=",i),
-                     tolerance=1e-3)    # The round-trip procedure can induce a
-                                        # fair bit of roundoff error.
+                     info=paste("Reconstructed climate not equal to input for runid=",i))
     }
 
     ## Verify that the row-vector version of project_climate works
