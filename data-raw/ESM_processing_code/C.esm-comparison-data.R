@@ -103,11 +103,11 @@ final_cmip5_data %>%
     distinct %>%
     select(year, model, ensemble, variable, experiment, value) %>%
     spread(variable, value) %>%
-    dplyr::filter(!is.na(heatflux) & !is.na(tas)) %>%
+    dplyr::filter(any(!is.na(heatflux), !is.na(tas))) %>%
     select(model, ensemble, experiment) %>%
     distinct %>%
-    mutate(remove = TRUE) ->
-    incomplete_ensembles
+    mutate(keep = 1) ->
+    complete_ensembles
 
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
@@ -121,9 +121,7 @@ esm_comparison_range <-
     # is fine to use in the "individual cmip5 best fit exercise" we do not to
     # include it in the esm range comparison data set.
     filter(year <= 2100 & model != 'inmcm4') %>%
-    left_join(incomplete_ensembles, by = c("model", "ensemble", "experiment")) %>%
-    filter(is.na(remove)) %>%
-    select(-remove) %>%
+    left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
     group_by(year, variable, experiment) %>%
     summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1), b90=quantile(value, 0.9)) %>%
     ungroup
@@ -132,15 +130,16 @@ esm_comparison_range <-
 ## ensemble average for each of the model to use to calculate the multimodel mean
 ## and median.
 final_cmip5_data %>%
-    left_join(incomplete_ensembles, by = c("model", "ensemble", "experiment")) %>%
-    filter(is.na(remove)) %>%
+    left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
+    filter(keep == 1) %>%
     ## Calculate the model ensemble mean
     group_by(year, model, variable, experiment, unit) %>%
     dplyr::summarise(value = mean(value)) %>%
-    ungroup %>%
+    ungroup() %>%
     ## Calculate the multi model mean and median
     group_by(year, variable, experiment) %>%
-    dplyr::summarise(cmean = mean(value), cmedian = median(value)) ->
+    dplyr::summarise(cmean = mean(value), cmedian = median(value)) %>%
+    dplyr::ungroup() ->
     esm_comaprison_mean
 
 ## Combine the esm comparion range and the mulit model mean information into one tibble.

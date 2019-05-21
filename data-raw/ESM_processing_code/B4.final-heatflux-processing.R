@@ -18,19 +18,19 @@ library(tidyr)
 library(readr)
 
 
-
 # 1. Import Data ------------------------------------------------------------------------------------
 # Import the heat flux data, because of some issues with the data processing there are some wonky heat
 # flux values (heat flux values that have a magnitude greater than 5).
-heat_flux <- read.csv("CMIP5_heat_flux_raw.csv", stringsAsFactors = FALSE)
+heat_flux <- read.csv("CMIP5_heat_flux_raw.csv", stringsAsFactors = FALSE) %>%
+    select(-X)
 
 # Import the monthly global fluxes, this data will be used to replace the outliers in the annual heat flux
 # time series.
-
 monthly_fluxes <- read_csv("CMIP5_global_flux_means.csv.zip")  %>%
     # Parse out the year information from the year_month column.
     rename(year_month = year) %>%
-    mutate(year = as.integer(substr(year_month, 1, 4)))
+    mutate(year = as.integer(substr(year_month, 1, 4))) %>%
+    select(-'X1')
 
 # 2. Calcualte Annual Heat Flux Monthly Global Means --------------------------------------------------
 
@@ -39,7 +39,9 @@ monthly_fluxes %>%
     # these observations before calculating the annual average.
     filter(abs(value) > 1e-3) %>%
     group_by(year, variable, ensemble, model, experiment) %>%
-    summarise(value = mean(value, na.rm = TRUE)) %>%
+    summarise(value = mean(value, na.rm = TRUE),
+              n = n()) %>%
+    filter(n >= 11) %>%
     ungroup %>%
     spread(variable, value) %>%
     # Some of the variables start at different years, discard the incomplete
@@ -60,15 +62,23 @@ new_heat_flux <- select(new_heat_flux_fullTibble, year, ensemble, model, experim
 # greater than 4.5 for the non rcp85 scenarios and greater than 8 for the rcp85 sceanrio.
 heat_flux %>%
     mutate(replace = if_else(abs(value) > 4.5 & experiment != 'rcp85', TRUE, FALSE)) %>%
-    mutate(replace = if_else(abs(value) > 8 & experiment == 'rcp85', TRUE, replace))  ->
+    mutate(replace = if_else(abs(value) > 8 & experiment == 'rcp85', TRUE, replace)) %>%
+    distinct ->
     heatflux_to_replace
 
 
 heatflux_to_replace %>%
-    left_join(new_heat_flux, by = c("year", "ensemble", "model", "experiment")) %>%
-    mutate(value = if_else(replace, new_value, value),
-           unit = 'W/m2') %>%
-    select(-new_value, -replace) ->
+    filter(replace) %>%
+    inner_join(new_heat_flux, by = c("year", "ensemble", "model", "experiment")) %>%
+    mutate(value = if_else(replace, new_value, value)) %>%
+    select(names(heat_flux)) ->
+    heatflux_bad_values_replaced
+
+heatflux_to_replace %>%
+    filter(!replace) %>%
+    bind_rows(heatflux_bad_values_replaced) %>%
+    select(names(heat_flux)) %>%
+    mutate(unit = 'W/m2') ->
     final_heat_flux
 
 

@@ -13,10 +13,9 @@ library(rlist)
 library(ncdf4)
 
 # Define the directories.
-CMIP5_META          <- "/pic/projects/GCAM/CMIP5-CHartin"             # Corinne's CMIP5 directory should have the cell area and the land fraction meta data files.
 TEMP_FILE_BASE_NAME <- "/pic/scratch/dorh012"                         # Define a place to store the interminate netcdfs created during the cdo processing.
 CDO_EXE             <- "/share/apps/netcdf/4.3.2/gcc/4.4.7/bin/cdo"   # Where the cdo lives
-
+setwd('/pic/projects/GCAM/Dorheim/Dorheim/hectorcal/data-raw/ESM_processing_code')
 # 1. Define Functions -----------------------------------------------------------------------
 # Make a netcdf of ocean weights, where cells that are land based have a value of 0 so that when we take the global average those values do not count.
 # This function will save the new netcdf as the out_nc.
@@ -61,6 +60,7 @@ calculate_ocean_heat_flux <- function(input){
     assert_that(unique(input$domain) == 'Amon', msg = 'This function can only process monthly atmopheric data')
 
     input %>%
+        disitinct %>%
         mutate(variable = paste0(variable, '_nc')) %>%
         spread(variable, variable_file_path) ->
         wide_cmip_data
@@ -159,7 +159,7 @@ oceanWeights_tibble <- tibble(model = for_calculating_ocean_area_weights$model,
 # 4. Calculate Ocean Heat FLux -----------------------------------------------------------------
 cmip_data_files %>%
     left_join(oceanWeights_tibble, by = 'model') %>%
-    split(., list(.$model, .$experiment, .$ensemble)) %>%
+    split(., list(.$model, .$experiment, .$ensemble)) -> x
     # Remove the entries of the list that contain 0 rows because the
     # caclulate_ocean_heat_flux function will not work with it.
     list.clean(fun = function(input){nrow(input) == 0}) %>%

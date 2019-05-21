@@ -14,16 +14,17 @@ library(tibble)
 
 # Define the directories.
 CMIP5_DATA          <- "/pic/projects/GCAM/CMIP5-KDorheim"            # The location of the cmip 5 files to process'
-CMIP5_META          <- "/pic/projects/GCAM/CMIP5-CHartin"             # Corinne's CMIP5 directory should have the cell area and the land fraction meta data files.
+CMIP5_META          <- "/pic/projects/GCAM/CMIP5-KDorheim"             # Corinne's CMIP5 directory should have the cell area and the land fraction meta data files.
 
 # Select the CMIP5 variables, experiments, ensembles, realms, and time scales to process. Any options defined in
 # in each of the following vectors will be processed.
 
 VARIABLES       <- c("rsds", "rsus", "rlds", "rlus", "hfss", "hfls")       # variable, if null will search for all variables
-EXPERIMENTS     <- c("historical", "rcp26", "rcp45", 'rcp60', 'rcp85')     # experiment names, if null will search for all experiments
+EXPERIMENTS     <- c("esmHistorical", 'esmrcp85', 'historical',
+                     'rcp26', 'rcp45', 'rcp60', 'rcp85')                   # experiment names, if null will search for all experiments
 ENSEMBLES       <- NULL                                                    # the ensemble name, if null will search for all rensembles
 DOMAINS         <- "Amon"                                                  # The modeling domain name
-MODELS          <- "MIROC-ESM"                                            # A vector of the models to serach for, if null then search for all
+MODELS          <- NULL                                                    # A vector of the models to serach for, if null then search for all
 
 # 1. Define Functions  -----------------------------------------------------------------------
 # pattern_gen is a function that converts the cmip search vectors from section
@@ -61,7 +62,8 @@ tibble(variable_file_path = variable_filelist) %>%
     mutate(filename = basename(variable_file_path)) %>%
     separate(filename, into = c("variable", "domain", "model", "experiment",
                                 "ensemble", "date"), sep = "_", remove = FALSE) %>%
-    select(variable_file_path, variable, domain, model, experiment, ensemble) ->
+    mutate(date = gsub('.nc', '', date)) %>%
+    select(variable_file_path, variable, domain, model, experiment, ensemble, date) ->
     variable_file_tibble
 
 # Determine which models / experiments / ensemble ares missing data. Each one should have
@@ -69,7 +71,7 @@ tibble(variable_file_path = variable_filelist) %>%
 # If any of the variables are missing then cannot caculate the ocean heat flux from the ocean data.
 # The missing files will have to be downloaded (is possible).
 variable_file_tibble %>%
-    select(variable, domain, model, experiment, ensemble) %>%
+    select(variable, domain, model, experiment, ensemble, date) %>%
     # Spread the experiment column and fill with the binary this file exits. When we spread the
     # data the model / experiemnts/ ensmeble / variable combo is missing an experment then the new columns
     # named after the variables will contain NA codes.
@@ -101,7 +103,6 @@ variable_wide %>%
 #
 # Search for any experiment and ensemble memeber, what matters most about the area realated ncdfs is
 # the model.
-
 META         <- c("areacella", "sftlf")
 metapattern  <- pattern_gen(META)
 
@@ -129,6 +130,7 @@ tibble(meta_file_path = meta_filelist) %>%
 meta_file_tibble %>%
     select(model, variable) %>%
     mutate(exists = 1) %>%
+    distinct() %>%
     spread(variable, exists) ->
     wide_meta
 
