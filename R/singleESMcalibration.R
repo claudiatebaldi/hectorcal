@@ -18,7 +18,7 @@ parameterize_core <- function(params, core) {
 
     hector::reset(core = core)
 
-    }
+}
 
 
 #' Switch from Hector variable names to ESM variable names.
@@ -62,6 +62,7 @@ translate_variable_name <- function(input){
 }
 
 
+
 #' Make the function to minimize
 #'
 #' Create the function that will calculate the mean squared error between Hector and ESM CMIP5 output data. THis
@@ -71,28 +72,44 @@ translate_variable_name <- function(input){
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment, weight.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param param A vector of parameter values.
+#' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+#' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+#' minimize the value returned by the -log of the mesa function.
 #' @param n The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return A function that will calculate the mean squared error between a Hector run and ESM data.
 #' @importFrom foreach %do% %dopar%
 #' @importFrom dplyr %>%
 #' @export
-make_minimize_function <- function(hector_cores, esm_data, normalize, param, n = NULL, showMessages = FALSE){
+make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmip_range = NULL, n = NULL, showMessages = FALSE){
 
-    # Check Inputs -----
-    # Check inputs for names.
+    # Check data used to normalize the Hector and ESM output data.
     check_columns(input = normalize, req_cols = c('scale', 'center'))
     check_columns(input = esm_data, req_cols = c('model', 'experiment', 'variable', 'year'))
-
-    # Make sure that the normalize center and scale arguments are all named.
     assertthat::assert_that(all(!is.na(names(normalize$center))), msg = 'normalize center needs names')
     assertthat::assert_that(all(!is.na(names(normalize$scale))), msg = 'normalize scale needs names')
 
-    # Make sure that ESM data only contains information for a single model.
+    # Check the ESM comparison data.
+    check_columns(input = comp_data, req_cols = c('year', 'model', 'ensemble', 'variable', 'experiment', 'value', 'cmip_experiment'))
     assertthat::assert_that(length(unique(esm_data$model)) == 1, msg = 'esm_data can only have input for a single ESM')
+    assertthat::assert_that(all(esm_data$variable %in% c('tas', 'co2', 'heatflux')), msg = 'esm_data can only contain tas, heatflux, or co2 as variables.')
 
-    # Make sure that the ESM data only contains values for tas, heatflux, and co2 (other variables may be added in the future).
-    assertthat::assert_that(any(unique(esm_data$variable) %in% c('tas', 'co2', 'heatflux')), msg = 'esm_data can only contain tas, heatflux, or co2 as variables.')
+    # Store a list of the experiments that are going to be used as the hector core names
+    comparison_experiments <-
+
+
+    # If calibrating to the cmip range check that the cmip range df contains the required columns and that the
+    # the esm_data and the cmip_range objects do not contains values for the same variables.
+    # TODO or should this check only prevent the use of esm and the cmip range for the years / experiment or variables?
+    if(!is.null(cmip_range)){
+
+        check_columns(input = cmip_range, req_cols = c('year', 'variable', 'cmip_experiment', 'lower', 'upper', 'sig'))
+        assertthat::assert_that(!any(esm_data$variable %in% cmip_range$variable), msg = 'cmip_range cannot contain data for a variable that is also in esm_data')
+        assertthat::assert_that(any(unique(cmip_range$variable) %in% c('tas', 'co2', 'heatflux')), msg = 'cmip_range can only contain tas, heatflux, or co2 as variables.')
+
+    }
+
+
 
     # Make sure there is a hector core for each experiment in the ESM data. Then subset the core list so that is only
     # contains the cores there is ESM data for.
@@ -127,6 +144,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, n =
     normalized_esm %>%
         dplyr::arrange(experiment, variable, year) %>%
         dplyr::select(year, model, variable, experiment, esm_norm, scale, center) %>%
+        dplyr::mutate(cmip_experiment = base::gsub(x = experiment, pattern = '_[a-zA-Z0-9-]{6}', replacement = '')) %>%
         split(.$experiment) ->
         esm_experiment_list
 
@@ -162,8 +180,11 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, n =
 
     doParallel::registerDoParallel(cores=n)
 
-    # The function that will be used as fn input to optim.
+
+   # The function that will be used as fn input to optim.
     function(param){
+
+        if(showMessages){message(paste0(signif(param, 3), collapse = ', '))}
 
         # Run the Hector in parallel for all of the scnearios and calculate the
         # mean squared error for each variable / experiment / ensemble.
@@ -190,35 +211,80 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, n =
                     dplyr::left_join(esm_experiment_list[[i]] %>%
                                          dplyr::mutate(experiment = as.character(experiment)),
                                      by = c('scenario' = 'experiment', 'year', 'variable')) %>%
-                    na.omit() %>%
+                    stats::na.omit() %>%
                     dplyr::mutate(hector_norm = (value - center) / scale) %>%
                     dplyr::mutate(SE = (hector_norm - esm_norm)^2) %>%
                     dplyr::group_by(scenario, variable) %>%
-                    dplyr::summarise(MSE = mean(SE)) %>%
-                    dplyr::ungroup()
+                    dplyr::summarise(value = mean(SE)) %>%
+                    dplyr::ungroup() %>%
+                    dplyr::mutate(cmip_experiment = base::gsub(x = scenario, pattern = '_[a-zA-Z0-9-]{6}', replacement = '')) ->
+                    rslt_esm_comparison
+
+                core_cmip_exp <- unique(rslt_esm_comparison$cmip_experiment)
+
+
+                # If also calibrating to the cmip rnage then calculate the -log(mesa) for the cmip range.
+                rslt_cmip_range_comparison <- NULL
+                if(!is.null(cmip_range) & any(core_cmip_exp %in% cmip_range$cmip_experiment)){
+
+                    range_yrs        <- cmip_range$year
+                    range_vars       <- unique(pull(translate_variable_name(cmip_range), variable))
+
+                    tibble::as_tibble(hector::fetchvars(core = cores_to_use[[i]], range_yrs, range_vars)) %>%
+                        dplyr::mutate(cmip_experiment = base::gsub(x = scenario, pattern = '_[a-zA-Z0-9-]{6}', replacement = '')) %>%
+                        dplyr::left_join(cmip_range,  by = c("cmip_experiment", "year", "variable")) %>%
+                        na.omit ->
+                        hector_cmip_range
+
+                    hector_cmip_list <- split(hector_cmip_range, list(hector_cmip_range$scenario, hector_cmip_range$variable), drop = TRUE)
+
+                    lapply(hector_cmip_list, function(input){
+
+                        mesa_value <- -log(mesa(x = input$value, a = input$lower, b = input$upper, sig = input$sig))
+
+                        input %>%
+                            dplyr::select(scenario, year, variable) %>%
+                            dplyr::bind_cols(value = mesa_value) %>%
+                            dplyr::group_by(scenario, variable) %>%
+                            dplyr::summarise(value = mean(value)) %>%
+                            dplyr::ungroup() %>%
+                            dplyr::mutate(cmip_experiment = unique(core_cmip_exp))
+
+                    }) ->
+                        rslt_cmip_range_comparison
+                }
+
+                dplyr::bind_rows(rslt_esm_comparison, rslt_cmip_range_comparison)
+
+
 
             },error=debug_errhandler)
 
             if(is.null(MSE)){
-                Inf
+                tibble::tibble(value = Inf,
+                               scenario = NA_character_,
+                               variable = NA_character_)
             } else {
                 MSE
             }
 
         }
 
+
         # Clean up partallel clusters.
         doParallel::stopImplicitCluster()
 
-        # Calculate the sum of the mean squared error for each of the experiment with equal weights
-        # for each experiment / variable.
-        rslt %>%
-            tidyr::separate(col = scenario, sep = '_', into = c('experiment', 'ensemble')) %>%
+        # Calculate the value to minimize for each experiment / variable.
+        # Take the average for each experiment / variable where variables and ensemble memebers have equal weight to the
+        # value to minimize
+        dplyr::bind_rows(rslt) %>%
+            dplyr::ungroup() %>%
+            dplyr::mutate(experiment = gsub(pattern = '_[a-zA-Z0-9-]{6}', replacement = '', x = scenario)) %>%
             dplyr::group_by(experiment, variable) %>%
-            dplyr::summarise(MSE = mean(MSE)) %>%
+            dplyr::summarise(value = mean(value)) %>%
             dplyr::ungroup() %>%
             dplyr::group_by(experiment) %>%
-            dplyr::summarise(value = sum(MSE)) %>%
+            dplyr::summarise(value = sum(value)) %>%
             dplyr::ungroup() %>%
             dplyr::pull(value) %>%
             mean()
@@ -233,19 +299,28 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, n =
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param initial_param A named vector of inital paramters to be optimized over.
+#' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+#' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+#' minimize the value returned by the -log of the mesa function.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @return An object returned by \code{optim}
 #' @export
-singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500, n_parallel = NULL, showMessages = FALSE){
+singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, cmip_range = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Set up the Hector cores.
     cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
 
     # Make the function that will calculate the mean squared error between Hector output and the esm comparison data,
     # this function will be minimized by optim.
-    fn <- make_minimize_function(hector_cores = cores, esm_data = esm_data, normalize = normalize, param = initial_param, n = n_parallel, showMessages = showMessages)
+    fn <- make_minimize_function(hector_cores = cores,
+                                 esm_data = esm_data,
+                                 normalize = normalize,
+                                 param = initial_param,
+                                 cmip_range = cmip_range,
+                                 n = n_parallel,
+                                 showMessages = showMessages)
 
     # Use optim to minimize the MSE between Hector and ESM output data
     stats::optim(par = initial_param, fn = fn, control = list('maxit' = maxit))
@@ -263,6 +338,9 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' @param esm_data A data frame of ESM data for a single model that contains the following columns, year, model, variable, experiment.
 #' @param normalize A list of center and the scale values to use to noramlize the Hector and ESM output data.
 #' @param initial_param A named vector of inital paramters to be optimized over.
+#' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+#' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+#' minimize the value returned by the -log of the mesa function.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
@@ -270,7 +348,7 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' normalized residuals, MSE a data frame of the mean squared error for each experiment and variable optim minimizes the sum of the MSE values, and
 #' optim_rslt is the object returned by \code{optim}.
 #' @export
-singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, maxit = 500, n_parallel = NULL, showMessages = FALSE){
+singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, cmip_range = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     # Make an empty list to return the output in.
     output <- list()
@@ -284,91 +362,110 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
     # Get the best parameter fit for Hector and the ESM.
     calibration_rslts <- singleESM_calibration(inifiles = inifiles, hector_names = hector_names, esm_data = esm_data,
                                                normalize = normalize, initial_param = initial_param,
+                                               cmip_range = cmip_range,
                                                maxit = maxit, n = n_parallel, showMessages = showMessages)
 
     if(calibration_rslts$convergence == 0){
 
-    # Make a new set of Hector cores that will be parameterized with the results returned from singleESM_calibration.
-    cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
+        # Make a new set of Hector cores that will be parameterized with the results returned from singleESM_calibration.
+        cores <- setup_hector_cores(inifile = inifiles, name = hector_names)
 
-    # Run all of the Hector cores with the new parameters and extract results.
-    lapply(cores, function(x){
+        # Run all of the Hector cores with the new parameters and extract results.
+        lapply(cores, function(x){
 
-        # Reset the Hector cores.
-        parameterize_core(core = x, params = calibration_rslts$par)
+            # Reset the Hector cores.
+            parameterize_core(core = x, params = calibration_rslts$par)
 
-        # Run Hector.
-        hector::run(core = x, runtodate = max(yrs))
+            # Run Hector.
+            hector::run(core = x, runtodate = max(yrs))
 
-        # Extract the results.
-        translate_variable_name(hector::fetchvars(core = x, dates = yrs, vars = var))
+            # Extract the results.
+            translate_variable_name(hector::fetchvars(core = x, dates = yrs, vars = var))
 
-         }) %>%
-        dplyr::bind_rows() %>%
-        dplyr::rename(experiment = scenario,
-                      hector = value) ->
-        hector_output
+        }) %>%
+            dplyr::bind_rows() %>%
+            dplyr::rename(experiment = scenario,
+                          hector = value) ->
+            hector_output
 
-    # Combine the Hector output and esm comparion data into a single data frame.
-    esm_data %>%
-        dplyr::select(esm = value, experiment, variable, year) %>%
-        dplyr::left_join(hector_output, by = c("experiment", "variable", "year")) %>%
-        dplyr::mutate(copy_var = variable,
-                      variable = paste0(variable, ' ', units)) %>%
-        na.omit() ->
-        esm_hector_df
+        # Combine the Hector output and esm comparion data into a single data frame.
+        esm_data %>%
+            dplyr::select(esm = value, experiment, variable, year) %>%
+            dplyr::ungroup() %>%
+            dplyr::left_join(hector_output, by = c("experiment", "variable", "year")) %>%
+            dplyr::mutate(copy_var = variable,
+                          variable = paste0(variable, ' ', units)) %>%
+            na.omit() ->
+            esm_hector_df
 
-    # Make a caption for the plots out the parameter values.
-    param_caption <- paste(paste0(names(calibration_rslts$par), ' = ', signif(calibration_rslts$par, digits = 4)), collapse = ', ')
+        # Make a caption for the plots out the parameter values.
+        param_caption <- paste(paste0(names(calibration_rslts$par), ' = ', signif(calibration_rslts$par, digits = 4)), collapse = ', ')
 
-    # Compare the Hector and ESM output data.
-    esm_hector_df %>%
-        tidyr::gather(model, value, hector, esm) %>%
-        dplyr::mutate(model = dplyr::if_else(model == 'hector', model, esm_model_name)) ->
-        to_plot
+        # Compare the Hector and ESM output data.
+        esm_hector_df %>%
+            tidyr::gather(model, value, hector, esm) %>%
+            dplyr::mutate(model = dplyr::if_else(model == 'hector', model, esm_model_name)) %>%
+            dplyr::mutate(cmip_experiment = gsub(pattern = '_[a-zA-Z0-9-]{6}', replacement = '', x = experiment))->
+            to_plot
 
-        ggplot(data = to_plot, aes(year, value, color = model, linetype = experiment)) +
-        geom_line() +
-        facet_wrap('variable', scales = 'free') +
-        labs(title = paste0(esm_model_name, '  vs. Hector Output'),
-             caption = param_caption,
-             y = NULL,
-             x = 'Year') +
-        theme_bw() ->
-        output[['comparison_plot']]
+        # Define the colors and assign factor levels to use in plotting.
+        model_names   <- c('hector', unique(dplyr::pull(dplyr::filter(to_plot, model != 'hector'), model)))
+        colors        <- c('blue', 'grey')
+        names(colors) <- model_names
 
-    # Calculate the residuals
-    esm_hector_df %>%
-        dplyr::mutate(index = paste0(experiment, '.', copy_var, '.', year)) %>%
-        dplyr::left_join(tibble::tibble(index = names(normalize$scale),
-                                        scale = normalize$scale,
-                                        center = normalize$center), by = 'index') %>%
-        dplyr::mutate(esm_norm = (esm - center) / scale,
-                      hec_norm = (hector - center) / scale,
-                      diff = hec_norm - esm_norm) %>%
-        na.omit() ->
-        esm_hector_df
+        to_plot$model <- factor(to_plot$model, levels = rev(model_names), ordered = TRUE)
 
-    # plot the residuals.
-    ggplot(data = esm_hector_df) +
-        geom_point(aes(year, diff, color = experiment)) +
-        facet_wrap('variable', scales = 'free') +
-        labs(x = 'Year',
-             y = paste0('Difference Between Normalized Hector & ', esm_model_name),
-             caption = param_caption,
-             title = paste0('Residuals for Hector Calibrated to ', esm_model_name)) +
-        theme_bw()->
-        output[['residual_plot']]
+        ggplot(data = to_plot, aes(year, value, color = model, linetype = cmip_experiment, group = interaction(experiment, model))) +
+            geom_line() +
+            facet_wrap('variable', scales = 'free_y') +
+            labs(title = paste0(esm_model_name, '  vs. Hector Output'),
+                 caption = param_caption,
+                 y = NULL,
+                 x = 'Year') +
+            theme_bw() +
+            scale_color_manual(values = colors) ->
+            output[['comparison_plot']]
 
-    # Make a data frame of the MSE for each experiment and variable.
-    esm_hector_df %>%
-        dplyr::group_by(experiment, variable) %>%
-        dplyr::summarise(MSE = mean(diff^2)) %>%
-        tidyr::separate(col = scenario, sep = '_', into = c('experiment', 'ensemble')) %>%
-        dplyr::group_by(experiment, variable) %>%
-        dplyr::summarise(value = mean(SE)) %>%
-        dplyr::ungroup() ->
-        output[['MSE']]
+        # Calculate the residuals
+        esm_hector_df %>%
+            dplyr::ungroup() %>%
+            dplyr::mutate(index = paste0(experiment, '.', copy_var, '.', year)) %>%
+            dplyr::left_join(tibble::tibble(index = names(normalize$scale),
+                                            scale = normalize$scale,
+                                            center = normalize$center), by = 'index') %>%
+            dplyr::mutate(esm_norm = (esm - center) / scale,
+                          hec_norm = (hector - center) / scale,
+                          diff = hec_norm - esm_norm) %>%
+            na.omit() ->
+            esm_hector_df
+
+        # Plot the residuals.
+        ggplot(data = esm_hector_df) +
+            geom_point(aes(year, diff, color = experiment)) +
+            facet_wrap('variable', scales = 'free') +
+            labs(x = 'Year',
+                 y = paste0('Difference Between Normalized Hector & ', esm_model_name),
+                 caption = param_caption,
+                 title = paste0('Residuals for Hector Calibrated to ', esm_model_name)) +
+            theme_bw()->
+            output[['residual_plot']]
+
+        if(!is.null(cmip_range)){
+            output[['extra_data']] <- cmip_range
+            }
+
+
+        # Make a data frame of the MSE for each experiment and variable.
+        esm_hector_df %>%
+            dplyr::ungroup() %>%
+            dplyr::group_by(experiment, variable) %>%
+            dplyr::summarise(value = mean(diff^2)) %>%
+            dplyr::ungroup() %>%
+            dplyr::mutate(cmip_experiment = base::gsub(experiment, pattern = '_[a-zA-Z0-9-]{6}', replacement = '')) %>%
+            dplyr::group_by(experiment, variable) %>%
+            dplyr::summarise(value = mean(value)) %>%
+            dplyr::ungroup() ->
+            output[['MSE']]
 
     } else {
 
