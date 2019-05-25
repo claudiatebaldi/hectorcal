@@ -25,8 +25,8 @@ metrosamp2coda <- function(mslist) {
         )
 }
 
-hv2esm <- c(Tgav='tas', Ca='co2')
-esm2hv <- c(tas='Tgav', co2='Ca')
+hv2esm <- c(Tgav='tas', Ca='co2', heatflux='heatflux')
+esm2hv <- c(tas='Tgav', co2='Ca', heatflux='heatflux')
 #' Translate between Hector and ESM variable names
 #'
 #' Translate hector variable names ("Tgav", etc.) to ESM names and vice versa.

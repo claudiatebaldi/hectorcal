@@ -87,7 +87,8 @@ test_that('log-likelihood with output comparisons works', {
 
     ## 1. Mean calibration, perfect model match.
     inifiles <- c(rcp85=ini85, rcp45=ini45)
-    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb','mina',NULL)
+    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1,
+                                 'maxb','mina',NULL, 2100, 'rcp85', 0.2)
     out <- expect_silent(llfun1(parms))
     expected <- nrow(compdata)*stats::dnorm(0,0,parms['sigt'], log=TRUE) # assumes sigt==sigco2
     expect_equal(out, expected)
@@ -96,7 +97,8 @@ test_that('log-likelihood with output comparisons works', {
     compdata2 <- dplyr::mutate(compdata,
                                cmean=dplyr::if_else(experiment!='rcp85', cmean,
                                dplyr::if_else(variable=='tas', cmean-1, cmean+1)))
-    llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2, 0.1,'maxb','mina', NULL)
+    llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2,
+                                 0.1,'maxb','mina', NULL, 2100, 'rcp85', 0.2)
     out <- expect_silent(llfun2(parms))
     k1 <- stats::dnorm(0,0,parms['sigt'], log=TRUE)
     k2 <- stats::dnorm(1,0,parms['sigt'], log=TRUE)
@@ -109,7 +111,8 @@ test_that('log-likelihood with output comparisons works', {
 
 
     ## 3. Envelope calibration, all values in range
-    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb','mina',NULL)
+    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1,
+                                 'maxb','mina',NULL, 2100, 'rcp85', 0.2)
     out <- expect_silent(llfun3(parms))
     expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
     expect_equal(out, expected)
@@ -118,7 +121,7 @@ test_that('log-likelihood with output comparisons works', {
     compdata4 <- dplyr::mutate(compdata,
                                mina=mina+2, maxb=maxb+2)
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1,
-                                 'maxb','mina', NULL)
+                                 'maxb','mina', NULL, 2100, 'rcp85', 0.2)
     expected <- nrow(compdata) * log(mesa(0, 0, 4, 0.4))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
@@ -147,7 +150,7 @@ test_that('log-likelihood with PCA comparison works', {
     inifiles <- c(rcp85=ini85, rcp45=ini45)
     ## 1. Mean calibration, perfect model match
     llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                                 'mina', pcs)
+                                 'mina', pcs, 2100, 'rcp85', 0.2)
     out <- expect_silent(llfun1(parms))
     expected <- nrow(compdata)*stats::dnorm(0,0,parms['sig'], log=TRUE) # assumes sigt==sigco2
     expect_equal(out, expected)
@@ -156,14 +159,14 @@ test_that('log-likelihood with PCA comparison works', {
     compdata2 <- dplyr::mutate(compdata, cmean = dplyr::if_else(PC%%2==0, cmean+1,
                                          cmean-1))
     llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2, 0.1,
-                                 'maxb','mina',pcs)
+                                 'maxb','mina',pcs, 2100, 'rcp85', 0.2)
     expected <- nrow(compdata)*stats::dnorm(1, 0, parms['sig'], log=TRUE)
     out <- expect_silent(llfun2(parms))
     expect_equal(out, expected)
 
     ## 3. Envelope callibration, centered
     llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                                 'mina', pcs)
+                                 'mina', pcs, 2100, 'rcp85', 0.2)
     expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
     out <- expect_silent(llfun3(parms))
     expect_equal(out, expected)
@@ -173,7 +176,7 @@ test_that('log-likelihood with PCA comparison works', {
                                          mina-2),
                                maxb=dplyr::if_else(PC%%2==0, maxb+2, maxb-2))
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1, 'maxb',
-                                 'mina', pcs)
+                                 'mina', pcs, 2100, 'rcp85', 0.2)
     expected <- nrow(compdata) * log(mesa(0,0,4,0.4))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
@@ -216,7 +219,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   prior_params=test_prior_params)
     lp1 <- make_logprior(full_prior_params, TRUE)
     ll1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                              'mina', NULL)
+                              'mina', NULL, 2100, 'rcp85', 0.2)
     lpostfunc1a <- function(p) {lp1(p) + ll1(p)}
 
     parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
@@ -234,7 +237,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   prior_params=test_prior_params)
     lp2 <- make_logprior(full_prior_params, FALSE)
     ll2 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                              'mina', NULL)
+                              'mina', NULL, 2100, 'rcp85', 0.2)
     lpostfunc2a <- function(p) {lp2(p) + ll2(p)}
     expect_equal(lpostfunc2(parms), lpostfunc2a(parms))
 
@@ -253,7 +256,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   prior_params=test_prior_params)
     lp3 <- make_logprior(full_prior_params, FALSE)
     ll3 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                              'mina', pcs)
+                              'mina', pcs, 2100, 'rcp85', 0.2)
     lpostfunc3a <- function(p) {lp3(p) + ll3(p)}
     expect_equal(lpostfunc3(parms), lpostfunc3a(parms))
 
@@ -265,7 +268,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   prior_params=test_prior_params)
     lp4 <- make_logprior(full_prior_params, TRUE)
     ll4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                              'mina', pcs)
+                              'mina', pcs, 2100, 'rcp85', 0.2)
     lpostfunc4a <- function(p) {lp4(p) + ll4(p)}
     expect_equal(lpostfunc4(parms), lpostfunc4a(parms))
 
