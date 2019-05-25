@@ -2,6 +2,19 @@ library('dplyr')
 library('hector')
 library('hectorcal')
 
+concparms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
+nhectorparmpc <- 4                      # 4 hector params, one 'sig' param
+names(concparms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
+                    'sig')
+
+emissparms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
+nemissparm <- 7                         # 7 hector parameters, two 'sig' params
+names(emissparms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
+                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
+                       hector::BETA(), hector::Q10_RH(),
+                       hector::PREINDUSTRIAL_CO2(),
+                       'sigt','sigco2')
+
 make_pc_compdata <- function()
 {
     pcs <- readRDS('pc-conc-historical-rcp45-rcp85.rds')
@@ -11,10 +24,9 @@ make_pc_compdata <- function()
     ini45 <- system.file('input/hector_rcp45_constrained.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85_constrained.ini', package='hector')
 
-    nhectorparm <- 4
-    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
-    names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
-                      'sig')
+    nhectorparm <- nhectorparmpc
+    parms <- concparms
+
     hcore45 <- newcore(ini45, name='rcp45')
     hectorcal:::parameterize_core(parms[1:nhectorparm], hcore45)
     run(hcore45,2100)
@@ -42,13 +54,9 @@ make_pc_compdata <- function()
 
 make_output_compdata <- function()
 {
-    nhectorparm <- 7
-    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
-    names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
-                      hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
-                      hector::BETA(), hector::Q10_RH(),
-                      hector::PREINDUSTRIAL_CO2(),
-                      'sigt','sigco2')
+    nhectorparm <- nemissparm
+    parms <- emissparms
+
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
     hcore45 <- newcore(ini45, name='rcp45')
@@ -78,6 +86,13 @@ make_output_compdata <- function()
       select(year, variable, experiment, mina, maxb, a10, b90, cmean,
              cmedian) %>%
       arrange(year) # This last one is to test that scrambled data gets sorted out.
+}
+
+## Add heat flux data to a comparison data set prepared by one of the functions
+## above.
+add_hflux <- function(compdata)
+{
+
 }
 
 pc_compdata <- make_pc_compdata()
