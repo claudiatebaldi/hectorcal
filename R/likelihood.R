@@ -203,6 +203,14 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
         compvars <- hector::GLOBAL_TEMP()
     }
 
+    ## Figure out which experiments we will be running
+    if(is.null(pcs)) {
+        expts <- unique(comp_data$experiment)
+    }
+    else {
+        expts <- pcs$meta_data$experiment
+    }
+
     ## Heat flux is treated specially, since we only use one value.  If there is
     ## a heat flux value in the comparison data, then split it off to be treated
     ## specially
@@ -229,14 +237,6 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
     }
     histyrmax <- max(histyears)
     futyrmax <- max(futyears)
-
-    ## Figure out which experiments we will be running
-    if(is.null(pcs)) {
-        expts <- unique(comp_data$experiment)
-    }
-    else {
-        expts <- pcs$meta_data$experiment
-    }
 
     ## We don't need to run the historical experiment separately, unless it's
     ## the only one, since we can get it from any of the other runs.

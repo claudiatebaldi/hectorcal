@@ -66,16 +66,16 @@ test_that('log-likelihood with output comparisons works', {
     ## First we need to make some comparison data.  Run a Hector calculation
     ## with known parameters to get some baseline data.
     nhectorparm <- 7
-    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0, 1.0)
     names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
                       hector::BETA(), hector::Q10_RH(),
                       hector::PREINDUSTRIAL_CO2(),
-                      'sigt','sigco2')
+                      'sigt','sigco2', 'sighf')
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
 
-    compdata <- readRDS('out_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
+    compdata <- readRDS('out_compdata.rds')
 
     ## Now we've got comparison data.  Sort of.  It's hard to predict how
     ## changing the parameters will change the output, so we'll always run with
@@ -88,7 +88,7 @@ test_that('log-likelihood with output comparisons works', {
     ## 1. Mean calibration, perfect model match.
     inifiles <- c(rcp85=ini85, rcp45=ini45)
     llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1,
-                                 'maxb','mina',NULL, 2100, 'rcp85', 0.2)
+                                 'maxb','mina',NULL, 2010, 'rcp85', 0.2)
     out <- expect_silent(llfun1(parms))
     expected <- nrow(compdata)*stats::dnorm(0,0,parms['sigt'], log=TRUE) # assumes sigt==sigco2
     expect_equal(out, expected)
@@ -98,21 +98,21 @@ test_that('log-likelihood with output comparisons works', {
                                cmean=dplyr::if_else(experiment!='rcp85', cmean,
                                dplyr::if_else(variable=='tas', cmean-1, cmean+1)))
     llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2,
-                                 0.1,'maxb','mina', NULL, 2100, 'rcp85', 0.2)
+                                 0.1,'maxb','mina', NULL, 2010, 'rcp85', 0.2)
     out <- expect_silent(llfun2(parms))
     k1 <- stats::dnorm(0,0,parms['sigt'], log=TRUE)
     k2 <- stats::dnorm(1,0,parms['sigt'], log=TRUE)
     exptct <- dplyr::count(compdata2, experiment)
     n <- exptct$n
     names(n) <- exptct$experiment
-    expected <- as.vector(k1*(n['historical']+n['rcp85']) + k2*n['rcp85'])
+    expected <- as.vector(k1*(n['historical']+n['rcp45']) + k2*n['rcp85'])
     out <- expect_silent(llfun2(parms))
     expect_equal(out, expected)
 
 
     ## 3. Envelope calibration, all values in range
     llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1,
-                                 'maxb','mina',NULL, 2100, 'rcp85', 0.2)
+                                 'maxb','mina',NULL, 2010, 'rcp85', 0.2)
     out <- expect_silent(llfun3(parms))
     expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
     expect_equal(out, expected)
@@ -121,7 +121,7 @@ test_that('log-likelihood with output comparisons works', {
     compdata4 <- dplyr::mutate(compdata,
                                mina=mina+2, maxb=maxb+2)
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1,
-                                 'maxb','mina', NULL, 2100, 'rcp85', 0.2)
+                                 'maxb','mina', NULL, 2010, 'rcp85', 0.2)
     expected <- nrow(compdata) * log(mesa(0, 0, 4, 0.4))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
