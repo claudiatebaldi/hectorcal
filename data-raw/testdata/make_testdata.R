@@ -46,9 +46,12 @@ make_pc_compdata <- function()
       mutate(variable=hvar2esmvar(variable))
     pcproj <- project_climate(scendata, pcs, FALSE)
     pcproj <- pcproj[1:npc]
+    pcidx <- paste0('PC', seq_along(pcproj))
 
-    data.frame(PC=seq_along(pcproj), cmean=pcproj, mina=pcproj-2,
-               maxb=pcproj+2)
+    data.frame(variable=pcidx, cmean=pcproj,
+               mina=pcproj-2, maxb=pcproj+2,
+               a10=pcproj-1, b90=pcproj+1,
+               stringsAsFactors = FALSE)
 }
 
 

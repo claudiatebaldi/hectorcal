@@ -258,6 +258,12 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
     if(is.null(pcs)) {
         comp_data <- dplyr::arrange(comp_data, experiment, variable, year)
     }
+    else if(is.character(comp_data$variable)) {
+        ## if the principal components are stored as "PCNN" convert to an
+        ## integer index
+        comp_data$variable <- as.integer(substring(comp_data$variable, 3))
+    }
+
 
     ## All of the following are valid hector parameters.  We might have some
     ## other parameters, (e.g. sigma values), but those shouldn't be passed to
@@ -343,8 +349,8 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
             ## We need to project the data onto the principal components.  The projection coefficients
             ## will be used to do the comparison.
             pcproj <- project_climate(cdata, pcs, row_vector = FALSE)
-            npc <- comp_data$PC
-            cdata <- data.frame(PC=npc, value=pcproj[npc], stringsAsFactors=FALSE)
+            npc <- comp_data$variable
+            cdata <- data.frame(variable=npc, value=pcproj[npc], stringsAsFactors=FALSE)
         }
 
         if(cal_mean) {

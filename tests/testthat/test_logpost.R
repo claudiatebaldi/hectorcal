@@ -143,6 +143,7 @@ test_that('log-likelihood with PCA comparison works', {
                       'sig')
 
     compdata <- readRDS('pc_compdata.rds')
+    pcidx <- as.integer(substring(compdata$variable, 3))
 
     ## See notes in the previous test; we have 4 cases to run
 
@@ -156,7 +157,7 @@ test_that('log-likelihood with PCA comparison works', {
     expect_equal(out, expected)
 
     ## 2. Mean calibration, imperfect model match
-    compdata2 <- dplyr::mutate(compdata, cmean = dplyr::if_else(PC%%2==0, cmean+1,
+    compdata2 <- dplyr::mutate(compdata, cmean = dplyr::if_else(pcidx%%2==0, cmean+1,
                                          cmean-1))
     llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2, 0.1,
                                  'maxb','mina',pcs, 2100, 'rcp85', 0.2)
@@ -172,9 +173,9 @@ test_that('log-likelihood with PCA comparison works', {
     expect_equal(out, expected)
 
     ## 4. Envelope calibration, edge
-    compdata4 <- dplyr::mutate(compdata, mina=dplyr::if_else(PC%%2==0, mina+2,
+    compdata4 <- dplyr::mutate(compdata, mina=dplyr::if_else(pcidx%%2==0, mina+2,
                                          mina-2),
-                               maxb=dplyr::if_else(PC%%2==0, maxb+2, maxb-2))
+                               maxb=dplyr::if_else(pcidx%%2==0, maxb+2, maxb-2))
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1, 'maxb',
                                  'mina', pcs, 2100, 'rcp85', 0.2)
     expected <- nrow(compdata) * log(mesa(0,0,4,0.4))
