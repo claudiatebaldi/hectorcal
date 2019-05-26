@@ -378,8 +378,9 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
             sig <- smoothing * (comp_data[[hicol]] - comp_data[[lowcol]])
             ll <- sum(log(mesa(cdata$value, comp_data[[lowcol]], comp_data[[hicol]], sig)))
             if(!is.null(hflux_data)) {
+                hfsig <- hflux_smoothing*(hflux_data[[hicol]] - hflux_data[[lowcol]])
                 ll <- ll + log(mesa(hdata$value, hflux_data[[lowcol]],
-                                    hflux_data[[hicol]], hflux_smoothing))
+                                    hflux_data[[hicol]], hfsig))
             }
         }
         ## return the log of the likelihood

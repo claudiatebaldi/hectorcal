@@ -114,7 +114,7 @@ test_that('log-likelihood with output comparisons works', {
     llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1,
                                  'maxb','mina',NULL, 2010, 'rcp85', 0.2)
     out <- expect_silent(llfun3(parms))
-    expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
+    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, 0.4)) + log(mesa(2, 0, 4, 0.8))
     expect_equal(out, expected)
 
     ## 4. Envelope calibration, all values on the edge of the range
@@ -122,7 +122,7 @@ test_that('log-likelihood with output comparisons works', {
                                mina=mina+2, maxb=maxb+2)
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1,
                                  'maxb','mina', NULL, 2010, 'rcp85', 0.2)
-    expected <- nrow(compdata) * log(mesa(0, 0, 4, 0.4))
+    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, 0.4)) + log(mesa(0, 0, 4, 0.8))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
 
@@ -138,13 +138,14 @@ test_that('log-likelihood with PCA comparison works', {
     ini45 <- system.file('input/hector_rcp45_constrained.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85_constrained.ini', package='hector')
 
-    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0, 1.0)
     names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
-                      'sig')
+                      'sig', 'sighf')
 
     ## These tests don't use heat flux, so drop it.
-    compdata <- readRDS('pc_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
-    pcidx <- as.integer(substring(compdata$variable, 3))
+    compdata <- readRDS('pc_compdata.rds')
+    var <- compdata$variable
+    pcidx <- as.integer(dplyr::if_else(var=='heatflux', '0', substring(var,3)))
 
     ## See notes in the previous test; we have 4 cases to run
 
@@ -169,7 +170,7 @@ test_that('log-likelihood with PCA comparison works', {
     ## 3. Envelope callibration, centered
     llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
                                  'mina', pcs, 2100, 'rcp85', 0.2)
-    expected <- nrow(compdata) * log(mesa(2, 0, 4, 0.4))
+    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, 0.4)) + log(mesa(2, 0, 4, 0.8))
     out <- expect_silent(llfun3(parms))
     expect_equal(out, expected)
 
@@ -179,7 +180,7 @@ test_that('log-likelihood with PCA comparison works', {
                                maxb=dplyr::if_else(pcidx%%2==0, maxb+2, maxb-2))
     llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1, 'maxb',
                                  'mina', pcs, 2100, 'rcp85', 0.2)
-    expected <- nrow(compdata) * log(mesa(0,0,4,0.4))
+    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, 0.4)) + log(mesa(0, 0, 4, 0.8))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
 
