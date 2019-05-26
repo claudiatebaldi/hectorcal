@@ -75,7 +75,7 @@ test_that('log-likelihood with output comparisons works', {
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
 
-    compdata <- readRDS('out_compdata.rds')
+    compdata <- readRDS('out_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
 
     ## Now we've got comparison data.  Sort of.  It's hard to predict how
     ## changing the parameters will change the output, so we'll always run with
@@ -142,7 +142,8 @@ test_that('log-likelihood with PCA comparison works', {
     names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
                       'sig')
 
-    compdata <- readRDS('pc_compdata.rds')
+    ## These tests don't use heat flux, so drop it.
+    compdata <- readRDS('pc_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
     pcidx <- as.integer(substring(compdata$variable, 3))
 
     ## See notes in the previous test; we have 4 cases to run
@@ -189,7 +190,7 @@ test_that('log-likelihood with PCA comparison works', {
 test_that('Posterior functions are assembled correctly from priors and posteriors', {
     doParallel::registerDoParallel()
     ## test with output comparison data
-    compdata <- readRDS('out_compdata.rds')
+    compdata <- readRDS('out_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
     inifiles <- c(rcp45=ini45, rcp85=ini85)
@@ -243,7 +244,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
     expect_equal(lpostfunc2(parms), lpostfunc2a(parms))
 
     ## two more tests with PCA calibration
-    compdata <- readRDS('pc_compdata.rds')
+    compdata <- readRDS('pc_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
     pcs <- readRDS('pc-conc-historical-rcp45-rcp85.rds')
     parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
     names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
