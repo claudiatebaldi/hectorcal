@@ -53,7 +53,7 @@ test_that('make sure that parameterize_core works', {
     # Check to make sure that the climate and the carbon parameters are reest correctly.
     temp_carbon_param        <- seq(from = 25, by = 5, length.out = 7)
     names(temp_carbon_param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::DIFFUSIVITY(), hector::VOLCANIC_SCALE(), hector::BETA(),
-                                     hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
+                                  hector::Q10_RH(), hector::PREINDUSTRIAL_CO2())
 
 
     lapply(X = out, FUN = parameterize_core, params = temp_carbon_param)
@@ -96,22 +96,27 @@ test_that('make_minimize_function throws errors', {
     testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = cmip_single_model, normalize  = pc, param = param),
                            'hector_cores are missing cores for the following esm experiments: historical, rcp85')
 
-    # The center and scale values used to normalize the esm and hector data is missing a few years.
+    # The center and scale values used to normalize the esm and hector data is missing a year.
     esm_data <- dplyr::filter(cmip_individual, model == 'CESM1-CAM5' & experiment %in% c('rcp45', 'rcp60') &
-                                  ensemble == 'r1i1p1' & variable == 'tas' & year <= 2102)
-   testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = pc, param = param),
-                          'Missing scale and center values for :rcp45.tas.2101, rcp45.tas.2102, rcp60.tas.2101, rcp60.tas.2102')
+                                  ensemble == 'r1i1p1' & variable == 'tas' & year <= 2102) %>%
+        dplyr::bind_rows(tibble::tibble(model ='CESM1-CAM5',
+                                        experiment = 'rcp45',
+                                        ensemble = 'r1i1p1',
+                                        variable = 'tas',
+                                        year = 2102))
+    testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = pc, param = param),
+                           'Missing scale and center values for :rcp45.tas.2102')
 
-   # Make sure that if center and scale are missing names that an error message is thrown.
-   missing_scale_names <- pc
-   names(missing_scale_names$scale) <- NA
-   testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_scale_names, param = param),
-                          'normalize scale needs names')
+    # Make sure that if center and scale are missing names that an error message is thrown.
+    missing_scale_names <- pc
+    names(missing_scale_names$scale) <- NA
+    testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_scale_names, param = param),
+                           'normalize scale needs names')
 
-   missing_center_names <- pc
-   names(missing_center_names$center) <- NA
-   testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_center_names, param = param),
-                          'normalize center needs names')
+    missing_center_names <- pc
+    names(missing_center_names$center) <- NA
+    testthat::expect_error(make_minimize_function(hector_cores = out, esm_data = esm_data, normalize = missing_center_names, param = param),
+                           'normalize center needs names')
 
 })
 
@@ -141,7 +146,7 @@ test_that('make_minimize_function works with clim parameters', {
             dplyr::rename('experiment' = scenario)
 
 
-        }) %>%
+    }) %>%
         dplyr::bind_rows() %>%
         dplyr::mutate(model = 'selfTest',
                       variable = 'tas') ->
@@ -180,24 +185,6 @@ test_that('make_minimize_function works with clim parameters', {
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                             normalize = norm, param, n = 1)
     testthat::expect_equal(fn_shifted(param), shift_by)
-
-
-
-    # Make sure that the weights work as expected. Since we shifted the comparison data by 1
-    # and we expect that the MSE for each hector core or experiment to be equal to 1 then we
-    # would expect the weighted sum of the MSE to equal the sum of the weights * 1.
-    my_weights <- c(0.75, 0.25)
-
-    # Now shift the values for one of the experiments a second time.
-    comp_data_shifted %>%
-        dplyr::mutate(value = dplyr::if_else(experiment == 'rcp60', value - shift_by, value)) ->
-        comp_data_shifted_twice
-
-    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted_twice,
-                                            normalize = norm, param, n = 1, core_weights = my_weights)
-    testthat::expect_equal(fn_shifted(param), weighted.mean(c((2 * shift_by) ^2, shift_by), my_weights))
-
-
 
 })
 
@@ -252,3 +239,121 @@ test_that('make_minimize_function works with co2 parameters', {
 
 })
 
+test_that('make_minimize_function works with heatflux', {
+
+    # Hector ini files
+    ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
+    ini_f2    <- system.file('input/hector_rcp45_constrained.ini', package = 'hector')
+    input_ini <- c(ini_f1, ini_f2)
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60_r1i1p1', 'rcp45_r1i1p1'))
+
+    # Define Hector parameters.
+    param <- c(1, 1, 1)
+    names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
+
+    # Run Hector with the parameters to generate comparison data.
+    lapply(new_cores, function(core){
+
+        # Parameterize the core
+        x <- parameterize_core(core = core, params = param)
+
+        # Run Hector
+        x <- hector::run(core)
+
+        # Extract the Hector results
+        hector::fetchvars(core = core, vars = c(hector::GLOBAL_TEMP(), hector::HEAT_FLUX()), dates = 2006:2100) %>%
+            dplyr::rename('experiment' = scenario)
+
+
+    }) %>%
+        dplyr::bind_rows() %>%
+        dplyr::mutate(model = 'selfTest',
+                      variable = dplyr::if_else(variable == hector::GLOBAL_TEMP(), 'tas', 'heatflux')) ->
+        comp_data
+
+    # Expect a MSE value of 0 when Hector output data is compared with itself.
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = center_scale, param, n = 1)
+    testthat::expect_equal(fn(param), 0)
+
+    # Make sure that the make minimize function works when parallelized.
+    fn <- make_minimize_function(new_cores, comp_data, normalize = center_scale, param, n = 2)
+    testthat::expect_equal(fn(param), 0)
+
+    # Make sure that the minimize function returns a different answer when different parameters are used.
+    param2 <- c(2, 1, 1)
+    names(param2) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
+    testthat::expect_true(fn(param2) != 0)
+
+    # What happens when the comparison data shifts by a values of 1? If the average
+    # difference between the comparison data for each experiment is 1 then we expect that
+    # sum of the MSE for the two experiments will equal 2.
+    #
+    # Shift the comparison data by a set numer.
+    shift_by <- 1
+    comp_data %>%
+        dplyr::mutate(value = dplyr::if_else(variable == 'heatflux', value - shift_by, value)) ->
+        comp_data_shifted
+
+    # Change the center values to 0 and the scale values to 1 so that the noramlizing
+    # process does not will not change the hector output or comparison data values.
+    scale  <- center_scale$scale / center_scale$scale
+    center <- center_scale$center * 0
+    names(scale) <- names(center_scale$scale)
+    names(center) <- names(center_scale$center)
+    norm = list("scale" = scale, "center" = center)
+
+    fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+                                            normalize = norm, param, n = 4, showMessages = TRUE)
+    testthat::expect_equal(fn_shifted(param), shift_by)
+
+})
+
+test_that('make_minimize_function weights correctly', {
+
+    # Hector ini files
+    ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
+    ini_f2    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
+    input_ini <- c(ini_f1, ini_f2)
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60_r1i1p1', 'rcp60_r1i1p2'))
+
+    # Define Hector parameters.
+    param <- c(1, 1, 1)
+    names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
+
+    # Run Hector with the parameters to generate comparison data.
+    lapply(new_cores, function(core){
+
+        # Parameterize the core
+        x <- parameterize_core(core = core, params = param)
+
+        # Run Hector
+        x <- hector::run(core)
+
+        # Extract the Hector results
+        hector::fetchvars(core = core, vars = hector::GLOBAL_TEMP(), dates = 2006:2100) %>%
+            dplyr::rename('experiment' = scenario) %>%
+            dplyr::mutate(variable = 'tas')
+
+
+    }) %>%
+        dplyr::bind_rows() %>%
+        dplyr::mutate(model = 'selfTest') ->
+        comp_data
+
+    # Shift the comparison data for a singel ensemble by 1.
+    shift_by       <- 1
+    shift_ensemble <- dplyr::mutate(comp_data, value = dplyr::if_else(experiment == 'rcp60_r1i1p2', value + shift_by, value))
+
+    # Change the center values to 0 and the scale values to 1 so that the noramlizing
+    # process does not will not change the hector output or comparison data values.
+    scale  <- center_scale$scale / center_scale$scale
+    center <- center_scale$center * 0
+    names(scale) <- names(center_scale$scale)
+    names(center) <- names(center_scale$center)
+    norm = list("scale" = scale, "center" = center)
+
+    # Expect a MSE value of 0 when Hector output data is compared with itself.
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = shift_ensemble, normalize = norm, param, n = 3)
+    testthat::expect_equal(fn(param), shift_by/2)
+
+})
