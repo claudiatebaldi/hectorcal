@@ -55,6 +55,7 @@ build_mcmc_post <- function(comp_data, inifiles,
                             use_lnorm_ecs=TRUE,
                             hflux_year=2100,
                             hflux_expt_regex='rcp85',
+                            hflux_smoothing=0.2,
                             verbose=FALSE)
 {
     ## Prior hyperparameters

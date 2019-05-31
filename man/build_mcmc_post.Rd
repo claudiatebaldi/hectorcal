@@ -7,7 +7,7 @@
 build_mcmc_post(comp_data, inifiles, pcs = NULL, smoothing = 0.1,
   cal_mean = TRUE, lowcol = "mina", hicol = "maxb",
   prior_params = NULL, use_lnorm_ecs = TRUE, hflux_year = 2100,
-  hflux_expt_regex = "rcp85", verbose = FALSE)
+  hflux_expt_regex = "rcp85", hflux_smoothing = 0.2, verbose = FALSE)
 }
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
@@ -45,12 +45,12 @@ primarily for testing the influence of priors on the final result.}
 flux from.  There must be only one experiment in the dataset tha matches.
 Default is 'rcp85'.}
 
-\item{verbose}{If \code{TRUE}, print diagnostic messages.  Otherwise,
-diagnostic messages will not be generated.}
-
 \item{hflux_smoothing}{Smoothing parameter for heat flux.  Generally larger than
 the smoothing parameter for the other variables because heat flux is less
 well sampled than those variables are.}
+
+\item{verbose}{If \code{TRUE}, print diagnostic messages.  Otherwise,
+diagnostic messages will not be generated.}
 }
 \description{
 The function constructed by this call will be suitable for passing to either
