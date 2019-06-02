@@ -21,7 +21,6 @@ parameterize_core <- function(params, core) {
 
 }
 
-
 #' Switch from Hector variable names to ESM variable names.
 #'
 #' Hector and ESM use different nomenclature for the variables, this function changes the Hector
@@ -83,7 +82,7 @@ translate_variable_name <- function(input){
 #' @param intermediateOutput Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.
 #' @return A function that will calculate the mean squared error between a Hector run and ESM data.
 #' @importFrom foreach %do% %dopar%
-#' @importFrom dplyr %>% bind_rows
+#' @importFrom dplyr %>%
 #' @export
 make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmip_range = NULL,
                                    n = NULL, showMessages = FALSE, intermediateOutput = FALSE){
@@ -183,7 +182,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 
         # Run the Hector in parallel for all of the scnearios and calculate the
         # mean squared error for each variable / experiment / ensemble.
-        intermediateRslt <- foreach::foreach(i = names(cores_to_use), .combine = 'bind_rows') %dopar% {
+        intermediateRslt <- foreach::foreach(i = names(cores_to_use), .combine = dplyr::bind_rows) %dopar% {
 
             subset_esm_data  <- translate_variable_name(dplyr::filter(normalized_esm, experiment == i))
             max_yr           <- max(subset_esm_data$year)
@@ -194,9 +193,10 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                 subset_cmip_data <- NULL
             }
 
-            # Run the Hector core and calculate the MSE for the Hector and ESM output data.
-            MSE <- tryCatch({
-                # Reset the core with the new parameters.
+
+                # Run the Hector core and calculate the MSE for the Hector and ESM output data.
+                MSE <- tryCatch({
+                    # Reset the core with the new parameters.
                 parameterize_core(core = cores_to_use[[i]], params = param)
 
                 # Run the Hector core.
@@ -259,7 +259,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 
                 dplyr::bind_rows(rslt_esm_comparison, rslt_cmip_range_comparison)
 
-            },error=debug_errhandler)
+                },error=debug_errhandler)
 
             if(is.null(MSE)){
                 tibble::tibble(value = 8675309,
@@ -270,7 +270,8 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                 MSE
             }
 
-        }
+
+            }
 
 
         # Clean up partallel clusters.
@@ -510,18 +511,17 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
                 output[['comparison_plot_range']]
 
         }
-        message('made it to the make minmize fn')
 
-        # Make a data frame of the MSE for each experiment and variable.
-        fn <- make_minimize_function(hector_cores = cores,
-                                     esm_data = esm_data,
-                                     normalize = normalize,
-                                     param = calibration_rslts$par,
-                                     cmip_range = cmip_range,
-                                     showMessages = FALSE,
-                                     intermediateOutput = TRUE,
-                                     n = 1)
-        output[['MSE']] <- fn(calibration_rslts$par)
+       # Make a data frame of the MSE for each experiment and variable.
+       fn <- make_minimize_function(hector_cores = cores,
+                                    esm_data = esm_data,
+                                    normalize = normalize,
+                                    param = calibration_rslts$par,
+                                    cmip_range = cmip_range,
+                                    showMessages = FALSE,
+                                    intermediateOutput = TRUE,
+                                    n = 1)
+       output[['MSE']] <- fn(calibration_rslts$par)
 
     } else {
 

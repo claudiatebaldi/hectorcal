@@ -24,6 +24,7 @@ hector_output_stats <- function(params, hcores, pnames,
                                 times=c(2000, 2050, 2100), nsamp=NULL,
                                 quantiles=c(0, 0.025, 0.25, 0.5, 0.75, 0.975, 1))
 {
+
     icore <- i <- quantile <- NULL
 
     nstot <- nrow(params)
@@ -50,7 +51,7 @@ hector_output_stats <- function(params, hcores, pnames,
     }
 
     ## samples matrix has samples in rows, vars in columns
-    apply(sampsmatrix, 2, function(x){quantile(x, quantiles)})
+    apply(sampsmatrix, 2, function(x){stats::quantile(x, quantiles)})
 }
 
 
