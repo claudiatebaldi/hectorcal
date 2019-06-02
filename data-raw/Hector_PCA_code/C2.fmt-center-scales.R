@@ -45,7 +45,7 @@ tibble::tibble(index = names(hectorcal::pc_conc_hflux$scale),
 # Start by determing the combinations of the experimetns and the ensembles. Add a column that will contain
 # the new experiment name (a combination of the experiment and ensemble).
 hectorcal::cmip_individual %>%
-    filter(!grepl(pattern = 'esm', experiment) & variable == 'tas') %>%
+    filter(!grepl(pattern = 'esm', experiment)) %>%
     select(experiment, ensemble) %>%
     distinct %>%
     mutate(new_experiment = paste0(experiment, '_', ensemble)) ->
@@ -53,9 +53,9 @@ hectorcal::cmip_individual %>%
 
 # Use the list of the experiment/ensemble information to expand the center and the scale values
 # used to normalize the data.
-extrapolated_center_scale %>%
-    full_join(experiment_ensembles,  by = "experiment") %>%
-    mutate(new_index = paste0(new_experiment, '.', variable, '.', year)) ->
+extrapolated_center_scale ->
+ #   full_join(experiment_ensembles,  by = "experiment") %>%
+ #   mutate(new_index = paste0(new_experiment, '.', variable, '.', year)) ->
     exp_en_center_scale
 
 
@@ -77,7 +77,7 @@ tibble::tibble(index = names(hectorcal::pc_emiss_hflux$scale),
                           dplyr::select(year, variable, experiment) %>%
                           dplyr::filter(grepl(pattern = 'esm', experiment)) %>%
                           dplyr::distinct(),
-                      by = c("experiment", "variable", "year")) %>% pull(variable) %>% unique()
+                      by = c("experiment", "variable", "year")) %>%
     dplyr::filter(grepl(pattern = 'esm', experiment)) %>%
     dplyr::distinct() %>%
     dplyr::arrange(experiment, variable, year) %>%
@@ -96,18 +96,19 @@ tibble::tibble(index = names(hectorcal::pc_emiss_hflux$scale),
 
 # Use the list of the experiment/ensemble information to expand the center and the scale values
 # used to normalize the data.
-extrapolated_center_scale_emission %>%
-    full_join(experiment_ensembles,  by = "experiment") %>%
-    mutate(new_index = paste0(new_experiment, '.', variable, '.', year)) ->
+extrapolated_center_scale_emission ->
+ #   full_join(experiment_ensembles,  by = "experiment") %>%
+ #   mutate(new_index = paste0(new_experiment, '.', variable, '.', year)) ->
     exp_en_center_scale_emissions
 
 # Format results into a list.
 center        <- c(exp_en_center_scale$center, exp_en_center_scale_emissions$center)
-names(center) <- c(exp_en_center_scale$new_index, exp_en_center_scale_emissions$new_index)
+names(center) <- c(exp_en_center_scale$index, exp_en_center_scale_emissions$index)
 scale         <- c(exp_en_center_scale$scale, exp_en_center_scale_emissions$scale)
-names(scale)  <- c(exp_en_center_scale$new_index, exp_en_center_scale_emissions$new_index)
+names(scale)  <- c(exp_en_center_scale$index, exp_en_center_scale_emissions$index)
 normalize     <- list('center' = center, 'scale' = scale)
 
 ## Save centera and scale values that will be used in the single esm calibration experiment.
 center_scale <- normalize
 devtools::use_data(center_scale, overwrite=TRUE, compress='xz')
+
