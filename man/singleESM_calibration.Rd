@@ -5,8 +5,8 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data.}
 \usage{
 singleESM_calibration(inifiles, hector_names, esm_data, normalize,
-  initial_param, maxit = 500, n_parallel = NULL,
-  showMessages = FALSE)
+  initial_param, cmip_range = NULL, maxit = 500, n_parallel = NULL,
+  showMessages = FALSE, intermediateOutput = FALSE)
 }
 \arguments{
 \item{inifiles}{A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.}
@@ -19,11 +19,17 @@ singleESM_calibration(inifiles, hector_names, esm_data, normalize,
 
 \item{initial_param}{A named vector of inital paramters to be optimized over.}
 
+\item{cmip_range}{Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+minimize the value returned by the -log of the mesa function.}
+
 \item{maxit}{The max number of itterations for optim, default set to 500.}
 
 \item{n_parallel}{The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.}
 
 \item{showMessages}{Default set to FALSE, will supress Hector error messages.}
+
+\item{intermediateOutput}{Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.}
 }
 \value{
 An object returned by \code{optim}

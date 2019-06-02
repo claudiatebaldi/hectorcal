@@ -5,7 +5,8 @@
 \title{Make the function to minimize}
 \usage{
 make_minimize_function(hector_cores, esm_data, normalize, param,
-  n = NULL, showMessages = FALSE)
+  cmip_range = NULL, n = NULL, showMessages = FALSE,
+  intermediateOutput = FALSE)
 }
 \arguments{
 \item{hector_cores}{A list of Hector cores that will be used.}
@@ -16,9 +17,15 @@ make_minimize_function(hector_cores, esm_data, normalize, param,
 
 \item{param}{A vector of parameter values.}
 
+\item{cmip_range}{Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+minimize the value returned by the -log of the mesa function.}
+
 \item{n}{The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}}
 
 \item{showMessages}{Default set to FALSE, will supress Hector error messages.}
+
+\item{intermediateOutput}{Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.}
 }
 \value{
 A function that will calculate the mean squared error between a Hector run and ESM data.
