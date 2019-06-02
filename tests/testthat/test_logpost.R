@@ -83,7 +83,7 @@ test_that('log-likelihood with output comparisons works', {
     ## with the comparison data changed in specific, controlled ways, and we'll
     ## verify that the effect on the likelihood output is what we anticipate.
 
-    doParallel::registerDoParallel()
+    foreach::registerDoSEQ()
 
     ## 1. Mean calibration, perfect model match.
     inifiles <- c(rcp85=ini85, rcp45=ini45)
@@ -149,7 +149,7 @@ test_that('log-likelihood with PCA comparison works', {
 
     ## See notes in the previous test; we have 4 cases to run
 
-    doParallel::registerDoParallel()
+    foreach::registerDoSEQ()
     inifiles <- c(rcp85=ini85, rcp45=ini45)
     ## 1. Mean calibration, perfect model match
     llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
@@ -189,7 +189,7 @@ test_that('log-likelihood with PCA comparison works', {
 
 
 test_that('Posterior functions are assembled correctly from priors and posteriors', {
-    doParallel::registerDoParallel()
+    foreach::registerDoSEQ()
     ## test with output comparison data
     compdata <- readRDS('out_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
