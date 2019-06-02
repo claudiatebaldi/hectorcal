@@ -135,10 +135,8 @@ test_that('make_minimize_function works with clim parameters', {
     # Run Hector with the parameters to generate comparison data.
     lapply(new_cores, function(core){
 
-        # Parameterize the core
+        # Parameterize and run the core
         x <- parameterize_core(core = core, params = param)
-
-        # Run Hector
         x <- hector::run(core)
 
         # Extract the Hector results
@@ -153,15 +151,33 @@ test_that('make_minimize_function works with clim parameters', {
         comp_data
 
     # Expect a MSE value of 0 when Hector output data is compared with itself.
-    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = pc_conc, param, n = 1)
+    fn <- make_minimize_function(hector_cores = new_cores,
+                                 esm_data = comp_data,
+                                 cmip_range = NULL,
+                                 normalize = pc_conc,
+                                 param = param,
+                                 n = 1)
     testthat::expect_equal(fn(param), 0)
 
+
+    # Expect the output to change when intermediateOut is set to TRUE.
+    fn <- make_minimize_function(hector_cores = new_cores,
+                                 esm_data = comp_data,
+                                 cmip_range = NULL,
+                                 normalize = pc_conc,
+                                 param = param,
+                                 n = 1,
+                                 intermediateOutput = TRUE)
+    rslt <- fn(param)
+    testthat::expect_equal(dim(rslt), c(2, 4))
+    testthat::expect_equal(rslt$value, c(0, 0))
+
     # Make sure that the make minimize function works when parallelized.
-    fn <- make_minimize_function(new_cores, comp_data, normalize = pc_conc, param, n = 2)
+    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = pc_conc, param = param, n = 2)
     testthat::expect_equal(fn(param), 0)
 
     # Make sure that the minimize function returns a different answer when different parameters are used.
-    param2 <- c(2, 1, 1)
+    param2        <- c(2, 1, 1)
     names(param2) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
     testthat::expect_true(fn(param2) != 0)
 
@@ -197,16 +213,14 @@ test_that('make_minimize_function works with co2 parameters', {
     new_cores <- setup_hector_cores(inifile = input_ini, name = c('esmHistorical', 'esmrcp85'))
 
     # Define Hector parameters.
-    param <- c(1, 200, 0.5, 0.5)
+    param        <- c(1, 200, 0.5, 0.5)
     names(param) <- c(hector::BETA(), hector::PREINDUSTRIAL_CO2(), hector::Q10_RH(), hector::ECS())
 
     # Run Hector with the parameters to generate comparison data.
     lapply(new_cores, function(core){
 
-        # Parameterize the core
+        # Parameterize and run Hector
         x <- parameterize_core(core = core, params = param)
-
-        # Run Hector
         x <- hector::run(core)
 
         # Extract the Hector results
@@ -234,7 +248,11 @@ test_that('make_minimize_function works with co2 parameters', {
 
 
     # Expect a MSE value of 0 when Hector output data is compared with itself.
-    fn <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data, normalize = pc_emiss, param, n = 1)
+    fn <- make_minimize_function(hector_cores = new_cores,
+                                 esm_data = comp_data,
+                                 normalize = pc_emiss,
+                                 param = param,
+                                 n = 1)
     testthat::expect_equal(fn(param), 0)
 
 })
@@ -245,7 +263,7 @@ test_that('make_minimize_function works with heatflux', {
     ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
     ini_f2    <- system.file('input/hector_rcp45_constrained.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
-    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60_r1i1p1', 'rcp45_r1i1p1'))
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
 
     # Define Hector parameters.
     param <- c(1, 1, 1)
@@ -303,8 +321,8 @@ test_that('make_minimize_function works with heatflux', {
     norm = list("scale" = scale, "center" = center)
 
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
-                                            normalize = norm, param, n = 4, showMessages = TRUE)
-    testthat::expect_equal(fn_shifted(param), shift_by)
+                                            normalize = norm, param, n = 4)
+    testthat::expect_equal(fn_shifted(param), c(shift_by/2))
 
 })
 
@@ -314,7 +332,7 @@ test_that('make_minimize_function weights correctly', {
     ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
     ini_f2    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
     input_ini <- c(ini_f1, ini_f2)
-    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60_r1i1p1', 'rcp60_r1i1p2'))
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp602'))
 
     # Define Hector parameters.
     param <- c(1, 1, 1)
@@ -323,10 +341,8 @@ test_that('make_minimize_function weights correctly', {
     # Run Hector with the parameters to generate comparison data.
     lapply(new_cores, function(core){
 
-        # Parameterize the core
+        # Parameterize and run Hector
         x <- parameterize_core(core = core, params = param)
-
-        # Run Hector
         x <- hector::run(core)
 
         # Extract the Hector results
@@ -337,23 +353,98 @@ test_that('make_minimize_function weights correctly', {
 
     }) %>%
         dplyr::bind_rows() %>%
-        dplyr::mutate(model = 'selfTest') ->
+        dplyr::mutate(model = 'selfTest',
+                      ensemble = '1') ->
         comp_data
 
     # Shift the comparison data for a singel ensemble by 1.
     shift_by       <- 1
-    shift_ensemble <- dplyr::mutate(comp_data, value = dplyr::if_else(experiment == 'rcp60_r1i1p2', value + shift_by, value))
+    dplyr::mutate(comp_data, ensemble = dplyr::if_else(experiment == 'rcp602', '2', ensemble),
+                  experiment = 'rcp60') %>%
+        dplyr::mutate(value =  dplyr::if_else(ensemble == '2', value + shift_by, value)) ->
+        shift_ensemble
 
     # Change the center values to 0 and the scale values to 1 so that the noramlizing
     # process does not will not change the hector output or comparison data values.
     scale  <- center_scale$scale / center_scale$scale
     center <- center_scale$center * 0
-    names(scale) <- names(center_scale$scale)
+    names(scale)  <- names(center_scale$scale)
     names(center) <- names(center_scale$center)
     norm = list("scale" = scale, "center" = center)
 
     # Expect a MSE value of 0 when Hector output data is compared with itself.
     fn <- make_minimize_function(hector_cores = new_cores, esm_data = shift_ensemble, normalize = norm, param, n = 3)
     testthat::expect_equal(fn(param), shift_by/2)
+
+})
+
+test_that('make_minimize_function uses the cmip_range correctly', {
+
+    # Hector ini files
+    ini_f1    <- system.file('input/hector_rcp60_constrained.ini', package = 'hector')
+    ini_f2    <- system.file('input/hector_rcp45_constrained.ini', package = 'hector')
+    input_ini <- c(ini_f1, ini_f2)
+    new_cores <- setup_hector_cores(inifile = input_ini, name = c('rcp60', 'rcp45'))
+
+    # Define Hector parameters.
+    param <- c(1, 1, 1)
+    names(param) <- c(hector::ECS(), hector::AERO_SCALE(), hector::VOLCANIC_SCALE())
+
+    # Run Hector with the parameters to generate comparison data.
+    lapply(new_cores, function(core){
+
+        # Parameterize the core
+        x <- parameterize_core(core = core, params = param)
+        x <- hector::run(core)
+
+        # Extract the Hector results
+        hector::fetchvars(core = core, vars = c(hector::GLOBAL_TEMP(), hector::HEAT_FLUX()), dates = 2006:2100) %>%
+            dplyr::rename('experiment' = scenario)
+
+
+    }) %>%
+        dplyr::bind_rows() %>%
+        dplyr::mutate(model = 'selfTest',
+                      variable = dplyr::if_else(variable == hector::GLOBAL_TEMP(), 'tas', 'heatflux')) ->
+        comp_data
+
+    # Make sure that make minimize throws the expected error messages.
+    testthat::expect_error(make_minimize_function(hector_cores = new_cores, esm_data = comp_data, cmip_range = esm_comparison,
+                                                  normalize = center_scale, param = param, n = 1),
+                           'Missing columns: lower, upper, sig')
+
+    cmip_range <- dplyr::rename(esm_comparison, lower = mina, upper = maxb, sig = b90)
+    testthat::expect_error(make_minimize_function(hector_cores = new_cores, esm_data = comp_data, cmip_range = cmip_range,
+                                                  normalize = center_scale, param = param, n = 1),
+                           'cmip_range cannot contain data for a variable that is also in esm_data')
+
+    # Make sure that it works as expected.
+    temp_data  <- dplyr::filter(comp_data, variable == 'tas')
+    range_data <- dplyr::filter(cmip_range, variable == 'heatflux' & experiment %in% c('rcp45', 'rcp60'))
+
+    shift_by <- 1
+    comp_data %>%
+        dplyr::filter(variable == 'heatflux') %>%
+        dplyr::mutate(lower = value - shift_by,
+                      upper = value + shift_by,
+                      sig = 2) %>%
+        dplyr::select(-value) ->
+        range_data
+
+    fn <- make_minimize_function(hector_cores = new_cores,
+                                 esm_data = temp_data,
+                                 cmip_range = range_data,
+                                 normalize = center_scale,
+                                 param = param,
+                                 n = 1)
+
+    expected <-  0.825
+    testthat::expect_equivalent(object = fn(param), expected = expected, tolerance = 0.002)
+
+
+    # Shift the comparison data for a single ensemble by 1.
+    shift_by       <- 1
+    shift_esm_data <- dplyr::mutate(comp_data, value = value - shift_by) %>%
+        dplyr::filter(variable == 'tas')
 
 })

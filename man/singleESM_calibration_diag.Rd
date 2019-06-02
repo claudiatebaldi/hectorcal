@@ -5,7 +5,7 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data and return diagnostic materials.}
 \usage{
 singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
-  initial_param, maxit = 500, n_parallel = NULL,
+  initial_param, cmip_range = NULL, maxit = 500, n_parallel = NULL,
   showMessages = FALSE)
 }
 \arguments{
@@ -18,6 +18,10 @@ singleESM_calibration_diag(inifiles, hector_names, esm_data, normalize,
 \item{normalize}{A list of center and the scale values to use to noramlize the Hector and ESM output data.}
 
 \item{initial_param}{A named vector of inital paramters to be optimized over.}
+
+\item{cmip_range}{Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
+But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
+minimize the value returned by the -log of the mesa function.}
 
 \item{maxit}{The max number of itterations for optim, default set to 500.}
 
