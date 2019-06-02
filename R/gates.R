@@ -21,17 +21,16 @@
 get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
     if(grepl('[Hh]istorical', expt)) {
         maxyear <- min(c(2005, maxyear))
-    }
-    else {
+    } else {
         minyear <- max(c(2006, minyear))
     }
 
-    exptdata <- filter(esm_comparison, experiment==expt, variable==var,
+    exptdata <- dplyr::filter(esm_comparison, experiment==expt , variable==var,
                        year <= maxyear, year >= minyear)
     yrs <- c(min(exptdata$year),
              max(exptdata$year[exptdata$year <= median(exptdata$year)]),
              max(exptdata$year))
-    filter(exptdata, year %in% yrs)
+    dplyr::filter(exptdata, year %in% yrs)
 }
 
 
@@ -43,7 +42,7 @@ get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
 #' @return Vector of runids that passed all gates in all experiments.
 #' @examples
 #' ids <- chkgates(rbind(hector_conc_ensemble$rcp26, hector_conc_ensemble$rcp85),
-#'                'tas')
+#'                 'tas')
 #' length(ids)    # == 183
 #' @export
 chkgates <- function(hdata, vars) {
