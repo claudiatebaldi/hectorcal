@@ -81,7 +81,7 @@ translate_variable_name <- function(input){
 #' @param intermediateOutput Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.
 #' @return A function that will calculate the mean squared error between a Hector run and ESM data.
 #' @importFrom foreach %do% %dopar%
-#' @importFrom dplyr %>%
+#' @importFrom dplyr %>% bind_rows
 #' @export
 make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmip_range = NULL,
                                    n = NULL, showMessages = FALSE, intermediateOutput = FALSE){
@@ -219,12 +219,14 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                         dplyr::ungroup() ->
                         rslt_esm_comparison
 
-                } else {rslt_esm_comparison <- NULL}
+                } else {
+                    rslt_esm_comparison <- NULL
+                    }
 
 
 
                 # If also calibrating to the CMIP range then calculate the -log(mesa) for the cmip range.
-                if(nrow(subset_cmip_data) > 0){
+                if(!is.null(subset_cmip_data) && nrow(subset_cmip_data) > 0){
 
                     hector::fetchvars(core = cores_to_use[[i]], unique(subset_cmip_data$year), unique(subset_cmip_data$variable)) %>%
                         dplyr::rename(experiment = scenario,
