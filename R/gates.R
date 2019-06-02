@@ -19,6 +19,9 @@
 #' \code{\link{esm_comparison}} dataset.
 #' @export
 get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
+    ## bindings for NSE vars
+    experiment <- variable <- year <- NULL
+
     if(grepl('[Hh]istorical', expt)) {
         maxyear <- min(c(2005, maxyear))
     }
@@ -29,7 +32,7 @@ get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
     exptdata <- filter(esm_comparison, experiment==expt, variable==var,
                        year <= maxyear, year >= minyear)
     yrs <- c(min(exptdata$year),
-             max(exptdata$year[exptdata$year <= median(exptdata$year)]),
+             max(exptdata$year[exptdata$year <= stats::median(exptdata$year)]),
              max(exptdata$year))
     filter(exptdata, year %in% yrs)
 }
