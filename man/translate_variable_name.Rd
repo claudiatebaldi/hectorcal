@@ -7,7 +7,7 @@
 translate_variable_name(input)
 }
 \arguments{
-\item{hector_output}{A dataframe of Hector output data.}
+\item{input}{A dataframe of climate data that contains variable names that have to be transalted.}
 }
 \value{
 A dataframe of Hector output data but with the ESM variable names.

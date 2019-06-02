@@ -24,6 +24,8 @@ hector_output_stats <- function(params, hcores, pnames,
                                 times=c(2000, 2050, 2100), nsamp=NULL,
                                 quantiles=c(0, 0.025, 0.25, 0.5, 0.75, 0.975, 1))
 {
+    icore <- i <- quantile <- NULL
+
     nstot <- nrow(params)
     if(is.null(nsamp)) {
         nsamp <- min(max(100, 0.1*nstot), nstot)

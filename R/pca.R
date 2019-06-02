@@ -30,6 +30,8 @@ check_columns <- function(input, req_cols){
 project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 {
 
+    experiment <- variable <- year <- NULL
+
     # First check to make sure that the climate data contains the required columns
     check_columns(climate_data, c('value', 'year', 'experiment', 'variable'))
 
@@ -90,6 +92,8 @@ project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 #' @export
 reconstruct_climate <- function(projected_climate, principal_components, ncomp=NA)
 {
+    experiment <- variable <- value <- year <- NULL
+
     if(is.na(ncomp)) {
         ncomp <- ncol(principal_components$rotation)
     }

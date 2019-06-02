@@ -27,10 +27,12 @@ parameterize_core <- function(params, core) {
 #' Hector and ESM use different nomenclature for the variables, this function changes the Hector
 #' variable name to the esm variable name for (tas, co2, and heatflux but other variables may be added).
 #'
-#' @param hector_output A dataframe of Hector output data.
+#' @param input A dataframe of climate data that contains variable names that have to be transalted.
 #' @importFrom dplyr %>%
 #' @return A dataframe of Hector output data but with the ESM variable names.
 translate_variable_name <- function(input){
+
+    esm_variable <- variable <- NULL
 
     # Make the mapping file for the variable names.
     variable_mapping_tib <- tibble::tibble(variable = c(hector::GLOBAL_TEMP(), hector::ATMOSPHERIC_CO2(), hector::HEAT_FLUX()),
@@ -85,6 +87,9 @@ translate_variable_name <- function(input){
 #' @export
 make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmip_range = NULL,
                                    n = NULL, showMessages = FALSE, intermediateOutput = FALSE){
+    year <- value <- center <- . <- id <- experiment <- i <- scenario <- value <-
+        esm_norm <- hector_value <- center <- hector_norm <- SE <- . <- hector_value <-
+        lower <- upper <- sig <- experiment <- variable <- value <- variable <- NULL
 
     # Check data used to normalize the Hector and ESM output data.
     check_columns(input = normalize, req_cols = c('scale', 'center'))
@@ -221,7 +226,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 
                 } else {
                     rslt_esm_comparison <- NULL
-                    }
+                }
 
 
 
@@ -238,7 +243,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                             input %>%
                                 dplyr::mutate(value = -log(mesa(x = hector_value, a = lower, b = upper, sig = sig))) %>%
                                 # Need a better way to handel the values when the lower and upper bounds are the same.
-                                na.omit %>%
+                                stats::na.omit() %>%
                                 dplyr::group_by(experiment, variable) %>%
                                 dplyr::summarise(value = mean(value)) %>%
                                 dplyr::ungroup() %>%
@@ -262,7 +267,7 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                                variable = NA_character_,
                                experiment = NA_character_)
             } else {
-               MSE
+                MSE
             }
 
         }
@@ -357,6 +362,9 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, cmip_range = NULL,
                                        maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
+    scale_fill_manual <- upper <- lower <- esm_norm <- hec_norm <- center <- copy_var <- esm <-
+        hector <- model <- year <- experiment <- value <- scenario <- variable <- lower <- NULL
+
     # Make an empty list to return the output in.
     output <- list()
 
@@ -414,7 +422,7 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
             dplyr::left_join(hector_output, by = c("experiment", "variable", "year")) %>%
             dplyr::mutate(copy_var = variable,
                           variable = paste0(variable, ' ', units)) %>%
-            na.omit() ->
+            stats::na.omit() ->
             esm_hector_df
 
 
@@ -430,16 +438,17 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
         names(colors) <- model_names
         to_plot$model <- factor(to_plot$model, levels = rev(model_names), ordered = TRUE)
 
-        ggplot(data = to_plot,
-               aes(year, value, color = model, linetype = experiment, group = interaction(experiment, model))) +
-            geom_line() +
-            facet_wrap('variable', scales = 'free_y') +
-            labs(title = paste0(esm_model_name, '  vs. Hector Output'),
-                 caption = param_caption,
-                 y = NULL,
-                 x = 'Year') +
-            theme_bw() +
-            scale_color_manual(values = colors) ->
+        ggplot2::ggplot(data = to_plot,
+                        ggplot2::aes(year, value, color = model, linetype = experiment,
+                                     group = interaction(experiment, model))) +
+            ggplot2::geom_line() +
+            ggplot2::facet_wrap('variable', scales = 'free_y') +
+            ggplot2::labs(title = paste0(esm_model_name, '  vs. Hector Output'),
+                          caption = param_caption,
+                          y = NULL,
+                          x = 'Year') +
+            ggplot2::theme_bw() +
+            ggplot2::scale_color_manual(values = colors) ->
             output[['comparison_plot']]
 
         # Calculate the residuals
@@ -452,18 +461,18 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
             dplyr::mutate(esm_norm = (esm - center) / scale,
                           hec_norm = (hector - center) / scale,
                           diff = hec_norm - esm_norm) %>%
-            na.omit() ->
+            stats::na.omit() ->
             esm_hector_df
 
         # Plot the residuals.
-        ggplot(data = esm_hector_df) +
-            geom_point(aes(year, diff, color = experiment)) +
-            facet_wrap('variable', scales = 'free') +
-            labs(x = 'Year',
-                 y = paste0('Difference Between Normalized Hector & ', esm_model_name),
-                 caption = param_caption,
-                 title = paste0('Residuals for Hector Calibrated to ', esm_model_name)) +
-            theme_bw()->
+        ggplot2::ggplot(data = esm_hector_df) +
+            ggplot2::geom_point( ggplot2::aes(year, diff, color = experiment)) +
+            ggplot2::facet_wrap('variable', scales = 'free') +
+            ggplot2::labs(x = 'Year',
+                          y = paste0('Difference Between Normalized Hector & ', esm_model_name),
+                          caption = param_caption,
+                          title = paste0('Residuals for Hector Calibrated to ', esm_model_name)) +
+            ggplot2::theme_bw()->
             output[['residual_plot']]
 
         if(!is.null(cmip_range)){
@@ -474,9 +483,9 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
                 dplyr::bind_rows(hector_output %>%
                                      dplyr::mutate(model = 'hector')) %>%
                 dplyr::filter(variable %in% cmip_range$variable &
-                              year %in% cmip_range$year &
-                              experiment %in% cmip_range$experiment)   ->
-                    cmip_hector_df
+                                  year %in% cmip_range$year &
+                                  experiment %in% cmip_range$experiment)   ->
+                cmip_hector_df
 
             # Define the colors and assign factor levels to use in plotting.
             model_names   <- c('hector', 'CMIP Range')
@@ -484,35 +493,35 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
             names(colors) <- model_names
             cmip_hector_df$model <- factor(cmip_hector_df$model, levels = rev(model_names), ordered = TRUE)
 
-            ggplot(data = cmip_hector_df) +
-                geom_ribbon(aes(year, ymin = lower, ymax = upper, fill = model,  group = model), alpha = 0.5) +
-                geom_line(aes(year, hector, color = model, group = interaction(model, experiment))) +
-                geom_point(aes(year, hector, color = model, group = interaction(model, experiment))) +
-                geom_point(aes(year, lower, color = model, group = interaction(model, experiment))) +
-                geom_point(aes(year, upper, color = model, group = interaction(model, experiment))) +
-                facet_wrap('variable', scales = 'free_y') +
-                labs(title = paste0(esm_model_name, '  vs. Hector Output'),
-                     caption = param_caption,
-                     y = NULL,
-                     x = 'Year') +
-                theme_bw() +
-                scale_color_manual(values = colors) +
-                scale_fill_manual(values = colors)->
+            ggplot2::ggplot(data = cmip_hector_df) +
+                ggplot2::geom_ribbon(ggplot2::aes(year, ymin = lower, ymax = upper, fill = model,  group = model), alpha = 0.5) +
+                ggplot2::geom_line(ggplot2::aes(year, hector, color = model, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, hector, color = model, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, lower, color = model, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, upper, color = model, group = interaction(model, experiment))) +
+                ggplot2::facet_wrap('variable', scales = 'free_y') +
+                ggplot2::labs(title = paste0(esm_model_name, '  vs. Hector Output'),
+                              caption = param_caption,
+                              y = NULL,
+                              x = 'Year') +
+                ggplot2::theme_bw() +
+                ggplot2::scale_color_manual(values = colors) +
+                ggplot2::scale_fill_manual(values = colors)->
                 output[['comparison_plot_range']]
 
         }
-message('made it to the make minmize fn')
+        message('made it to the make minmize fn')
 
-       # Make a data frame of the MSE for each experiment and variable.
-       fn <- make_minimize_function(hector_cores = cores,
-                                    esm_data = esm_data,
-                                    normalize = normalize,
-                                    param = calibration_rslts$par,
-                                    cmip_range = cmip_range,
-                                    showMessages = FALSE,
-                                    intermediateOutput = TRUE,
-                                    n = 1)
-       output[['MSE']] <- fn(calibration_rslts$par)
+        # Make a data frame of the MSE for each experiment and variable.
+        fn <- make_minimize_function(hector_cores = cores,
+                                     esm_data = esm_data,
+                                     normalize = normalize,
+                                     param = calibration_rslts$par,
+                                     cmip_range = cmip_range,
+                                     showMessages = FALSE,
+                                     intermediateOutput = TRUE,
+                                     n = 1)
+        output[['MSE']] <- fn(calibration_rslts$par)
 
     } else {
 

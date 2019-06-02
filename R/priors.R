@@ -15,12 +15,12 @@
 #' @export
 mktruncnorm <- function(a, b, mu, sig)
 {
-    ftmp <- function(x) {dnorm(x, mu, sig)}
-    lnfac <- log(integrate(ftmp, a, b)$value)     # normalization factor
+    ftmp <- function(x) {stats::dnorm(x, mu, sig)}
+    lnfac <- log(stats::integrate(ftmp, a, b)$value)     # normalization factor
     ## create the function to return
     function(x) {
         ifelse(x>=a & x<=b,
-               dnorm(x,mu,sig, log=TRUE) - lnfac,
+               stats::dnorm(x,mu,sig, log=TRUE) - lnfac,
                -Inf)
     }
 }
@@ -32,11 +32,11 @@ mktruncnorm <- function(a, b, mu, sig)
 #' @export
 rtruncnorm <- function(n, a, b, mu, sig)
 {
-    samps <- rnorm(n, mu, sig)
+    samps <- stats::rnorm(n, mu, sig)
     bad <- samps<a | samps>b
     nbad <- sum(bad)
     while(nbad > 0) {
-        samps[bad] <- rnorm(nbad, mu, sig)
+        samps[bad] <- stats::rnorm(nbad, mu, sig)
         bad <- samps<a | samps>b
         nbad <- sum(bad)
     }
@@ -55,8 +55,8 @@ ptruncnorm <- function(x, a, b, mu, sig, lower.tail=TRUE, log.p=FALSE)
     if(length(a) == 1 && length(b) ==1 && length(mu)==1 && length(sig)==1) {
         ## Normalization factor will be the same for all x values, so save
         ## ourselves some unnecessary computation by calculating it once.
-        ftmp <- function(x) {dnorm(x, mu, sig)}
-        normfac <- integrate(ftmp, a, b)$value
+        ftmp <- function(x) {stats::dnorm(x, mu, sig)}
+        normfac <- stats::integrate(ftmp, a, b)$value
     }
     else {
         normfac <- NULL
@@ -76,11 +76,11 @@ ptnsingle <- function(x, a, b, mu, sig, lower.tail, log.p, normfac=NULL)
             1
         }
         else {
-            ftmp <- function(x) {dnorm(x, mu, sig)}
+            ftmp <- function(x) {stats::dnorm(x, mu, sig)}
             if(is.null(normfac)) {
-                normfac <- integrate(ftmp, a, b)$value
+                normfac <- stats::integrate(ftmp, a, b)$value
             }
-            integrate(ftmp, a, x)$value / normfac
+            stats::integrate(ftmp, a, x)$value / normfac
         }
 
     if(!lower.tail)
