@@ -79,6 +79,7 @@ setup_hector_cores <- function(inifile, name) {
 #' @param params A named vector of Hector parameters.
 #' @param core A Hector core.
 #' @return The input core, with parameters reset and spinup rerun.
+#' @export
 parameterize_core <- function(params, core) {
 
     pnames <- names(params)
