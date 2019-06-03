@@ -47,6 +47,12 @@ use_data(hector_emiss_ensemble, overwrite=TRUE, compress='xz')
 pc_conc <- readRDS(file.path(indir, 'pc-conc-historical-rcp26-rcp45-rcp60-rcp85.rds'))
 use_data(pc_conc, overwrite=TRUE, compress='xz')
 
+pc_conc_hflux <- readRDS(file.path(indir, 'pc-conc-hflux-historical-rcp26-rcp45-rcp60-rcp85.rds'))
+use_data(pc_conc_hflux, overwrite=TRUE, compress='xz')
+
 pc_emiss <- readRDS(file.path(indir, 'pc-emissCC-esmHistorical-esmrcp85.rds'))
 use_data(pc_emiss, overwrite=TRUE, compress='xz')
+
+pc_emiss_hflux <- readRDS(file.path(indir, 'pc-emissCC-hflux-esmHistorical-esmrcp85.rds'))
+use_data(pc_emiss_hflux, overwrite=TRUE, compress='xz')
 

@@ -21,14 +21,14 @@ check_columns <- function(input, req_cols){
 #' from \code{prcomp} and meta data information.
 #' @param row_vector If \code{TRUE}, return the data as a row vector (a 1xN
 #' matrix)
-#' @return a list of three objects, rotation the PC loadings, scale the values
-#' used to scale the input climate data, and center the values used to center
-#' the climate data.
+#' @return A vector of projection coefficients for the climate data.
 #' @importFrom dplyr %>%
 #' @importFrom assertthat assert_that
 #' @export
 project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 {
+
+    experiment <- variable <- year <- NULL
 
     # First check to make sure that the climate data contains the required columns
     check_columns(climate_data, c('value', 'year', 'experiment', 'variable'))
@@ -90,6 +90,8 @@ project_climate <- function(climate_data, principal_components, row_vector=TRUE)
 #' @export
 reconstruct_climate <- function(projected_climate, principal_components, ncomp=NA)
 {
+    experiment <- variable <- value <- year <- NULL
+
     if(is.na(ncomp)) {
         ncomp <- ncol(principal_components$rotation)
     }
@@ -212,4 +214,37 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
                           scenario=sort(unique(alldata$scenario)))
 
     pca
+}
+
+
+
+#' Create comparison data for principal components decomposition
+#'
+#' We have stored the principal components decomposition for each CMIP5 model as
+#' package data.  This function summarises that into a format similar to the
+#' \code{\link{esm_comparison}} dataset.
+#'
+#' @param pcdata Input principal components decomposition (probably either
+#' \code{\link{cmip_conc_pcproj}} or \code{\link{cmip_emiss_pcproj}}).
+#' @param pcmax Maximum PC to use.  PCs higher than this will be dropped.
+#' @param pcselect Individual PCs to select.  This is intersected with the list
+#' implied by pcmax.
+#' @importFrom dplyr %>%
+#' @export
+summarize_pcdecomp <- function(pcdecomp, pcmax=NULL, pcselect=NULL)
+{
+    PC <- NULL                          # bindings for NSE vars
+    if(!is.null(pcmax)) {
+        pcdecomp <- dplyr::filter(pcdecomp, PC <= pcmax)
+    }
+    if(!is.null(pcselect)) {
+        pcdecomp <- dplyr::filter(pcdecomp, PC %in% pcselect)
+    }
+    dplyr::group_by(pcdecomp, PC) %>%
+      dplyr::summarise(mina=min(value), maxb=max(value),
+                       a10=quantile(value, 0.1, names=FALSE),
+                       b90=quantile(value, 0.9, names=FALSE),
+                       cmean=mean(value), cmedian=median(value)) %>%
+      dplyr::ungroup() %>%
+      dplyr::arrange(PC)
 }

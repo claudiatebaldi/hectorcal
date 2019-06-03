@@ -28,7 +28,8 @@ This oject contains the sd, rotation, center, and scale for the PCs calculated w
 along with metadata about the Hector data that went into the runs.
 }
 \seealso{
-Other PC hector: \code{\link{pc_emiss}}
+Other PC hector: \code{\link{pc_conc_hflux}},
+  \code{\link{pc_emiss_hflux}}, \code{\link{pc_emiss}}
 }
 \concept{PC hector}
 \keyword{datasets}

@@ -7,7 +7,7 @@
 \format{Data frame with 9 columns
 \describe{
 \item{year}{Year being described (1851--2300)}
-\item{variable}{Variable being reported ("tas" or "co2").  Temperatures are
+\item{variable}{Variable being reported ("tas", "co2", or "heatflux").  Temperatures are
 given as anomalies relative to the first decade reported by the model.}
 \item{experiment}{Experiment being reported.  One of "historical", "rcp26", "rcp45",
 "rcp60", "rcp85", "esmHistorical", "esmrcp85"}
@@ -40,7 +40,7 @@ influence on how the statistics turn out.
 
 \seealso{
 Other comparison data: \code{\link{cmip_individual}},
-  \code{\link{esm_pcdata}}
+  \code{\link{esm_pcdata}}, \code{\link{pccd}}
 }
 \concept{comparison data}
 \keyword{datasets}

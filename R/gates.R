@@ -19,19 +19,21 @@
 #' \code{\link{esm_comparison}} dataset.
 #' @export
 get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
+
+    experiment <- variable <- year <- median <- NULL
+
     if(grepl('[Hh]istorical', expt)) {
         maxyear <- min(c(2005, maxyear))
-    }
-    else {
+    } else {
         minyear <- max(c(2006, minyear))
     }
 
-    exptdata <- filter(esm_comparison, experiment==expt, variable==var,
+    exptdata <- dplyr::filter(esm_comparison, experiment==expt , variable==var,
                        year <= maxyear, year >= minyear)
     yrs <- c(min(exptdata$year),
-             max(exptdata$year[exptdata$year <= median(exptdata$year)]),
+             max(exptdata$year[exptdata$year <= stats::median(exptdata$year)]),
              max(exptdata$year))
-    filter(exptdata, year %in% yrs)
+    dplyr::filter(exptdata, year %in% yrs)
 }
 
 
@@ -47,12 +49,14 @@ get_gates <- function(expt, var, minyear=1861, maxyear=2100) {
 #' length(ids)    # == 183
 #' @export
 chkgates <- function(hdata, vars) {
-    variable <- year <- pass <- mina <- maxb <- value <- NULL
+    runid <- variable <- year <- pass <- mina <- maxb <- value <- NULL
 
     expts <- unique(hdata$experiment)
 
     gates <- lapply(expts, function(expt) {
+        print(expt)
         lapply(vars, function(v) {
+            print(v)
             get_gates(expt, v)
             }) %>%
             dplyr::bind_rows()}) %>% dplyr::bind_rows()

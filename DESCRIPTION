@@ -8,7 +8,7 @@ Authors@R: c(person("Robert", "Link", email="robert.link@pnnl.gov", role = "aut"
 Description: Support code for the Hector calibration project.
 Depends: R (>= 3.3.3)
 Imports:
-    hector (>= 0.2.0),
+    hector (>= 2.3),
     dplyr (>= 0.7),
     ggthemes (>= 3.4),
     ggplot2 (>= 2.2.1),

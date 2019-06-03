@@ -17,7 +17,7 @@
 #' @format Data frame with 9 columns
 #' \describe{
 #' \item{year}{Year being described (1851--2300)}
-#' \item{variable}{Variable being reported ("tas" or "co2").  Temperatures are
+#' \item{variable}{Variable being reported ("tas", "co2", or "heatflux").  Temperatures are
 #' given as anomalies relative to the first decade reported by the model.}
 #' \item{experiment}{Experiment being reported.  One of "historical", "rcp26", "rcp45",
 #' "rcp60", "rcp85", "esmHistorical", "esmrcp85"}
@@ -62,11 +62,15 @@
 #' the four concentration pathways, along with the parameters used to drive the
 #' runs.
 #'
+#' Temperatures (\code{tas}) temperature anomalies reported in degC.  CO2
+#' concentrations (\code{co2}) are global concentrations reported in ppm.  Ocean
+#' heat flux (\code{heatflux}) is reported as downward flux in W/m2
+#'
 #' @format List of 6 data frames: historical, rcp26, rcp45, rcp60, rcp85, and
 #' params.  The four output data frames have 6 columns:
 #' \describe{
 #' \item{runid}{Unique identifier for each run.}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
+#' \item{variable}{Variable being reported: "tas" or "heatflux".}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
@@ -90,11 +94,15 @@
 #' the four concentration pathways, along with the parameters used to drive the
 #' runs.
 #'
+#' Temperatures (\code{tas}) temperature anomalies reported in degC.  CO2
+#' concentrations (\code{co2}) are global concentrations reported in ppm.  Ocean
+#' heat flux (\code{heatflux}) is reported as downward flux in W/m2
+#'
 #' @format List of 6 data frames: esmHistorical, esmrcp26, esmrcp45, esmrcp60,
 #' esmrcp85, and params.  The four output data frames have 6 columns:
 #' \describe{
 #' \item{runid}{Unique identifier for each run.}
-#' \item{variable}{Variable being reported "tas", temperatures are anomalies.}
+#' \item{variable}{Variable being reported: "tas", "co2", or "heatflux".}
 #' \item{scenario}{Hector scenario name.}
 #' \item{experiment}{Experiment being reported, should match the cmip experiments. One of  "rcp26", "rcp45", "rcp60", "rcp85", "esmHistorical", "esmrcp85".}
 #' \item{year}{Year being described (1850 -- 2100).}
@@ -139,6 +147,33 @@
 #' @family PC hector
 'pc_conc'
 
+
+#' Hector concentration driven principal compoents (PCs) with heat flux
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector concentration driven RCP 2.6, RCP 4.5, RCP 6.0, and RCP 8.5 runs
+#' along with metadata about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
+#' }
+#' The metadata element is itself a list with four elements:
+#' \describe{
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA ("tas"
+#' and "heatflux").}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
+#' }
+#' @family PC hector
+'pc_conc_hflux'
+
+
 #' Hector emission driven principal compoents (PCs)
 #'
 #' This oject contains the sd, rotation, center, and scale for the PCs calculated with
@@ -156,13 +191,39 @@
 #' The metadata element is itself a list with four elements:
 #' \describe{
 #' \item{year}{Year used in the PCA (1850 -- 2100).}
-#' \item{variable}{The variables that describe the values used in the PCA ("tas"
-#' and "co2").}
+#' \item{variable}{The variables that describe the values used in the PCA
+#' ("tas" and "co2")}
 #' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
 #' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
 #' }
 #' @family PC hector
 'pc_emiss'
+
+
+#' Hector emission driven principal compoents (PCs) with heat flux included
+#'
+#' This oject contains the sd, rotation, center, and scale for the PCs calculated with
+#' \code{prcomp} on an enemsble of Hector runs driven with RCP 8.5 emissions,
+#' along with some meta data information about the Hector data that went into the runs.
+#'
+#' @format A list with 5 elements
+#' \describe{
+#' \item{sdev}{A vector of the standard deviations of the principal components.}
+#' \item{rotation}{A matrix of the variable loadings.}
+#' \item{center}{The centering used in the PCA.}
+#' \item{scale}{The scale used in the PCA.}
+#' \item{meta_data}{a list of meta data information about the data that went into the PCA}
+#' }
+#' The metadata element is itself a list with four elements:
+#' \describe{
+#' \item{year}{Year used in the PCA (1850 -- 2100).}
+#' \item{variable}{The variables that describe the values used in the PCA
+#' ("tas", "co2", and "heatflux")}
+#' \item{experiment}{The CMIP5 experiment names describing the data that was used in the PCA.}
+#' \item{scenario}{The Hector scenario name describing the data that was used in the PCA.}
+#' }
+#' @family PC hector
+'pc_emiss_hflux'
 
 
 #' Principal component projection coefficients for ESM outputs
@@ -190,3 +251,36 @@ NULL
 #' cmip_emiss_pcproj: Projection coefficients for emissions-driven ESMs
 #' @rdname esm_pcdata
 'cmip_emiss_pcproj'
+
+#' ESM comparison data in principal components projection.
+#'
+#' This table gives the min-mean-max for the principal components projections of
+#' the ESM ensemble.  Optionally, it \emph{may} have a single heat flux value
+#' that can be used to supplement the principal components constraints.  If
+#' present, this value will always be the year 2100 value for the appropriate
+#' RCP 8.5 experiment (either rcp85 or esmrcp85)  Because the principal
+#' components span all of the years and experiments in the comparison data,
+#' there is no \code{year} or \code{experiment} column in this dataset;
+#' otherwise, it is organized much like \code{\link{esm_comparison}}.
+#'
+#' #' @format Data frame with 7 columns
+#' \describe{
+#' \item{variable}{Variable being reported (PC number or "heatflux").}
+#' \item{mina}{Minimum value reported in the ensemble}
+#' \item{maxb}{Maximum value reported in the ensemble}
+#' \item{a10}{First decile reported in the ensemble}
+#' \item{b90}{Ninth decile reported in the ensemble}
+#' \item{cmean}{Mean value reported in the ensemble}
+#' \item{cmedian}{Median value reported in the ensemble}
+#' }
+#' @family comparison data
+#' @name pccd
+NULL
+
+#' conc_pc_comparison: Principal components comparison data for concentration-driven runs
+#' @rdname pccd
+'conc_pc_comparison'
+
+#' emiss_pc_comparison: Principal components comparison data for emissions-driven runs
+#' @rdname pccd
+'emiss_pc_comparison'

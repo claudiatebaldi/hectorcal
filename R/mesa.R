@@ -6,7 +6,10 @@
 ## of the mesa function too, saving us a lot of sqrt(2) factors in our code that
 ## will only end up canceling out anyway.  It does, however, mean that this
 ## "erf" is not technically the real erf.
-erf <- function(x) {2*pnorm(x)-1}
+erf <- function(x) {
+    pnorm <- NULL
+    2*pnorm(x)-1
+    }
 
 #' Calculate the mesa function used in defining our likelihoods.
 #'

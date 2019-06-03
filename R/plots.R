@@ -17,6 +17,8 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
                            vars=c(hector::GLOBAL_TEMP(), hector::ATMOSPHERIC_CO2()),
                            times=1850:2100, alpha=0.3)
 {
+    scenario <- value <- year <- variable <- NULL
+
     allsamps <- do.call(rbind, lapply(mcrslt, function(x) {x$samples}))
 
     sampout <- run_hector_samples(allsamps, nplot, hcores, times, pnames, vars)
@@ -52,6 +54,8 @@ spaghetti_plot <- function(mcrslt, nplot, hcores, pnames,
 #' @export
 run_hector_samples <- function(allsamps, nsamp, hcores, times, pnames, vars)
 {
+    i <- icore <- NULL
+
     ntot <- nrow(allsamps)
     samp_indices <- sample.int(ntot, nsamp)
 
@@ -99,6 +103,8 @@ run_hector_samples <- function(allsamps, nsamp, hcores, times, pnames, vars)
 #' @export
 plot_pc <- function(pc, nc=NA, vartot=0.995, rscl=FALSE, swap_layout=FALSE)
 {
+    key <- expt <- var <- year <- value <- PC <- NULL
+
     if(is.na(nc)) {
         pcvar <- pc$sdev^2
         cumvar <- cumsum(pcvar)/sum(pcvar)
@@ -157,6 +163,8 @@ plot_pc <- function(pc, nc=NA, vartot=0.995, rscl=FALSE, swap_layout=FALSE)
 #' @export
 plot_varfrac <- function(pca_l, nc=NA, cvthresh=NA, labels=NULL)
 {
+    npc <- cv <- pc_set <- NULL
+
     if(inherits(pca_l, 'prcomp')) {
         ## user passed a bare prcomp strucutre
         pca_l <- list(pca_l)
@@ -209,6 +217,10 @@ plot_varfrac <- function(pca_l, nc=NA, cvthresh=NA, labels=NULL)
 #' @export
 esm_pcplot <- function(pctable)
 {
+
+    ## create bindings of NSE vars
+    PC <- PC1 <- PC2 <- model <- NULL
+
     pltdata <- dplyr::filter(pctable, PC %in% c(1,2)) %>%
         tidyr::spread('PC','value')
     names(pltdata) <- c('model','PC1','PC2')
@@ -258,7 +270,8 @@ esm_pcplot <- function(pctable)
 pc_rotplot <- function(pclimits, pcstruct, yrx=2006, yry=2100, var='tas', expt='rcp85',
                        pccords=NULL, HML=c('max', 'mean', 'min'))
 {
-    year <- variable <- NULL
+    year <- variable <- col3 <- col4 <- col5 <- col6 <- i <-
+        experiment <- xlab <- ylab <- NULL
 
     npc <- 6
     pccords_default <- seq(1,npc)
