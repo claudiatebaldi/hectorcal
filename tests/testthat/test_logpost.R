@@ -32,14 +32,18 @@ test_that('log prior function works properly', {
         p <- 1
         names(p) <- parm
         expect_equal(testlp(p), konst2, info=paste('parm=',parm))
+        p[1] <- -1
+        expect_equal(testlp(p), -Inf, info=paste('parm=',parm))
     }
     ## Half-Cauchy.  We didn't actually renormalize this one for the
     ## truncation.  Also, it's always centered at zero.
     konst3 <- stats::dcauchy(1, 0, 1, log=TRUE)
-    for(parm in c('sigt', 'sigco2', 'sig')) {
+    for(parm in c('sigt', 'sigco2', 'sig', 'sighf')) {
         p <- 1
         names(p) <- parm
         expect_equal(testlp(p), konst3, info=paste('parm=',parm))
+        p[1] <- -1
+        expect_equal(testlp(p), -Inf, info=paste('parm=',parm))
     }
 
     ## Now test that if we pick one of each we get the sum
