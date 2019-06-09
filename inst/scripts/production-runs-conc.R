@@ -17,7 +17,8 @@ hfexpt <- 'rcp85'
 ### Bit 6: Mean calibrtion flag
 ### Bit 7: Debug flag
 
-production_run_conc <- function(runid, nsamp, filestem='hectorcal', plotfile=TRUE)
+production_run_conc <- function(runid, nsamp, filestem='hectorcal',
+                                plotfile=TRUE, npc=10)
 {
     serialnumber <- bitwAnd(runid, 15)
     pcsflag <- as.logical(bitwAnd(runid, 16))
@@ -35,7 +36,9 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal', plotfile=TRU
     ## get the comparison data we will be using
     if(pcsflag) {
         ## Drop principal components for which there is no variation in the comparison data.
-        compdata <- conc_pc_comparison
+        nkeep <- npc+1                  # Number of requested PCs, plus the
+                                        # heatflux row.
+        compdata <- conc_pc_comparison[1:nkeep,]
         pcs <- pc_conc
     }
     else  {
