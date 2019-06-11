@@ -20,6 +20,7 @@ hfexpt <- 'rcp85'
 production_run_conc <- function(runid, nsamp, filestem='hectorcal',
                                 plotfile=TRUE, npc=10)
 {
+    runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
     pcsflag <- as.logical(bitwAnd(runid, 16))
     hfflag <- as.logical(bitwAnd(runid, 32))
