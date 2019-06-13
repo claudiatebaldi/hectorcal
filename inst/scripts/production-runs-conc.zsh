@@ -11,10 +11,30 @@ module load gcc/8.1.0
 
 hostname
 
+## Check to see if the variable hectorcalNPC is a number
+if [[ $hectorcalNPC =~ [0-9]+ ]]; then
+    npc=$hectorcalNPC
+else
+    npc=10
+fi
+
+## Check to see if hectorcalNSAMP is a number
+if [[ $hectorcalNSAMP =~ [0-9]+ ]]; then
+    nsamp=$hectorcalNSAMP
+else
+    nsamp=100
+fi
+
+
+## Check to see if hectorcalNAME is not empty
+if [[ -n $hectorcalNAME ]]; then
+    ofname=$hectorcalNAME
+else
+    ofname="hectorcal"
+fi
+
 program=`Rscript -e 'cat(system.file("scripts", "production-runs-conc.R", package="hectorcal"))'`
-nsamp=100
-npc=10
-outfile="hectorcal-$nsamp"
+outfile="$ofname-$nsamp"
 
 runid=$SLURM_ARRAY_TASK_ID
 
