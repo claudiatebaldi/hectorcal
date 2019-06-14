@@ -193,7 +193,7 @@ load_matching_mcout <- function(runid, dir='.', filestem='hectorcal', niter=NA)
                          'mcrslt\\.rds')
 
 
-    files <- list.files(dir, fileregexp)
+    files <- list.files(dir, fileregexp, full.names = TRUE)
     structure(lapply(files, readRDS), names=files)
 }
 
