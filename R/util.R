@@ -167,6 +167,7 @@ decode_runid <- function(runid)
 #' @param filestem Stem of the data file names
 #' @param niter Number of iterations. If NA, match all iteration counts
 #' @keywords internal
+#' @export
 load_matching_mcout <- function(runid, dir='.', filestem='hectorcal', niter=NA)
 {
     ## construct a regular expression to get the files we need
