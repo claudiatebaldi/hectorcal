@@ -36,7 +36,8 @@ proc_mc_rslts <- function(dir='.', filestem='hectorcal') {
 
         avgaccept <- mean(sapply(mcobj, function(x){x$accept}))
 
-        runstats[[runname]] <- list(accept=avgaccept, neff=metrosamp::neff(codaobj))
+        runstats[[runname]] <- list(accept=avgaccept, neff=coda::effectiveSize(codaobj),
+                                    rhat=coda::gelman.diag(codaobj))
         mcobjs[[runname]] <- mcobj
         codaobjs[[runname]] <- codaobj
     }
