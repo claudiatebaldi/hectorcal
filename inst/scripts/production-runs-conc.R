@@ -76,32 +76,60 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
     if(meanflag) {
         ## Add sigma parameters for mean calibration
         if(pcsflag) {
-            p0 <- c(p0, 0.2)
-            scale <- c(scale/4, 0.025)
+            p0 <- c(p0, 0.5)
+            sclfac <- c(scale/2, 0.1)
+            scale <- diag(nrow=length(p0), ncol=length(p0))
+            scale[1,2] <- scale[2,1] <- 0.85
+            scale <- cor2cov(scale, sclfac)
             pnames <- c(pnames, 'sig')
         }
         else {
-            p0 <- c(p0, 1.0, 5.0)
-            scale <- c(scale, 0.5, 2.0)
-            pnames <- c(pnames, 'sigt', 'sigco2')
+            p0 <- c(p0, 0.05)
+            sclfac <- c(scale, 0.025)
+            ## S and kappa distributions are very narrow, so that step needs to be small
+            sclfac[1] <- sclfac[1] / 10
+            sclfac[2] <- sclfac[2] / 10
+            scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
+            ## many of the parameters turn out to be highly correlated in this case.
+            scale[1,2] <- scale[2,1] <- 0.95
+            scale[1,3] <- scale[3,1] <- -0.7
+            scale[1,4] <- scale[4,1] <- 0.3
+            scale[2,3] <- scale[3,2] <- -0.7
+            scale[2,4] <- scale[4,2] <- 0.3
+            scale[3,4] <- scale[4,3] <- -0.25
+            scale[1,5] <- scale[5,1] <- -0.3
+            scale[2,5] <- scale[5,2] <- -0.3
+            scale <- cor2cov(scale, sclfac)
+            pnames <- c(pnames, 'sigt')
         }
 
         if(hfflag) {
-            p0 <- c(p0, 0.5)
-            scale <- c(scale, 0.05)
+            p0 <- c(p0, 2.5)
+            hfscl <- 0.5
+            if(is.matrix(scale)) {
+                newscale <- matrix(0, nrow=nrow(scale)+1, ncol=ncol(scale)+1)
+                newscale[1:nrow(scale), 1:ncol(scale)] <- scale
+                scale <- newscale
+                scale[nrow(scale),ncol(scale)] <- hfscl
+            }
+            else {
+                scale <- c(scale, 0.1)
+            }
             pnames <- c(pnames, 'sighf')
         }
     }
     names(p0) <- pnames
-    names(scale) <- pnames
+    if(is.vector(scale)) {
+        names(scale) <- pnames
+    }
+    else {
+        rownames(scale) <- colnames(scale) <- pnames
+    }
 
 
     ## Run monte carlo
     registerDoParallel(cores=4)
     set.seed(867-5309 + serialnumber)
-
-
-    names(scale) <- names(p0)
 
     ms <- metrosamp(lpf, p0, nsamp, 1, scale, debug=debugflag)
 
@@ -115,14 +143,16 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
     cat('Effective number of samples:\n')
     print(neff(ms$samples))
 
-    plotfilename <- paste(filestem, runid, 'diagplot.png', sep='-')
-    msc <- metrosamp2coda(list(ms))
-    if(plotfile) {
-        png(plotfilename, 1024, 1024)
-    }
-    plot(msc)
-    if(plotfile) {
-        dev.off()
+    if(nsamp < 10000) {
+        plotfilename <- paste(filestem, runid, 'diagplot.png', sep='-')
+        msc <- metrosamp2coda(list(ms))
+        if(plotfile) {
+            png(plotfilename, 1024, 1024)
+        }
+        plot(msc)
+        if(plotfile) {
+            dev.off()
+        }
     }
     savefilename <- paste(filestem, runid, 'mcrslt.rds', sep='-')
 

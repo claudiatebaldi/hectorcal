@@ -1,5 +1,6 @@
 #!/bin/zsh
 
+#SBATCH -c 4
 #SBATCH -N 1
 #SBATCH -t 60
 #SBATCH -A GCAM
