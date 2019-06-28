@@ -32,14 +32,16 @@ proc_mc_rslts <- function(dir='.', filestem='hectorcal') {
         base_runid <- encode_runid(0, conf$pcs, conf$hf, conf$meanf, FALSE)
         runname <- as.character(base_runid)
         mcobj <- load_mc_output(conf$pcs, conf$hf, conf$meanf, FALSE, dir = dir, filestem = filestem)
-        codaobj <- metrosamp2coda(mcobj)
+        if(length(mcobj) > 0) {
+            codaobj <- metrosamp2coda(mcobj)
 
-        avgaccept <- mean(sapply(mcobj, function(x){x$accept}))
+            avgaccept <- mean(sapply(mcobj, function(x){x$accept}))
 
-        runstats[[runname]] <- list(accept=avgaccept, neff=coda::effectiveSize(codaobj),
-                                    rhat=coda::gelman.diag(codaobj))
-        mcobjs[[runname]] <- mcobj
-        codaobjs[[runname]] <- codaobj
+            runstats[[runname]] <- list(accept=avgaccept, neff=coda::effectiveSize(codaobj),
+                                        rhat=coda::gelman.diag(codaobj))
+            mcobjs[[runname]] <- mcobj
+            codaobjs[[runname]] <- codaobj
+        }
     }
 
     invisible(list(runstats=runstats, mcobjs=mcobjs, codaobjs=codaobjs))
