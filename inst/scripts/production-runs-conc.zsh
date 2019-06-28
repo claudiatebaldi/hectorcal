@@ -39,10 +39,17 @@ outfile="$ofname-$nsamp"
 
 runid=$SLURM_ARRAY_TASK_ID
 
-echo "Run command:"
-echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+if [[ -n $hectorcalRESTART ]]; then
+    echo "Run command:"
+    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
 
-Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
+else
+    echo "Run command:"
+    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+
+    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+fi
 
 date
 
