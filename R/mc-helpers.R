@@ -98,13 +98,13 @@ pairplot <- function(mcrslt) {
     samps <- do.call(rbind, lapply(mcrslt, function(x) {x$samples}))
     nsamp <- nrow(samps)
     idx <- seq(1, nsamp)
-    if(nsamp > 500) {
-        fac <- ceiling(nsamp/500)
+    if(nsamp > 1000) {
+        fac <- ceiling(nsamp/1000)
         pltsamps <- samps[idx%%fac == 0, ]
     }
     else {
         pltsamps <- samps
     }
-    pairs(pltsamps)
-    cor(samps)
+    pltsamps <- as.data.frame(pltsamps)
+    GGally::ggpairs(data=pltsamps)
 }

@@ -12,6 +12,7 @@ Imports:
     dplyr (>= 0.7),
     ggthemes (>= 3.4),
     ggplot2 (>= 2.2.1),
+    GGally (>= 1.4.0),
     assertthat (>= 0.2),
     foreach (>= 1.4.3),
     tidyr (>= 0.7.2),
