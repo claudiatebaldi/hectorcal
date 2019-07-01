@@ -124,9 +124,6 @@ test_that('make sure that make_param_penatlity_function works', {
 
 })
 
-
-
-
 test_that('make_minimize_function throws errors', {
 
     # Subset the individual cmip data set to use in the minimize functions.
@@ -251,6 +248,15 @@ test_that('make_minimize_function works with clim parameters', {
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                             normalize = norm, param, n = 1)
     testthat::expect_equal(fn_shifted(param), shift_by)
+
+    # Run the make_param_penatlity_function
+    penalty <- make_param_penatlity_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+                                                   normalize = norm, param = param, cmip_range = NULL, param_penalty = penalty, n = 1)
+    # Since output is compared with the shifted comparison data for two experiments that are weighted equally figure out
+    # the expected peanlized weighted MSE.
+    expected_penalized_MSE <- mean(c(1, 1, penalty(param)[['value']]))
+    testthat::expect_equal(expected_penalized_MSE, fn_shifted_penalized(param))
 
 })
 
@@ -498,3 +504,5 @@ test_that('make_minimize_function uses the cmip_range correctly', {
         dplyr::filter(variable == 'tas')
 
 })
+
+

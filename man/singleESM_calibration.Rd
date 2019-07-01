@@ -5,8 +5,9 @@
 \title{Emulate a single ESM by calibrating Hector to ESM output data.}
 \usage{
 singleESM_calibration(inifiles, hector_names, esm_data, normalize,
-  initial_param, cmip_range = NULL, maxit = 500, n_parallel = NULL,
-  showMessages = FALSE, intermediateOutput = FALSE)
+  initial_param, cmip_range = NULL, param_penalty = NULL,
+  maxit = 500, n_parallel = NULL, showMessages = FALSE,
+  intermediateOutput = FALSE)
 }
 \arguments{
 \item{inifiles}{A vector of the Hector inifile cores to use, there should be a core for each esm CMIP comparison data.}
@@ -22,6 +23,9 @@ singleESM_calibration(inifiles, hector_names, esm_data, normalize,
 \item{cmip_range}{Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
 But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
 minimize the value returned by the -log of the mesa function.}
+
+\item{param_penalty}{Default is set to NULL but can be set to a function that will return a tibble of experiment / variable / value to penalize the
+mean squared error for "unreal" paramter values.}
 
 \item{maxit}{The max number of itterations for optim, default set to 500.}
 
