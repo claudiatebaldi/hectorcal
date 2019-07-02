@@ -5,10 +5,13 @@
 \title{Convert a list of metrosamp structures to a \code{\link[coda]{mcmc.list}}
 structure.}
 \usage{
-metrosamp2coda(mslist)
+metrosamp2coda(mslist, size = NA)
 }
 \arguments{
 \item{mslist}{A list mof metrosamp structures}
+
+\item{size}{Size of the mcmc objects in output coda structure. The results will be
+thinned as necessary to get to this size.}
 }
 \description{
 Convert a list of metrosamp structures to a \code{\link[coda]{mcmc.list}}
