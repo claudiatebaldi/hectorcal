@@ -4,12 +4,15 @@
 \alias{proc_mc_rslts}
 \title{Read in results from Monte Carlo runs}
 \usage{
-proc_mc_rslts(dir = ".", filestem = "hectorcal")
+proc_mc_rslts(dir = ".", filestem = "hectorcal", codasize = 2500)
 }
 \arguments{
 \item{dir}{Filesystem directory in which to look for results.}
 
 \item{filestem}{Base name used to construct the names of the input files.}
+
+\item{codasize}{Size of the \code{\link[coda]{mcmc.list}} objects returned.  The MCMC
+results will be thinned to this size for easier plotting and analysis.}
 }
 \value{
 A list of structures.

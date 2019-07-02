@@ -8,6 +8,10 @@
 #'
 #' @param dir Filesystem directory in which to look for results.
 #' @param filestem Base name used to construct the names of the input files.
+#' @param codasize Size of the \code{\link[coda]{mcmc.list}} objects returned.  The MCMC
+#' results will be thinned to this size for easier plotting and analysis.  If
+#' \code{codasize} is specified as \code{NA}, then the output coda objects will not be
+#' thinned at all.
 #' @return A list of structures.
 #' \describe{
 #' \item{runstats}{Run statistics such as acceptance rate and effective number of samples.
@@ -20,7 +24,8 @@
 #' with the utilities in the coda package.}
 #' }
 #' @export
-proc_mc_rslts <- function(dir='.', filestem='hectorcal') {
+proc_mc_rslts <- function(dir='.', filestem='hectorcal', codasize=2500)
+{
     configs <- expand.grid(pcs=c(TRUE,FALSE), hf=c(TRUE,FALSE), meanf=c(TRUE,FALSE))
 
     runstats <- list()
@@ -33,19 +38,34 @@ proc_mc_rslts <- function(dir='.', filestem='hectorcal') {
         runname <- as.character(base_runid)
         mcobj <- load_mc_output(conf$pcs, conf$hf, conf$meanf, FALSE, dir = dir, filestem = filestem)
         if(length(mcobj) > 0) {
-            codaobj <- metrosamp2coda(mcobj)
-
-            avgaccept <- mean(sapply(mcobj, function(x){x$accept}))
-
-            runstats[[runname]] <- list(accept=avgaccept, neff=coda::effectiveSize(codaobj),
-                                        rhat=coda::gelman.diag(codaobj))
+            stat <- proc_mc_helper(mcobj, codasize)
+            runstats[[runname]] <- stat[[1]]
             mcobjs[[runname]] <- mcobj
-            codaobjs[[runname]] <- codaobj
+            codaobjs[[runname]] <- stat[[2]]
         }
     }
 
     invisible(list(runstats=runstats, mcobjs=mcobjs, codaobjs=codaobjs))
 }
+
+## mcobj is a list of metrosamp objects loaded by load_mc_output
+proc_mc_helper <- function(mcobj, size)
+{
+    codaobj_full <- metrosamp2coda(mcobj)
+    avgaccept <- mean(sapply(mcobj, function(x){x$accept}))
+
+    runstats <- list(accept=avgaccept, neff=coda::effectiveSize(codaobj_full),
+                                rhat=coda::gelman.diag(codaobj_full))
+    codaobj <- metrosamp2coda(mcobj, size=size)
+    list(runstats, codaobj)
+}
+
+# Concatenate a set of base runs and continuations into a single run structure.
+#
+# The inputs to this function are two sets of outputs from \code{\link{proc_mc_rslts}}.  The
+# function will extract the metrosamp objects from the two outputs, concatenate them using
+# the \code{\link[metrosamp]{concat}} function, and write them into the requested output
+# directory.  It will then run \code{proc_mc_rslts} on the newly written files to
 
 #' Make diagnostic plots for Monte Carlo Runs
 #'
