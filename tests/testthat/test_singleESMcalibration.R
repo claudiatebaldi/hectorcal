@@ -448,3 +448,26 @@ test_that('make_minimize_function uses the cmip_range correctly', {
         dplyr::filter(variable == 'tas')
 
 })
+
+test_that('generate_inital_guess throws errors', {
+
+    testthat::expect_error(generate_inital_guess(comparison_data = NULL, param_names = 'fake'),
+                           regexp = 'param_names can only contain S, alpha, volscl, diff, S, alpha, volscl, diff, C0, q10_rh, beta')
+
+    comparison_data <- dplyr::select(hector_conc_ensemble$historical, year, experiment)
+    testthat::expect_error(generate_inital_guess(comparison_data, 'S'),
+                           regexp = 'comparison_data must contain columns named value, variable, experiment, year')
+
+})
+
+test_that('generate_inital_guess works', {
+
+    comparison_data <- head(hector_conc_ensemble$historical)
+    S_only <- generate_inital_guess(comparison_data, 'S')
+    testthat::expect_equal(length(S_only), 1)
+    S_diff <- generate_inital_guess(comparison_data, c('S', 'diff'))
+    testthat::expect_equal(length(S_diff), 2)
+
+})
+
+

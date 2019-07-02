@@ -518,5 +518,111 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
 }
 
 
+#' Use hectorcal's ensemble of Hector of hector results to guess an inital combination of parameter values
+#' to use as tge best guess in the single ESM calibration package.
+#'
+#' Some of the paramter values that were un realistic, extreme values (i.e., alpha values less than 0, S greater than 30 ect.)
+#'  are excluded from the analysis.
+#'
+#' @param comparison_data A dataset set containing the comparison data that is going to be used by the
+#' calibration functions. Should contain the following columns: year, variable, value.
+#' @param param_names A vector of the Hector parameter names to find the inital paramter value guesses for.
+#' @return A vector of the inital guesses for the Hectpr parameters being calibrated by
+#'  \code{singleESM_calibration} and \code{singleESM_calibration_diag}.
+#' @export
+generate_inital_guess <- function(comparison_data, param_names){
+
+    # Check the function inputs.
+    ensemble_params <- c(names(hector_conc_ensemble$params), names(hector_emiss_ensemble$params))
+    ensemble_params <- ensemble_params[ensemble_params != 'runid']
+    assertthat::assert_that(all(param_names %in% ensemble_params),
+                            msg = paste0('param_names can only contain ', paste(ensemble_params, collapse = ', ')))
+
+    required_columns <- c('value', 'variable', 'experiment', 'year')
+    assertthat::assert_that(all(required_columns %in% names(comparison_data)),
+                            msg = paste0('comparison_data must contain columns named ',
+                                         paste(required_columns, collapse = ', ')))
+
+    ensemble_experiments <- c(names(hector_conc_ensemble), names(hector_emiss_ensemble))
+    ensemble_experiments <- ensemble_experiments[ensemble_experiments != 'params']
+    assertthat::assert_that(all(unique(comparison_data$experiment) %in% ensemble_experiments),
+                            msg = paste0('comparison_data can only contain the following experiments ',
+                                         paste(ensemble_experiments, collapse = ', ')))
+
+    ensemble_variables <- unique(c(hector_conc_ensemble$historical$variable, hector_emiss_ensemble$esmHistorical$variable))
+    assertthat::assert_that(all(unique(comparison_data$variable) %in% ensemble_variables),
+                            msg = paste0('comparison_data can only contain the following variables ',
+                                         paste(ensemble_variables, collapse = ', ')))
+
+    # Determine if the comparison data is emission or concentration driven.
+    esm_driven <- any(grepl('esm', comparison_data$variable))
+
+    if(esm_driven){
+
+        # If the run was emission driven then use the emission driven hector ensemble as the source of the
+        # inital paramter guess. Make sure that the param combinations we are checking agaisnt are reasonable.
+        hector_emiss_ensemble$params %>%
+            dplyr::filter(alpha >= 0) %>%
+            dplyr::filter( volscl >= 0) %>%
+            dplyr::filter(diff >= 0.5) %>%
+            dplyr::filter(S <= 30) ->
+            params_subset
+
+        dplyr::bind_rows(hector_emiss_ensemble[names(hector_emiss_ensemble) %in% unique(comparison_data$experiment)]) %>%
+            dplyr::filter(runid %in% params_subset$runid) %>%
+            dplyr::left_join(comparison_data %>%
+                                 dplyr::select(year, comp_data = value, experiment, variable),
+                             by = c("variable", "year", "experiment")) %>%
+            na.omit() %>%
+            dplyr::mutate(SE = (value - comp_data)^2) %>%
+            dplyr::group_by(runid, experiment, variable) %>%
+            dplyr::summarise(MSE = mean(SE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::group_by(runid) %>%
+            dplyr::summarise(MSE = mean(MSE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::arrange(MSE) ->
+            arranged_MSE
+
+        hector_emiss_ensemble$params %>%
+            dplyr::filter(runid == arranged_MSE$runid[[1]]) %>%
+            dplyr::select(param_names)
+
+    } else {
+
+        # If the run was concentration driven then use the concentration driven hector ensemble as the source of the
+        # inital paramter guess. Make sure that the param combinations we are checking agaisnt are reasonable.
+        hector_conc_ensemble$params %>%
+            dplyr::filter(alpha >= 0) %>%
+            dplyr::filter( volscl >= 0) %>%
+            dplyr::filter(diff >= 0.5) %>%
+            dplyr::filter(S <= 30) ->
+            params_subset
+
+        dplyr::bind_rows(hector_conc_ensemble[names(hector_conc_ensemble) %in% unique(comparison_data$experiment)]) %>%
+            dplyr::filter(runid %in% params_subset$runid) %>%
+            dplyr::left_join(comparison_data %>%
+                                 dplyr::select(year, comp_data = value, experiment, variable),
+                             by = c("variable", "year", "experiment")) %>%
+            na.omit() %>%
+            dplyr::mutate(SE = (value - comp_data)^2) %>%
+            dplyr::group_by(runid, experiment, variable) %>%
+            dplyr::summarise(MSE = mean(SE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::group_by(runid) %>%
+            dplyr::summarise(MSE = mean(MSE)) %>%
+            dplyr::ungroup() %>%
+            dplyr::arrange(MSE) ->
+            arranged_MSE
+
+        hector_conc_ensemble$params %>%
+            dplyr::filter(runid == arranged_MSE$runid[[1]]) %>%
+            dplyr::select(param_names)
+
+
+    }
+
+}
+
 
 
