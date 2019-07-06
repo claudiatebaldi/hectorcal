@@ -1,11 +1,10 @@
 #!/bin/zsh
 
-#SBATCH -c 4
 #SBATCH -N 1
 #SBATCH -t 60
 #SBATCH -A GCAM
 
-date
+echo "start:  " `date`
 
 module load R/3.4.3
 module load gcc/8.1.0
@@ -39,18 +38,11 @@ outfile="$ofname-$nsamp"
 
 runid=$SLURM_ARRAY_TASK_ID
 
-if [[ -n $hectorcalRESTART ]]; then
-    echo "Run command:"
-    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
+echo "Run command:"
+echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
 
-    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
-else
-    echo "Run command:"
-    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
 
-    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
-fi
-
-date
+echo "end:  "  `date`
 
 

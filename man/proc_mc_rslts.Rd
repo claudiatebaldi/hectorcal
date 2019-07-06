@@ -12,7 +12,9 @@ proc_mc_rslts(dir = ".", filestem = "hectorcal", codasize = 2500)
 \item{filestem}{Base name used to construct the names of the input files.}
 
 \item{codasize}{Size of the \code{\link[coda]{mcmc.list}} objects returned.  The MCMC
-results will be thinned to this size for easier plotting and analysis.}
+results will be thinned to this size for easier plotting and analysis.  If
+\code{codasize} is specified as \code{NA}, then the output coda objects will not be
+thinned at all.}
 }
 \value{
 A list of structures.
