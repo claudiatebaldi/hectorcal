@@ -34,21 +34,21 @@ else
     ofname="hectorcal"
 fi
 
-program=`Rscript -e 'cat(system.file("scripts", "production-runs-conc.R", package="hectorcal"))'`
+program=`Rscript -e 'cat(system.file("scripts", "mc-runs-conc.R", package="hectorcal"))'`
 outfile="$ofname-$nsamp"
 
 runid=$SLURM_ARRAY_TASK_ID
 
 if [[ -n $hectorcalRESTART ]]; then
     echo "Run command:"
-    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
+    echo "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
 
-    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
+    Rscript -e "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
 else
     echo "Run command:"
-    echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+    echo "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
 
-    Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+    Rscript -e "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
 fi
 
 echo "end:  "  `date`

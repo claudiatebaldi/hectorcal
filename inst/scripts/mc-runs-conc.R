@@ -20,8 +20,8 @@ hfexpt <- 'rcp85'
 ### To use a restart file, specify the file stem up through the number of samples
 ### For example, 'testrun-1000'
 
-production_run_conc <- function(runid, nsamp, filestem='hectorcal',
-                                plotfile=TRUE, npc=10, restart=NULL)
+mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
+                        plotfile=TRUE, npc=10, restart=NULL)
 {
     runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
