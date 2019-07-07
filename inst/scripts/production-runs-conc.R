@@ -33,7 +33,7 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
 
     ## input files for hector initialization
     rcps <- c('rcp26', 'rcp45', 'rcp60', 'rcp85')
-    inputfiles <- file.path('input', sprintf('hector_%s.ini', rcps))
+    inputfiles <- file.path('input', sprintf('hector_%s_constrained.ini', rcps))
     inputfiles <- system.file(inputfiles, package='hector', mustWork = TRUE)
     names(inputfiles) <- rcps
 
