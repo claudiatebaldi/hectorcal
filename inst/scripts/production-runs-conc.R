@@ -17,8 +17,11 @@ hfexpt <- 'rcp85'
 ### Bit 6: Mean calibrtion flag
 ### Bit 7: Debug flag
 
+### To use a restart file, specify the file stem up through the number of samples
+### For example, 'testrun-1000'
+
 production_run_conc <- function(runid, nsamp, filestem='hectorcal',
-                                plotfile=TRUE, npc=10)
+                                plotfile=TRUE, npc=10, restart=NULL)
 {
     runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
@@ -30,7 +33,7 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
 
     ## input files for hector initialization
     rcps <- c('rcp26', 'rcp45', 'rcp60', 'rcp85')
-    inputfiles <- file.path('input', sprintf('hector_%s.ini', rcps))
+    inputfiles <- file.path('input', sprintf('hector_%s_constrained.ini', rcps))
     inputfiles <- system.file(inputfiles, package='hector', mustWork = TRUE)
     names(inputfiles) <- rcps
 
@@ -70,22 +73,33 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
                            hflux_year = hfyear, hflux_expt_regex = hfexpt)
 
     ## initial parameters
-    p0 <- c(3.0, 2.3, 1.0, 1.0)
+    if(is.null(restart)) {
+        p0 <- c(3.0, 2.3, 1.0, 1.0)
+    }
+    else {
+        restartfile <- paste(restart, runid, 'mcrslt.rds', sep='-')
+        p0 <- readRDS(restartfile)
+    }
     scale <- c(0.75, 1.25, 0.5, 0.5)    # based on some experimentation with short runs
     pnames <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE())
     if(meanflag) {
         ## Add sigma parameters for mean calibration
         if(pcsflag) {
-            p0 <- c(p0, 0.5)
+            if(is.null(restart)) {
+                p0 <- c(p0, 0.05)
+            }
             sclfac <- c(scale/2, 0.1)
-            scale <- diag(nrow=length(p0), ncol=length(p0))
+            scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
             scale[1,2] <- scale[2,1] <- 0.85
             scale <- cor2cov(scale, sclfac)
             pnames <- c(pnames, 'sig')
         }
         else {
-            p0 <- c(p0, 0.05)
-            sclfac <- c(scale, 0.025)
+            if(is.null(restart)) {
+                p0 <- c(p0, 0.05)
+            }
+            tempscl <- 1e-4
+            sclfac <- c(scale/20, tempscl)
             ## S and kappa distributions are very narrow, so that step needs to be small
             sclfac[1] <- sclfac[1] / 10
             sclfac[2] <- sclfac[2] / 10
@@ -104,8 +118,10 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
         }
 
         if(hfflag) {
-            p0 <- c(p0, 2.5)
-            hfscl <- 0.5
+            if(is.null(restart)) {
+                p0 <- c(p0, 5.0)
+            }
+            hfscl <- 1e-4  # This value should probably be a bit larger, but it works well enough for now.
             if(is.matrix(scale)) {
                 newscale <- matrix(0, nrow=nrow(scale)+1, ncol=ncol(scale)+1)
                 newscale[1:nrow(scale), 1:ncol(scale)] <- scale
@@ -113,12 +129,14 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
                 scale[nrow(scale),ncol(scale)] <- hfscl
             }
             else {
-                scale <- c(scale, 0.1)
+                scale <- c(scale, hfscl)
             }
             pnames <- c(pnames, 'sighf')
         }
     }
-    names(p0) <- pnames
+    if(is.null(restart)) {
+        names(p0) <- pnames
+    }
     if(is.vector(scale)) {
         names(scale) <- pnames
     }
