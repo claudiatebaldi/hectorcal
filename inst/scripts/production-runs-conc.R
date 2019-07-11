@@ -121,7 +121,7 @@ production_run_conc <- function(runid, nsamp, filestem='hectorcal',
             if(is.null(restart)) {
                 p0 <- c(p0, 5.0)
             }
-            hfscl <- 1e-4  # This value should probably be a bit larger, but it works well enough for now.
+            hfscl <- 1e-1  
             if(is.matrix(scale)) {
                 newscale <- matrix(0, nrow=nrow(scale)+1, ncol=ncol(scale)+1)
                 newscale[1:nrow(scale), 1:ncol(scale)] <- scale
