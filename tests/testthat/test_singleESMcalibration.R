@@ -448,3 +448,68 @@ test_that('make_minimize_function uses the cmip_range correctly', {
         dplyr::filter(variable == 'tas')
 
 })
+
+test_that('generate_inital_guess throws errors', {
+
+    testthat::expect_error(generate_inital_guess(comparison_data = NULL, param_names = 'fake'),
+                           regexp = 'param_names can only contain S, alpha, volscl, diff, S, alpha, volscl, diff, C0, q10_rh, beta')
+
+    comparison_data <- dplyr::select(hector_conc_ensemble$historical, year, experiment)
+    testthat::expect_error(generate_inital_guess(comparison_data, 'S'),
+                           regexp = 'comparison_data must contain columns named value, variable, experiment, year')
+
+})
+
+test_that('generate_inital_guess works', {
+
+    # Test to make sure that generate_inital_guess runs.
+    comparison_data <- head(hector_conc_ensemble$historical)
+    S_only <- generate_inital_guess(comparison_data, 'S')
+    testthat::expect_equal(length(S_only), 1)
+    S_diff <- generate_inital_guess(comparison_data, c('S', 'diff'))
+    testthat::expect_equal(length(S_diff), 2)
+
+
+    # Test the generate_inital_guess works, returns the expected results
+    # for the emission driven and the concentration driven ensmble.
+
+    # Select a run from the emission driven ensemble and use it as comparison data. If the
+    # generate_inital_guess functions works then it should return parameter values for the
+    # same run.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE(), hector::PREINDUSTRIAL_CO2(), hector::Q10_RH())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_emiss_ensemble$params[which(hector_emiss_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_emiss_ensemble$esmrcp85, hector_emiss_ensemble$esmHistorical) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        emiss_comparison_data
+
+    best_guess <- generate_inital_guess(emiss_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
+
+
+    # Repeate the test with the concentraiton driven experiments.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_conc_ensemble$params[which(hector_conc_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_conc_ensemble$rcp26, hector_conc_ensemble$rcp85) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        conc_comparison_data
+
+    best_guess <- generate_inital_guess(conc_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
+
+})
+
+

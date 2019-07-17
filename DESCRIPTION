@@ -12,12 +12,13 @@ Imports:
     dplyr (>= 0.7),
     ggthemes (>= 3.4),
     ggplot2 (>= 2.2.1),
+    GGally (>= 1.4.0),
     assertthat (>= 0.2),
     foreach (>= 1.4.3),
     tidyr (>= 0.7.2),
     coda (>= 0.19),
 Suggests:
-    metrosamp (>= 0.1.0),
+    metrosamp (>= 0.4.0),
     testthat,
 License: GPL-2
 Encoding: UTF-8

@@ -124,7 +124,7 @@ make_logprior <- function(pprior, use_lnorm_ecs)
     q10prior   <- mktruncnorm(0, Inf, pprior['q10mu'], pprior['q10sig'])
 
     function(p) {
-        sigvals <- p[c('sigt','sigco2', 'sig')] #use these later
+        sigvals <- p[c('sigt','sigco2', 'sig', 'sighf')] #use these later
 
         sum(
             ## normal priors
@@ -220,7 +220,7 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
         hflux_data <- dplyr::filter(comp_data, variable=='heatflux')
         comp_data <- dplyr::filter(comp_data, variable != 'heatflux')
         expt85 <- grep(hflux_expt_regex, expts, value=TRUE)
-        assert_that(length(expt85) == 1)
+        assertthat::assert_that(length(expt85) == 1)
     }
     else {
         hflux_data <- NULL
@@ -345,7 +345,7 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
             cdata <- dplyr::arrange(cdata, experiment, variable, year)
             ## This could theoretically fail, if the experiments have different years.  That's not
             ## part of our design, so we'll just throw an error if that happens.
-            assert_that(nrow(cdata) == nrow(comp_data))
+            assertthat::assert_that(nrow(cdata) == nrow(comp_data))
         }
         else {
             ## We need to project the data onto the principal components.  The projection coefficients
@@ -361,7 +361,7 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
                 sigt <- if('sigt' %in% names(p)) p[['sigt']] else NA_real_
                 sigco2 <- if('sigco2' %in% names(p)) p[['sigco2']] else NA_real_
                 comp_data$sig <- dplyr::if_else(comp_data$variable == 'tas', sigt, sigco2)
-                assert_that(!any(is.na(comp_data$sig)))   # If a sig parm is missing, that var must not be in the dataset
+                assertthat::assert_that(!any(is.na(comp_data$sig)))   # If a sig parm is missing, that var must not be in the dataset
             }
             else {
                 comp_data$sig <- p[['sig']]  # Only one type of sig for pca cal
@@ -377,10 +377,10 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
         }
         else {
             ## Compute the mesa function.  This actually works the same for both output and pc
-            sig <- smoothing * (comp_data[[hicol]] - comp_data[[lowcol]])
+            sig <- smoothing * pmax(comp_data[[hicol]] - comp_data[[lowcol]], 1e-3)
             ll <- sum(log(mesa(cdata$value, comp_data[[lowcol]], comp_data[[hicol]], sig)))
             if(!is.null(hflux_data)) {
-                hfsig <- hflux_smoothing*(hflux_data[[hicol]] - hflux_data[[lowcol]])
+                hfsig <- hflux_smoothing * pmax(hflux_data[[hicol]] - hflux_data[[lowcol]], 1e-3)
                 ll <- ll + log(mesa(hdata$value, hflux_data[[lowcol]],
                                     hflux_data[[hicol]], hfsig))
             }
