@@ -554,22 +554,21 @@ generate_inital_guess <- function(comparison_data, param_names){
                             msg = paste0('comparison_data can only contain the following variables ',
                                          paste(ensemble_variables, collapse = ', ')))
 
-    # Determine if the comparison data is emission or concentration driven.
-    esm_driven <- any(grepl('esm', comparison_data$variable))
 
-    if(esm_driven){
+    # An internal function that finds the Hector paramters that best match the Hector parameter values from the ensemble
+    # of Hector runs.
+    # Args:
+    #   ens: an ensemble of Hector output, internal package data.
+    # Returns: a vector of Hector paramter values.
+    MSE_function <- function(ens){
 
-        # If the run was emission driven then use the emission driven hector ensemble as the source of the
-        # inital paramter guess. Make sure that the param combinations we are checking agaisnt are reasonable.
-        hector_emiss_ensemble$params %>%
-            dplyr::filter(alpha >= 0) %>%
-            dplyr::filter( volscl >= 0) %>%
-            dplyr::filter(diff >= 0.5) %>%
-            dplyr::filter(S <= 30) ->
-            params_subset
+        ens_params <- ens$params
+        rows <- which(ens_params$alpha >= 0 & ens_params$volscl >=0 & ens_params$diff >= 0.5 & ens_params$S <= 30)
+        params_subset <- ens_params[rows, ]
+        good_runids <- params_subset$runid
 
-        dplyr::bind_rows(hector_emiss_ensemble[names(hector_emiss_ensemble) %in% unique(comparison_data$experiment)]) %>%
-            dplyr::filter(runid %in% params_subset$runid) %>%
+        dplyr::bind_rows(ens[names(ens) %in% unique(comparison_data$experiment)]) %>%
+            dplyr::filter(runid %in% good_runids) %>%
             dplyr::left_join(comparison_data %>%
                                  dplyr::select(year, comp_data = value, experiment, variable),
                              by = c("variable", "year", "experiment")) %>%
@@ -584,41 +583,23 @@ generate_inital_guess <- function(comparison_data, param_names){
             dplyr::arrange(MSE) ->
             arranged_MSE
 
-        hector_emiss_ensemble$params %>%
+        ens_params %>%
             dplyr::filter(runid == arranged_MSE$runid[[1]]) %>%
             dplyr::select(param_names)
+
+    }
+
+    # Determine if the comparison data is emission or concentration driven.
+    esm_driven <- any(grepl('esm', comparison_data$experiment))
+
+    # Find the Hector params with the smallest MSE from the...
+    if(esm_driven){
+        # emission driven ensemble
+        MSE_function(ens = hector_emiss_ensemble)
 
     } else {
-
-        # If the run was concentration driven then use the concentration driven hector ensemble as the source of the
-        # inital paramter guess. Make sure that the param combinations we are checking agaisnt are reasonable.
-        hector_conc_ensemble$params %>%
-            dplyr::filter(alpha >= 0) %>%
-            dplyr::filter( volscl >= 0) %>%
-            dplyr::filter(diff >= 0.5) %>%
-            dplyr::filter(S <= 30) ->
-            params_subset
-
-        dplyr::bind_rows(hector_conc_ensemble[names(hector_conc_ensemble) %in% unique(comparison_data$experiment)]) %>%
-            dplyr::filter(runid %in% params_subset$runid) %>%
-            dplyr::left_join(comparison_data %>%
-                                 dplyr::select(year, comp_data = value, experiment, variable),
-                             by = c("variable", "year", "experiment")) %>%
-            na.omit() %>%
-            dplyr::mutate(SE = (value - comp_data)^2) %>%
-            dplyr::group_by(runid, experiment, variable) %>%
-            dplyr::summarise(MSE = mean(SE)) %>%
-            dplyr::ungroup() %>%
-            dplyr::group_by(runid) %>%
-            dplyr::summarise(MSE = mean(MSE)) %>%
-            dplyr::ungroup() %>%
-            dplyr::arrange(MSE) ->
-            arranged_MSE
-
-        hector_conc_ensemble$params %>%
-            dplyr::filter(runid == arranged_MSE$runid[[1]]) %>%
-            dplyr::select(param_names)
-
+        # concentration driven ensemble
+        MSE_function(ens = hector_conc_ensemble)
 
     }
 
