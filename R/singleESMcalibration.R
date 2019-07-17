@@ -474,11 +474,11 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
             cmip_hector_df$model <- factor(cmip_hector_df$model, levels = rev(model_names), ordered = TRUE)
 
             ggplot2::ggplot(data = cmip_hector_df) +
-                ggplot2::geom_ribbon(ggplot2::aes(year, ymin = lower, ymax = upper, fill = model,  group = model), alpha = 0.5) +
+                ggplot2::geom_ribbon(ggplot2::aes(year, ymin = lower, ymax = upper, fill = model,  group = interaction(model, experiment)), alpha = 0.5) +
                 ggplot2::geom_line(ggplot2::aes(year, hector, color = model, group = interaction(model, experiment))) +
-                ggplot2::geom_point(ggplot2::aes(year, hector, color = model, group = interaction(model, experiment))) +
-                ggplot2::geom_point(ggplot2::aes(year, lower, color = model, group = interaction(model, experiment))) +
-                ggplot2::geom_point(ggplot2::aes(year, upper, color = model, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, hector, color = model, shape = experiment, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, lower, color = model, shape = experiment, group = interaction(model, experiment))) +
+                ggplot2::geom_point(ggplot2::aes(year, upper, color = model, shape = experiment, group = interaction(model, experiment))) +
                 ggplot2::facet_wrap('variable', scales = 'free_y') +
                 ggplot2::labs(title = paste0(esm_model_name, '  vs. Hector Output'),
                               caption = param_caption,
