@@ -450,19 +450,42 @@ S_kappa        <- bind_rows(S_kappa_temp, S_kappa_fits_tempHF)
 
 S_kappa_temp %>%
     bind_rows(S_kappa_fits_tempHF) %>%
-    mutate(comp_data = if_else(comp_data == 'temp', 'Temp-Only', 'Temp-Heat Flux')) ->
+    mutate(comp_data = if_else(comp_data == 'temp', 'Temp-Only', 'Temp-Heat Flux')) %>%
+    filter(comp_data =='Temp-Only') ->
     S_kappa
-
 
 ggplot(data = S_kappa, aes(kappa, min, color = model, shape = comp_data)) +
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
     labs(y = expression('Temp MSE ('~degree~'C'^2~')'),
-         x = expression(kappa~'('~cm^2*s^-1~')')) ->
+         x = expression(kappa~'('~cm^2*s^-1~')')) +
+    coord_cartesian(ylim = c(0, 0.4)) +
+    guides(shape = FALSE) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
     conc_S_kappa_sym_plot
 
-ggsave(conc_S_kappa_sym_plot,
+
+ggplot(data = S_kappa, aes(kappa, S, color = model, shape = comp_data)) +
+    geom_line() +
+    geom_point(size = 2.5) +
+    SCRIPT_THEME +
+    labs(y = expression(~italic(S)~' ('~degree~'C)'),
+         x = expression(kappa~'('~cm^2*s^-1~')')) +
+    guides(shape = FALSE) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
+    conc_S_kappa_trade_off
+
+
+conc_S_kapp_sym_plot_final <- plot_grid(conc_S_kappa_sym_plot,
+                                conc_S_kappa_trade_off, labels = c('A', 'B'),
+                                label_size = 10)
+
+ggsave(conc_S_kapp_sym_plot_final,
        filename = file.path(FIGS_DIR, 'conc_S_kappa_sym_plot.pdf'),
        device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
        dpi = FIG_DPI * 2, units = 'in')
