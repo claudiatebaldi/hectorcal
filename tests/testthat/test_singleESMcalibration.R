@@ -77,37 +77,37 @@ test_that('make sure that parameterize_core works', {
 
 })
 
-test_that('make sure that make_param_penatlity_function throws errors', {
+test_that('make sure that make_param_penalty_function throws errors', {
 
-    testthat::expect_error( make_param_penatlity_function(penalize = data.frame(1), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penatlity_function arguments must be vectors')
-    testthat::expect_error( make_param_penatlity_function(penalize = 1, lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penatlity_function argument param must contain strings')
-    testthat::expect_error( make_param_penatlity_function(penalize = hector::ECS(), lower = 'bad', upper = 1, sig = 1),
-                            regexp = 'make_param_penatlity_function lower, upper, and sig arguments must be numeric')
-    testthat::expect_error( make_param_penatlity_function(penalize = c(hector::ECS(), 'fake'), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penatlity_function penalize argument contains a paramter that does not exsist in Hector')
-    testthat::expect_error( make_param_penatlity_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penatlity_function penalize, lower, and upper arguments must be vectors of the same length')
-    testthat::expect_error( make_param_penatlity_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 1), upper = c(1, 1), sig = c(1, 1, 1)),
-                            regexp = 'make_param_penatlity_function sig must have a length of 1 or the same length as penalize')
-    testthat::expect_error( make_param_penatlity_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 5), upper = c(1, 1), sig = 1),
-                            regexp = 'make_param_penatlity_function lower vector must contian values that are less than the upper vector')
+    testthat::expect_error( make_param_penalty_function(penalize = data.frame(1), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function arguments must be vectors')
+    testthat::expect_error( make_param_penalty_function(penalize = 1, lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function argument param must contain strings')
+    testthat::expect_error( make_param_penalty_function(penalize = hector::ECS(), lower = 'bad', upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function lower, upper, and sig arguments must be numeric')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), 'fake'), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function penalize argument contains a paramter that does not exsist in Hector')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function penalize, lower, and upper arguments must be vectors of the same length')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 1), upper = c(1, 1), sig = c(1, 1, 1)),
+                            regexp = 'make_param_penalty_function sig must have a length of 1 or the same length as penalize')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 5), upper = c(1, 1), sig = 1),
+                            regexp = 'make_param_penalty_function lower vector must contian values that are less than the upper vector')
 
-    # If the function is made but is trying to penalize a paramter that is not being optmized the function should throw an error.
-    fn <- make_param_penatlity_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    # If the function is made but is trying to penalize a paramter that is not being optimized the function should throw an error.
+    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
     optim_param <- 1
     names(optim_param) <- hector::BETA()
-    testthat::expect_error(fn(optim_param), regexp = 'trying to penalize parameters that are not being optmized')
+    testthat::expect_error(fn(optim_param), regexp = 'trying to penalize parameters that are not being optimized')
 
 })
 
-test_that('make sure that make_param_penatlity_function works', {
+test_that('make sure that make_param_penalty_function works', {
 
-    # Run the make_param_penatlity_function
-    fn <- make_param_penatlity_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    # Run the make_param_penalty_function
+    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
 
-    # Run the function returned by the make_param_penatlity_function and check the data frame.
+    # Run the function returned by the make_param_penalty_function and check the data frame.
     optim_param        <- 1
     names(optim_param) <- hector::ECS()
     penalty <- fn(optim_param)
@@ -249,8 +249,8 @@ test_that('make_minimize_function works with clim parameters', {
                                             normalize = norm, param, n = 1)
     testthat::expect_equal(fn_shifted(param), shift_by)
 
-    # Run the make_param_penatlity_function
-    penalty <- make_param_penatlity_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    # Run the make_param_penalty_function
+    penalty <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
     fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                                    normalize = norm, param = param, cmip_range = NULL, param_penalty = penalty, n = 1)
     # Since output is compared with the shifted comparison data for two experiments that are weighted equally figure out
