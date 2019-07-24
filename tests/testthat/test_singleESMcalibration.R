@@ -116,11 +116,23 @@ test_that('make sure that make_param_penalty_function works', {
     testthat::expect_equal(nrow(penalty), 1)
     testthat::expect_true(is.numeric(penalty$value))
 
-    # If we change the order and the value being evaluated we expect the value of the penalty to change.
-    optim_param        <- c(1, 5)
+    # Does the funciton return the correct value?
+    expected <- -log(mesa(x = 1, a = 0, b = 5, sig = 0.05))
+    testthat::expect_equal(expected, penalty$value)
+
+    # If we add another parameter it should not change
+    optim_param        <- c(5, 1)
     names(optim_param) <- c(hector::DIFFUSIVITY(), hector::ECS())
     penalty2 <- fn(optim_param)
-    testthat::expect_true(penalty$value != penalty2$value)
+    testthat::expect_equal(penalty$value, penalty2$value)
+
+    # If the ECS is outside the boundaries then the penalty score should be larger.
+    optim_param        <- 5.5
+    names(optim_param) <- hector::ECS()
+    penalty3 <- fn(optim_param)
+    testthat::expect_gt(penalty3$value, penalty2$value)
+
+
 
 })
 
