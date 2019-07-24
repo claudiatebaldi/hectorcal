@@ -1,11 +1,10 @@
 #!/bin/zsh
 
-#SBATCH -c 4
 #SBATCH -N 1
 #SBATCH -t 60
 #SBATCH -A GCAM
 
-date
+echo "start:  " `date`
 
 module load R/3.4.3
 module load gcc/8.1.0
@@ -44,6 +43,6 @@ echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$n
 
 Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
 
-date
+echo "end:  "  `date`
 
 

@@ -15,12 +15,24 @@ calc_variance <- function(pca){
 #' structure.
 #'
 #' @param mslist A list mof metrosamp structures
+#' @param size Size of the mcmc objects in output coda structure. The results will be
+#' thinned as necessary to get to this size.
 #' @export
-metrosamp2coda <- function(mslist) {
+metrosamp2coda <- function(mslist, size=NA) {
+
+    if(is.na(size)) {
+        thin <- 1
+    }
+    else {
+        thin <- ceiling(nrow(mslist[[1]]$samples) / size)
+    }
 
     coda::mcmc.list(
         lapply(mslist, function(ms) {
-                   coda::mcmc(ms$samples)
+                   samps <- ms$samples
+                   idx <- seq(1,nrow(samps))
+                   samps <- samps[idx %% thin == 0, ]
+                   coda::mcmc(samps, thin=thin)
                })
         )
 }
