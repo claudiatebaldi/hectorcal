@@ -77,6 +77,65 @@ test_that('make sure that parameterize_core works', {
 
 })
 
+test_that('make sure that make_param_penalty_function throws errors', {
+
+    testthat::expect_error( make_param_penalty_function(penalize = data.frame(1), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function arguments must be vectors')
+    testthat::expect_error( make_param_penalty_function(penalize = 1, lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function argument param must contain strings')
+    testthat::expect_error( make_param_penalty_function(penalize = hector::ECS(), lower = 'bad', upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function lower, upper, and sig arguments must be numeric')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), 'fake'), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function penalize argument contains a paramter that does not exsist in Hector')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = 1, upper = 1, sig = 1),
+                            regexp = 'make_param_penalty_function penalize, lower, and upper arguments must be vectors of the same length')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 1), upper = c(1, 1), sig = c(1, 1, 1)),
+                            regexp = 'make_param_penalty_function sig must have a length of 1 or the same length as penalize')
+    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 5), upper = c(1, 1), sig = 1),
+                            regexp = 'make_param_penalty_function lower vector must contian values that are less than the upper vector')
+
+    # If the function is made but is trying to penalize a paramter that is not being optimized the function should throw an error.
+    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    optim_param <- 1
+    names(optim_param) <- hector::BETA()
+    testthat::expect_error(fn(optim_param), regexp = 'trying to penalize parameters that are not being optimized')
+
+})
+
+test_that('make sure that make_param_penalty_function works', {
+
+    # Run the make_param_penalty_function
+    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+
+    # Run the function returned by the make_param_penalty_function and check the data frame.
+    optim_param        <- 1
+    names(optim_param) <- hector::ECS()
+    penalty <- fn(optim_param)
+
+    testthat::expect_true(is.data.frame(penalty))
+    testthat::expect_equal(nrow(penalty), 1)
+    testthat::expect_true(is.numeric(penalty$value))
+
+    # Does the funciton return the correct value?
+    expected <- -log(mesa(x = 1, a = 0, b = 5, sig = 0.05))
+    testthat::expect_equal(expected, penalty$value)
+
+    # If we add another parameter it should not change
+    optim_param        <- c(5, 1)
+    names(optim_param) <- c(hector::DIFFUSIVITY(), hector::ECS())
+    penalty2 <- fn(optim_param)
+    testthat::expect_equal(penalty$value, penalty2$value)
+
+    # If the ECS is outside the boundaries then the penalty score should be larger.
+    optim_param        <- 5.5
+    names(optim_param) <- hector::ECS()
+    penalty3 <- fn(optim_param)
+    testthat::expect_gt(penalty3$value, penalty2$value)
+
+
+
+})
+
 test_that('make_minimize_function throws errors', {
 
     # Subset the individual cmip data set to use in the minimize functions.
@@ -201,6 +260,15 @@ test_that('make_minimize_function works with clim parameters', {
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                             normalize = norm, param, n = 1)
     testthat::expect_equal(fn_shifted(param), shift_by)
+
+    # Run the make_param_penalty_function
+    penalty <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
+                                                   normalize = norm, param = param, cmip_range = NULL, param_penalty = penalty, n = 1)
+    # Since output is compared with the shifted comparison data for two experiments that are weighted equally figure out
+    # the expected peanlized weighted MSE.
+    expected_penalized_MSE <- mean(c(1, 1, penalty(param)[['value']]))
+    testthat::expect_equal(expected_penalized_MSE, fn_shifted_penalized(param))
 
 })
 
@@ -449,14 +517,55 @@ test_that('make_minimize_function uses the cmip_range correctly', {
 
 })
 
-test_that('generate_inital_guess throws errors', {
+test_that('generate_inital_guess works', {
 
-    testthat::expect_error(generate_inital_guess(comparison_data = NULL, param_names = 'fake'),
-                           regexp = 'param_names can only contain S, alpha, volscl, diff, S, alpha, volscl, diff, C0, q10_rh, beta')
+    # Test to make sure that generate_inital_guess runs.
+    comparison_data <- head(hector_conc_ensemble$historical)
+    S_only <- generate_inital_guess(comparison_data, 'S')
+    testthat::expect_equal(length(S_only), 1)
+    S_diff <- generate_inital_guess(comparison_data, c('S', 'diff'))
+    testthat::expect_equal(length(S_diff), 2)
 
-    comparison_data <- dplyr::select(hector_conc_ensemble$historical, year, experiment)
-    testthat::expect_error(generate_inital_guess(comparison_data, 'S'),
-                           regexp = 'comparison_data must contain columns named value, variable, experiment, year')
+
+    # Test the generate_inital_guess works, returns the expected results
+    # for the emission driven and the concentration driven ensmble.
+
+    # Select a run from the emission driven ensemble and use it as comparison data. If the
+    # generate_inital_guess functions works then it should return parameter values for the
+    # same run.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE(), hector::PREINDUSTRIAL_CO2(), hector::Q10_RH())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_emiss_ensemble$params[which(hector_emiss_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_emiss_ensemble$esmrcp85, hector_emiss_ensemble$esmHistorical) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        emiss_comparison_data
+
+    best_guess <- generate_inital_guess(emiss_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
+
+
+    # Repeate the test with the concentraiton driven experiments.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_conc_ensemble$params[which(hector_conc_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_conc_ensemble$rcp26, hector_conc_ensemble$rcp85) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        conc_comparison_data
+
+    best_guess <- generate_inital_guess(conc_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
 
 })
 
@@ -511,5 +620,4 @@ test_that('generate_inital_guess works', {
     testthat::expect_true(setequal(best_guess, expected_param_values))
 
 })
-
 
