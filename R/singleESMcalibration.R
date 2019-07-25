@@ -43,6 +43,56 @@ translate_variable_name <- function(input){
 }
 
 
+#' Make a paramter pentalty function
+#'
+#' Create a function that will penalize mean squared error between Hector and ESM CMIP5 output data based on the
+#' certain parameter values. The function returned by \code{make_param_penalty_function} is used within the \code{make_minimize_function}.
+#' This function judges Hector paramter fits based on the - log \code{mesa} function.
+#'
+#' @param penalize A vector of the Hector parameter names to penalize.
+#' @param lower A vector of the lower boundries for the parmeters listed in penalize
+#' @param upper A vector of the upper boundries for the parmeters listed in penalize
+#' @param sig A vector of the parameter controlling the steepness of the rolloff at the boundaries
+#' @return A function that will return a tibble containing the -log mesa penalty for the Hector parameter by epxeriment and variable or parameter in this case.
+#' @export
+make_param_penalty_function <- function(penalize, lower, upper, sig){
+
+    assertthat::assert_that(all(c(is.vector(penalize), is.vector(lower), is.vector(upper), is.vector(sig))),
+                            msg = 'make_param_penalty_function arguments must be vectors')
+    assertthat::assert_that(all(is.character(penalize)),
+                            msg = 'make_param_penalty_function argument param must contain strings')
+    check_hector_params <- suppressWarnings(tryCatch({lapply(penalize, hector::getunits)}, error = function(e){NA}))
+    assertthat::assert_that(all(!is.na(check_hector_params)),
+                            msg = 'make_param_penalty_function penalize argument contains a paramter that does not exsist in Hector')
+    assertthat::assert_that(all(is.numeric(c(lower, upper, sig))),
+                            msg = 'make_param_penalty_function lower, upper, and sig arguments must be numeric')
+    assertthat::assert_that(length(penalize) == length(lower) & length(upper) == length(penalize),
+                            msg = 'make_param_penalty_function penalize, lower, and upper arguments must be vectors of the same length')
+    assertthat::assert_that(length(penalize) == length(sig) | length(sig) == 1,
+                            msg = 'make_param_penalty_function sig must have a length of 1 or the same length as penalize')
+    assertthat::assert_that(all(lower < upper), msg = 'make_param_penalty_function lower vector must contian values that are less than the upper vector')
+
+    function(optim_param){
+
+        # Check inputs
+        assertthat::assert_that(all(penalize %in% names(optim_param)), msg = 'trying to penalize parameters that are not being optimized')
+
+        # Subset the parameter fits that we want to penalize
+        to_penalize <- optim_param[names(optim_param) %in% penalize]
+
+        # Calucalte the -log mesa function of the paramter value based on the lower and upper boundry of the parameters.
+        penalty     <- -log(mapply(FUN = mesa, x = to_penalize,  a = lower, b = upper, sig = sig))
+
+        # Format the paramter penalty into a dataframe that can be combined with the rslt_esm_comparison and rslt_cmip_range_comparison'
+        # of the make_minimize_function so that the penalties can be applied to the over all MSE.
+        tibble::tibble(experiment = 'all',
+                       variable = names(to_penalize),
+                       value = penalty)
+
+    }
+
+}
+
 
 #' Make the function to minimize
 #'
@@ -56,6 +106,8 @@ translate_variable_name <- function(input){
 #' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
 #' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
 #' minimize the value returned by the -log of the mesa function.
+#' @param param_penalty Default is set to NULL but can be set to a function that will return a tibble of experiment / variable / value to penalize the
+#' mean squared error for "unreal" paramter values.
 #' @param n The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @param intermediateOutput Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.
@@ -64,7 +116,7 @@ translate_variable_name <- function(input){
 #' @importFrom dplyr %>%
 #' @export
 make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmip_range = NULL,
-                                   n = NULL, showMessages = FALSE, intermediateOutput = FALSE){
+                                   param_penalty = NULL, n = NULL, showMessages = FALSE, intermediateOutput = FALSE){
     year <- value <- center <- . <- id <- experiment <- i <- scenario <- value <-
         esm_norm <- hector_value <- center <- hector_norm <- SE <- . <- hector_value <-
         lower <- upper <- sig <- experiment <- variable <- value <- variable <- NULL
@@ -98,6 +150,8 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 
     }
 
+    # Make sure that the param penalty is set to default NULL or is a function
+    assertthat::assert_that(is.null(param_penalty) | is.function(param_penalty), msg = 'param_penalty must be set to NULL or is a function')
 
     # Make sure there is a hector core for each experiment in the comparison data.
     hector_experiments  <- unlist(lapply(hector_cores, hector::getname))
@@ -207,8 +261,6 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                     rslt_esm_comparison <- NULL
                 }
 
-
-
                 # If also calibrating to the CMIP range then calculate the -log(mesa) for the cmip range.
                 if(!is.null(subset_cmip_data) && nrow(subset_cmip_data) > 0){
 
@@ -236,7 +288,16 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
                     rslt_cmip_range_comparison <- NULL
                 }
 
-                dplyr::bind_rows(rslt_esm_comparison, rslt_cmip_range_comparison)
+
+                if(is.function(param_penalty)){
+                    rslt_penalty <- param_penalty(param)
+                } else {
+                    rslt_penalty <- NULL
+                }
+
+
+                dplyr::bind_rows(rslt_esm_comparison, rslt_cmip_range_comparison, rslt_penalty)
+
 
                 },error=debug_errhandler)
 
@@ -289,14 +350,16 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 #' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
 #' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
 #' minimize the value returned by the -log of the mesa function.
+#' @param param_penalty Default is set to NULL but can be set to a function that will return a tibble of experiment / variable / value to penalize the
+#' mean squared error for "unreal" paramter values.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
 #' @param intermediateOutput Default set to FALSE, but if set to TRUE will return the MSE for each variable / experiment / ensemble memeber instead over the over all MSE.
 #' @return An object returned by \code{optim}
 #' @export
-singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param,
-                                  cmip_range = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE,
+singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, initial_param, cmip_range = NULL,
+                                  param_penalty = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE,
                                   intermediateOutput = FALSE){
 
     # Set up the Hector cores.
@@ -309,6 +372,7 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
                                  normalize = normalize,
                                  param = initial_param,
                                  cmip_range = cmip_range,
+                                 param_penalty = param_penalty,
                                  n = n_parallel,
                                  showMessages = showMessages,
                                  intermediateOutput = intermediateOutput)
@@ -332,6 +396,8 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' @param cmip_range Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
 #' But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
 #' minimize the value returned by the -log of the mesa function.
+#'  @param param_penalty Default is set to NULL but can be set to a function that will return a tibble of experiment / variable / value to penalize the
+#' mean squared error for "unreal" paramter values.
 #' @param maxit The max number of itterations for optim, default set to 500.
 #' @param n_parallel The max number of cores to parallize the runs over,  unless sepcified will use the number of cores detected by \code{detectCores}.
 #' @param showMessages Default set to FALSE, will supress Hector error messages.
@@ -340,7 +406,7 @@ singleESM_calibration <- function(inifiles, hector_names, esm_data, normalize, i
 #' optim_rslt is the object returned by \code{optim}.
 #' @export
 singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normalize, initial_param, cmip_range = NULL,
-                                       maxit = 500, n_parallel = NULL, showMessages = FALSE){
+                                       param_penalty = NULL, maxit = 500, n_parallel = NULL, showMessages = FALSE){
 
     scale_fill_manual <- upper <- lower <- esm_norm <- hec_norm <- center <- copy_var <- esm <-
         hector <- model <- year <- experiment <- value <- scenario <- variable <- lower <- NULL
@@ -367,6 +433,7 @@ singleESM_calibration_diag <- function(inifiles, hector_names, esm_data, normali
                                                normalize = normalize,
                                                initial_param = initial_param,
                                                cmip_range = cmip_range,
+                                               param_penalty = param_penalty,
                                                maxit = maxit,
                                                n = n_parallel,
                                                showMessages = showMessages,
