@@ -79,7 +79,14 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
         restartfile <- paste(restart, runid, 'mcrslt.rds', sep='-')
         p0 <- readRDS(restartfile)
     }
-    scale <- c(0.25, 0.25, 0.1, 0.1, 0.1, 0.1, 0.25)    # based on some experimentation with short runs
+
+    ## Set an appropriate scale, depending on the protocol.
+    if(pcsflag) {
+        scale <- c(0.25, 0.25, 0.1, 0.1, 0.1, 0.1, 0.25)    # based on some experimentation with short runs
+    }
+    else {
+        scale <- c(0.25, 0.25, 0.1, 0.1, 0.05, 0.2, 0.05)/2
+    }
     pnames <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(), BETA(), Q10_RH(), PREINDUSTRIAL_CO2())
     if(meanflag) {
         ## Add sigma parameters for mean calibration
@@ -89,7 +96,8 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
             }
             sclfac <- c(scale/2, 0.1)
             scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
-            scale[1,2] <- scale[2,1] <- 0.85
+            scale[1,2] <- scale[2,1] <- 0.9
+            scale[5,6] <- scale[6,5] <- 0.9
             scale <- cor2cov(scale, sclfac)
             pnames <- c(pnames, 'sig')
         }
@@ -134,6 +142,17 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
             pnames <- c(pnames, 'sighf')
         }
     }
+    else {
+        ## Not doing mean calibration.  Still want to add some correlation.
+        sclfac <- scale
+        scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
+        scale[1,2] <- scale[2,1] <- 0.95
+        scale[5,6] <- scale[6,5] <- 0.9
+        scale <- cor2cov(scale, sclfac)
+    }
+
+
+
     if(is.null(restart)) {
         names(p0) <- pnames
     }
