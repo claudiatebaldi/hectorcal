@@ -73,7 +73,14 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
 
     ## initial parameters
     if(is.null(restart)) {
-        p0 <- c(3.65, 0.98, 1.65, 0.95, 0.04, 1.27, 281.6)
+        if(bitwAnd(runid, 240) %in% c(64,96)) {
+            ## These runs were given different starting parameters and rerun
+            p0 <- c(3.37, 1.015, 1.1, 2.0, 0.15, 2.2, 285.85)
+        }
+        else {
+            ## starting parameters used in the rest of the runs
+            p0 <- c(3.65, 0.98, 1.65, 0.95, 0.04, 1.27, 281.6)
+        }
     }
     else {
         restartfile <- paste(restart, runid, 'mcrslt.rds', sep='-')
@@ -102,8 +109,9 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
             pnames <- c(pnames, 'sig')
         }
         else {
+            ## If we get to this point, we are either run 64 or 96
             if(is.null(restart)) {
-                p0 <- c(p0, 0.05, 1.0)      # sigma for temperature and co2
+                p0 <- c(p0, 0.38, 1.08)      # sigma for temperature and co2
             }
             tempscl <- 1e-4
             co2scl <- 1e-4
@@ -127,7 +135,12 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
 
         if(hfflag) {
             if(is.null(restart)) {
-                p0 <- c(p0, 5.0)
+                if(bitwAnd(runid, 240) == 96) {
+                    p0 <- c(p0, 1.7)
+                }
+                else {
+                    p0 <- c(p0, 5.0)
+                }
             }
             hfscl <- 1e-1
             if(is.matrix(scale)) {
