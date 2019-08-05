@@ -25,17 +25,17 @@ make_pc_comparison <- function(pctbl, heatfluxexpt)
 {
     pc_comparison <- dplyr::group_by(pctbl, PC) %>%
         dplyr::summarise(mina=min(value), maxb=max(value),
-                         a10=quantile(value, 0.1), b90=quantile(value, 0.1),
+                         a10=quantile(value, 0.1), b90=quantile(value, 0.9),
                          cmean=mean(value), cmedian=median(value)) %>%
         dplyr::rename(variable=PC) %>%
         dplyr::mutate(variable = paste0('PC',variable))
-    hflux <- filter(hectorcal::esm_comparison, variable=='heatflux', year==2100, experiment==heatfluxexpt) %>%
-        select(variable, mina, maxb, a10, b90, cmean, cmedian)
-    bind_rows(hflux, pc_comparison)
+    hflux <- dplyr::filter(hectorcal::esm_comparison, variable=='heatflux', year==2100, experiment==heatfluxexpt) %>%
+        dplyr::select(variable, mina, maxb, a10, b90, cmean, cmedian)
+    dplyr::bind_rows(hflux, pc_comparison)
 }
 
 ## The result will be stored in the package variables conc_pc_comparison and emiss_pc_comparison.
 conc_pc_comparison <- make_pc_comparison(cmip_conc_pcproj, 'rcp85')
 usethis::use_data(conc_pc_comparison, compress='xz')
 emiss_pc_comparison <- make_pc_comparison(cmip_emiss_pcproj, 'esmrcp85')
-usethis::use_data(emiss_pc_comparison)
+usethis::use_data(emiss_pc_comparison, compress='xz')
