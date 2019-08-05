@@ -93,7 +93,7 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
             scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
             scale[1,2] <- scale[2,1] <- 0.85
             scale <- cor2cov(scale, sclfac)
-            pnames <- c(pnames, 'sig')
+            pnames <- c(pnames, 'sigp')
         }
         else {
             if(is.null(restart)) {
@@ -134,6 +134,12 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
             }
             pnames <- c(pnames, 'sighf')
         }
+    }
+    else {
+        ## Envelope calibration: Add the sigma parameter for the mesa function.
+        p0 <- c(p0, 0.1)
+        pnames <- c(pnames, 'sigm')
+        scale <- c(scale, 0.1)
     }
     if(is.null(restart)) {
         names(p0) <- pnames

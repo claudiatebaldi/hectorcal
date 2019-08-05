@@ -69,19 +69,12 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     }
 
     ## Create the log-posterior function
-    lpf <- build_mcmc_post(compdata, inputfiles, pcs, smoothing = 0.5, cal_mean = meanflag,
+    lpf <- build_mcmc_post(compdata, inputfiles, pcs, cal_mean = meanflag,
                            hflux_year = hfyear, hflux_expt_regex = hfexpt)
 
     ## initial parameters
     if(is.null(restart)) {
-        if(bitwAnd(runid, 240) %in% c(64,96)) {
-            ## These runs were given different starting parameters and rerun
-            p0 <- c(3.37, 1.015, 1.1, 2.0, 0.15, 2.2, 285.85)
-        }
-        else {
-            ## starting parameters used in the rest of the runs
-            p0 <- c(3.65, 0.98, 1.65, 0.95, 0.04, 1.27, 281.6)
-        }
+        p0 <- c(3.37, 1.015, 1.1, 2.0, 0.15, 2.2, 285.85)
     }
     else {
         restartfile <- paste(restart, runid, 'mcrslt.rds', sep='-')
@@ -107,7 +100,7 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
             scale[1,2] <- scale[2,1] <- 0.9
             scale[5,6] <- scale[6,5] <- 0.9
             scale <- cor2cov(scale, sclfac)
-            pnames <- c(pnames, 'sig')
+            pnames <- c(pnames, 'sigp')
         }
         else {
             ## If we get to this point, we are either run 64 or 96
@@ -158,7 +151,9 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     }
     else {
         ## Not doing mean calibration.  Still want to add some correlation.
-        sclfac <- scale
+        p0 <- c(p0, 0.5)
+        sclfac <- c(scale, 0.1)
+        pnames <- c(pnames, 'sigm')
         scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
         scale[1,2] <- scale[2,1] <- 0.95
         scale[5,6] <- scale[6,5] <- 0.9

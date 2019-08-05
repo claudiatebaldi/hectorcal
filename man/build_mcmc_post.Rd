@@ -4,10 +4,10 @@
 \alias{build_mcmc_post}
 \title{Construct a log posterior probability function for Bayesian calibration}
 \usage{
-build_mcmc_post(comp_data, inifiles, pcs = NULL, smoothing = 0.1,
-  cal_mean = TRUE, lowcol = "mina", hicol = "maxb",
-  prior_params = NULL, use_lnorm_ecs = TRUE, hflux_year = 2100,
-  hflux_expt_regex = "rcp85", hflux_smoothing = 0.2, verbose = FALSE)
+build_mcmc_post(comp_data, inifiles, pcs = NULL, cal_mean = TRUE,
+  lowcol = "mina", hicol = "maxb", prior_params = NULL,
+  use_lnorm_ecs = TRUE, hflux_year = 2100,
+  hflux_expt_regex = "rcp85", verbose = FALSE)
 }
 \arguments{
 \item{comp_data}{Table of esm summary statistics (mean, min, max) by year.}
@@ -19,9 +19,6 @@ will be ignored, so it is safe to use a canoncial list of filenames.}
 
 \item{pcs}{Principal components structure.  If \code{NULL}, work directly
 with output values.}
-
-\item{smoothing}{Smoothing parameter for the mesa function, expressed as a
-fraction of the window size.}
 
 \item{cal_mean}{If true calibrate to mean; otherwise calibrate to range}
 
@@ -44,10 +41,6 @@ primarily for testing the influence of priors on the final result.}
 \item{hflux_expt_regex}{Regular expression identifying the experiment to pull the heat
 flux from.  There must be only one experiment in the dataset tha matches.
 Default is 'rcp85'.}
-
-\item{hflux_smoothing}{Smoothing parameter for heat flux.  Generally larger than
-the smoothing parameter for the other variables because heat flux is less
-well sampled than those variables are.}
 
 \item{verbose}{If \code{TRUE}, print diagnostic messages.  Otherwise,
 diagnostic messages will not be generated.}

@@ -14,7 +14,9 @@ test_that('log prior function works properly', {
         c0mu=1, c0sig=1.0,
         sigtscale=1.0,
         sigco2scale=1.0,
-        sigscale=1.0)
+        sigpscale=1.0,
+        sighfscale=1.0,
+        sigmscale=1.0)
 
     testlp <- make_logprior(test_prior_params, FALSE)
 
@@ -38,7 +40,7 @@ test_that('log prior function works properly', {
     ## Half-Cauchy.  We didn't actually renormalize this one for the
     ## truncation.  Also, it's always centered at zero.
     konst3 <- stats::dcauchy(1, 0, 1, log=TRUE)
-    for(parm in c('sigt', 'sigco2', 'sig', 'sighf')) {
+    for(parm in c('sigt', 'sigco2', 'sigp', 'sighf', 'sigm')) {
         p <- 1
         names(p) <- parm
         expect_equal(testlp(p), konst3, info=paste('parm=',parm))
@@ -70,12 +72,12 @@ test_that('log-likelihood with output comparisons works', {
     ## First we need to make some comparison data.  Run a Hector calculation
     ## with known parameters to get some baseline data.
     nhectorparm <- 7
-    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0, 1.0, 0.5)
     names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
                       hector::BETA(), hector::Q10_RH(),
                       hector::PREINDUSTRIAL_CO2(),
-                      'sigt','sigco2', 'sighf')
+                      'sigt','sigco2', 'sighf', 'sigm')
     ini45 <- system.file('input/hector_rcp45.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85.ini', package='hector')
 
@@ -91,8 +93,8 @@ test_that('log-likelihood with output comparisons works', {
 
     ## 1. Mean calibration, perfect model match.
     inifiles <- c(rcp85=ini85, rcp45=ini45)
-    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1,
-                                 'maxb','mina',NULL, 2010, 'rcp85', 0.2)
+    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata,
+                                 'maxb','mina',NULL, 2010, 'rcp85')
     out <- expect_silent(llfun1(parms))
     expected <- nrow(compdata)*stats::dnorm(0,0,parms['sigt'], log=TRUE) # assumes sigt==sigco2
     expect_equal(out, expected)
@@ -102,7 +104,7 @@ test_that('log-likelihood with output comparisons works', {
                                cmean=dplyr::if_else(experiment!='rcp85', cmean,
                                dplyr::if_else(variable=='tas', cmean-1, cmean+1)))
     llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2,
-                                 0.1,'maxb','mina', NULL, 2010, 'rcp85', 0.2)
+                                 'maxb','mina', NULL, 2010, 'rcp85')
     out <- expect_silent(llfun2(parms))
     k1 <- stats::dnorm(0,0,parms['sigt'], log=TRUE)
     k2 <- stats::dnorm(1,0,parms['sigt'], log=TRUE)
@@ -115,18 +117,18 @@ test_that('log-likelihood with output comparisons works', {
 
 
     ## 3. Envelope calibration, all values in range
-    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1,
-                                 'maxb','mina',NULL, 2010, 'rcp85', 0.2)
+    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata,
+                                 'maxb','mina',NULL, 2010, 'rcp85')
     out <- expect_silent(llfun3(parms))
-    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, 0.4)) + log(mesa(2, 0, 4, 0.8))
+    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, parms['sigm']*4)) + log(mesa(2, 0, 4, parms['sigm']*4))
     expect_equal(out, expected)
 
     ## 4. Envelope calibration, all values on the edge of the range
     compdata4 <- dplyr::mutate(compdata,
                                mina=mina+2, maxb=maxb+2)
-    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1,
-                                 'maxb','mina', NULL, 2010, 'rcp85', 0.2)
-    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, 0.4)) + log(mesa(0, 0, 4, 0.8))
+    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4,
+                                 'maxb','mina', NULL, 2010, 'rcp85')
+    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, parms['sigm']*4)) + log(mesa(0, 0, 4, parms['sigm']*4))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
 
@@ -142,9 +144,9 @@ test_that('log-likelihood with PCA comparison works', {
     ini45 <- system.file('input/hector_rcp45_constrained.ini', package='hector')
     ini85 <- system.file('input/hector_rcp85_constrained.ini', package='hector')
 
-    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0, 1.0, 0.5)
     names(parms) <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE(),
-                      'sig', 'sighf')
+                      'sigp', 'sighf', 'sigm')
 
     ## These tests don't use heat flux, so drop it.
     compdata <- readRDS('pc_compdata.rds')
@@ -156,25 +158,25 @@ test_that('log-likelihood with PCA comparison works', {
     foreach::registerDoSEQ()
     inifiles <- c(rcp85=ini85, rcp45=ini45)
     ## 1. Mean calibration, perfect model match
-    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                                 'mina', pcs, 2100, 'rcp85', 0.2)
+    llfun1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 'maxb',
+                                 'mina', pcs, 2100, 'rcp85')
     out <- expect_silent(llfun1(parms))
-    expected <- nrow(compdata)*stats::dnorm(0,0,parms['sig'], log=TRUE) # assumes sigt==sigco2
+    expected <- nrow(compdata)*stats::dnorm(0,0,parms['sigp'], log=TRUE) # assumes sigt==sigco2
     expect_equal(out, expected)
 
     ## 2. Mean calibration, imperfect model match
     compdata2 <- dplyr::mutate(compdata, cmean = dplyr::if_else(pcidx%%2==0, cmean+1,
                                          cmean-1))
-    llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2, 0.1,
-                                 'maxb','mina',pcs, 2100, 'rcp85', 0.2)
-    expected <- nrow(compdata)*stats::dnorm(1, 0, parms['sig'], log=TRUE)
+    llfun2 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata2,
+                                 'maxb','mina',pcs, 2100, 'rcp85')
+    expected <- nrow(compdata)*stats::dnorm(1, 0, parms['sigp'], log=TRUE)
     out <- expect_silent(llfun2(parms))
     expect_equal(out, expected)
 
     ## 3. Envelope callibration, centered
-    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                                 'mina', pcs, 2100, 'rcp85', 0.2)
-    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, 0.4)) + log(mesa(2, 0, 4, 0.8))
+    llfun3 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 'maxb',
+                                 'mina', pcs, 2100, 'rcp85')
+    expected <- (nrow(compdata)-1) * log(mesa(2, 0, 4, parms['sigm']*4)) + log(mesa(2, 0, 4, parms['sigm']*4))
     out <- expect_silent(llfun3(parms))
     expect_equal(out, expected)
 
@@ -182,9 +184,9 @@ test_that('log-likelihood with PCA comparison works', {
     compdata4 <- dplyr::mutate(compdata, mina=dplyr::if_else(pcidx%%2==0, mina+2,
                                          mina-2),
                                maxb=dplyr::if_else(pcidx%%2==0, maxb+2, maxb-2))
-    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 0.1, 'maxb',
-                                 'mina', pcs, 2100, 'rcp85', 0.2)
-    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, 0.4)) + log(mesa(0, 0, 4, 0.8))
+    llfun4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata4, 'maxb',
+                                 'mina', pcs, 2100, 'rcp85')
+    expected <- (nrow(compdata)-1) * log(mesa(0, 0, 4, parms['sigm']*4)) + log(mesa(0, 0, 4, parms['sigm']*4))
     out <- expect_silent(llfun4(parms))
     expect_equal(out, expected)
 
@@ -205,7 +207,7 @@ test_that('Posterior functions are assembled correctly from priors and posterior
         ecsmu=2.0, ecssig=1.0,
         kappamu=2.5,
         betamu=0.5, betasig=1.0,
-        sigtscale=1.5)
+        sigtscale=1.5, sigmscale=0.5)
 
     ## make_logprior needs a full set of parameters (including ones that will be
     ## left at their default values)
@@ -219,22 +221,23 @@ test_that('Posterior functions are assembled correctly from priors and posterior
         c0mu=285, c0sig=14.0,
         sigtscale=1.5,
         sigco2scale=10.0,
-        sigscale=1.0)
+        sigpscale=1.0,
+        sigmscale=0.5)
 
     ## output, mean cal
     lpostfunc1 <- build_mcmc_post(compdata, inifiles,
                                   prior_params=test_prior_params)
     lp1 <- make_logprior(full_prior_params, TRUE)
-    ll1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                              'mina', NULL, 2100, 'rcp85', 0.2)
+    ll1 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 'maxb',
+                              'mina', NULL, 2100, 'rcp85')
     lpostfunc1a <- function(p) {lp1(p) + ll1(p)}
 
-    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 0.5, 2.0, 280.0, 1.0, 1.0, 1.0, 0.5)
     names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
                       hector::BETA(), hector::Q10_RH(),
                       hector::PREINDUSTRIAL_CO2(),
-                      'sigt','sigco2')
+                      'sigt','sigco2', 'sigp', 'sigm')
     expect_equal(lpostfunc1(parms), lpostfunc1a(parms))
 
     ## output, envelope cal
@@ -243,18 +246,18 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   use_lnorm_ecs=FALSE,
                                   prior_params=test_prior_params)
     lp2 <- make_logprior(full_prior_params, FALSE)
-    ll2 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                              'mina', NULL, 2100, 'rcp85', 0.2)
+    ll2 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 'maxb',
+                              'mina', NULL, 2100, 'rcp85')
     lpostfunc2a <- function(p) {lp2(p) + ll2(p)}
     expect_equal(lpostfunc2(parms), lpostfunc2a(parms))
 
     ## two more tests with PCA calibration
     compdata <- readRDS('pc_compdata.rds') %>% dplyr::filter(variable != 'heatflux')
     pcs <- readRDS('pc-conc-historical-rcp45-rcp85.rds')
-    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0)
+    parms <- c(2.5, 2.5, 1.0, 1.0, 1.0, 0.5)
     names(parms) <- c(hector::ECS(), hector::DIFFUSIVITY(),
                       hector::AERO_SCALE(), hector::VOLCANIC_SCALE(),
-                      'sig')
+                      'sigp', 'sigm')
 
     ## pca, mean cal
     lpostfunc3 <- build_mcmc_post(compdata, inifiles, pcs,
@@ -262,8 +265,8 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   use_lnorm_ecs=FALSE,
                                   prior_params=test_prior_params)
     lp3 <- make_logprior(full_prior_params, FALSE)
-    ll3 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 0.1, 'maxb',
-                              'mina', pcs, 2100, 'rcp85', 0.2)
+    ll3 <- make_loglikelihood(inifiles, FALSE, TRUE, compdata, 'maxb',
+                              'mina', pcs, 2100, 'rcp85')
     lpostfunc3a <- function(p) {lp3(p) + ll3(p)}
     expect_equal(lpostfunc3(parms), lpostfunc3a(parms))
 
@@ -274,8 +277,8 @@ test_that('Posterior functions are assembled correctly from priors and posterior
                                   use_lnorm_ecs=TRUE,
                                   prior_params=test_prior_params)
     lp4 <- make_logprior(full_prior_params, TRUE)
-    ll4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 0.1, 'maxb',
-                              'mina', pcs, 2100, 'rcp85', 0.2)
+    ll4 <- make_loglikelihood(inifiles, FALSE, FALSE, compdata, 'maxb',
+                              'mina', pcs, 2100, 'rcp85')
     lpostfunc4a <- function(p) {lp4(p) + ll4(p)}
     expect_equal(lpostfunc4(parms), lpostfunc4a(parms))
 
