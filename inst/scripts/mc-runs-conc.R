@@ -137,9 +137,11 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
     }
     else {
         ## Envelope calibration: Add the sigma parameter for the mesa function.
-        p0 <- c(p0, 0.1)
+        if(is.null(restart)) {
+            p0 <- c(p0, 0.1)
+        }
         pnames <- c(pnames, 'sigm')
-        scale <- c(scale, 0.1)
+        scale <- c(scale, 0.05)
     }
     if(is.null(restart)) {
         names(p0) <- pnames
@@ -156,8 +158,9 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
     registerDoParallel(cores=4)
     set.seed(867-5309 + serialnumber)
 
-    if(warmup > 0) {
-        ## Perform warmup samples if requested.
+    if(warmup > 0 && is.null(restart)) {
+        ## Perform warmup samples if requested.  Ignore if continuing from
+        ## a previous run
         p0 <- metrosamp(lpf, p0, warmup, 1, scale, debug=debugflag)
     }
     ms <- metrosamp(lpf, p0, nsamp, 1, scale, debug=debugflag)

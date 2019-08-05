@@ -151,12 +151,32 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     }
     else {
         ## Not doing mean calibration.  Still want to add some correlation.
-        p0 <- c(p0, 0.5)
-        sclfac <- c(scale, 0.1)
+        if(is.null(restart)) {
+            ## We start with a larger value of sigm for the emissions runs than we did for the
+            ## concentration runs because the smaller number of runs means that we sometimes
+            ## have very narrow envelopes.  This helps us avoid our initial guesses ending up with
+            ## log-likelihoods of -Inf.
+            p0 <- c(p0, 0.5)
+        }
+        sclfac <- c(scale, 0.02)
         pnames <- c(pnames, 'sigm')
         scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
-        scale[1,2] <- scale[2,1] <- 0.95
-        scale[5,6] <- scale[6,5] <- 0.9
+        if(pcsflag) {
+            ## Mixing is easier with PCA in effect, and S-kappa correlation is less pronounced.
+            sclfac <- sclfac * 2
+            if(hfflag) {
+                skcor <- 0
+            }
+            else {
+                skcor <- 0.5
+            }
+            scale[1,2] <- scale[2,1] <- skcor
+            scale[5,6] <- scale[6,5] <- 0.6
+        }
+        else {
+            scale[1,2] <- scale[2,1] <- 0.95
+            scale[5,6] <- scale[6,5] <- 0.8
+        }
         scale <- cor2cov(scale, sclfac)
     }
 
@@ -177,8 +197,9 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     foreach::registerDoSEQ()
     set.seed(867-5309 + serialnumber)
 
-    if(warmup > 0) {
-        ## Perform warmup samples if requested.
+    if(warmup > 0 && is.null(restart)) {
+        ## Perform warmup samples if requested.  Ignore if we are restarting
+        ## from a previous run.
         p0 <- metrosamp(lpf, p0, warmup, 1, scale, debug=debugflag)
     }
 
