@@ -18,10 +18,11 @@ hfexpt <- 'rcp85'
 ### Bit 7: Debug flag
 
 ### To use a restart file, specify the file stem up through the number of samples
-### For example, 'testrun-1000'
+### For example, 'testrun-1000'.  Everything including and after the runid will be
+### added automatically.
 
 mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
-                         plotfile=TRUE, npc=10, restart=NULL)
+                         plotfile=TRUE, npc=10, restart=NULL, warmup=1000)
 {
     runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
@@ -180,6 +181,11 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     ## Run monte carlo
     foreach::registerDoSEQ()
     set.seed(867-5309 + serialnumber)
+
+    if(warmup > 0) {
+        ## Perform warmup samples if requested.
+        p0 <- metrosamp(lpf, p0, warmup, 1, scale, debug=debugflag)
+    }
 
     ms <- metrosamp(lpf, p0, nsamp, 1, scale, debug=debugflag)
 
