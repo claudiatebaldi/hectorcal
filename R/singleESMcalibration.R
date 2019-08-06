@@ -43,51 +43,47 @@ translate_variable_name <- function(input){
 }
 
 
-#' Make a paramter pentalty function
+#' Make the parameter pentalty function
 #'
-#' Create a function that will penalize mean squared error between Hector and ESM CMIP5 output data based on the
-#' certain parameter values. The function returned by \code{make_param_penalty_function} is used within the \code{make_minimize_function}.
-#' This function judges Hector paramter fits based on the - log \code{mesa} function.
+#' Create the parameter pentalty function that is used to penalize the optmized value in the single ESM
+#' calibration for specific parameter values. The function returned by \code{make_param_penalty_function}
+#' is used within the \code{make_minimize_function}.
 #'
-#' @param penalize A vector of the Hector parameter names to penalize.
-#' @param lower A vector of the lower boundries for the parmeters listed in penalize
-#' @param upper A vector of the upper boundries for the parmeters listed in penalize
-#' @param sig A vector of the parameter controlling the steepness of the rolloff at the boundaries
-#' @return A function that will return a tibble containing the -log mesa penalty for the Hector parameter by epxeriment and variable or parameter in this case.
+#' @param func_list a list of named functions contain the penalty function for the parameters to penalize.
+#' @return A function that will return a tibble containing the penalty for each penalized Hector parameter
+#' in a data frame.
 #' @export
-make_param_penalty_function <- function(penalize, lower, upper, sig){
+make_param_penalty_function <- function(func_list){
 
-    assertthat::assert_that(all(c(is.vector(penalize), is.vector(lower), is.vector(upper), is.vector(sig))),
-                            msg = 'make_param_penalty_function arguments must be vectors')
-    assertthat::assert_that(all(is.character(penalize)),
-                            msg = 'make_param_penalty_function argument param must contain strings')
-    check_hector_params <- suppressWarnings(tryCatch({lapply(penalize, hector::getunits)}, error = function(e){NA}))
+    assertthat::assert_that(is.list(func_list) & all(!is.null(names(func_list))),
+                            msg = 'func_list must be a named list')
+    check_hector_params <- suppressWarnings(tryCatch({sapply(names(func_list), hector::getunits)},
+                                                     error = function(e){NA}))
     assertthat::assert_that(all(!is.na(check_hector_params)),
-                            msg = 'make_param_penalty_function penalize argument contains a paramter that does not exsist in Hector')
-    assertthat::assert_that(all(is.numeric(c(lower, upper, sig))),
-                            msg = 'make_param_penalty_function lower, upper, and sig arguments must be numeric')
-    assertthat::assert_that(length(penalize) == length(lower) & length(upper) == length(penalize),
-                            msg = 'make_param_penalty_function penalize, lower, and upper arguments must be vectors of the same length')
-    assertthat::assert_that(length(penalize) == length(sig) | length(sig) == 1,
-                            msg = 'make_param_penalty_function sig must have a length of 1 or the same length as penalize')
-    assertthat::assert_that(all(lower < upper), msg = 'make_param_penalty_function lower vector must contian values that are less than the upper vector')
+                            msg = 'func_list names must be Hector parameters')
+    assertthat::assert_that(all(sapply(func_list, is.function)),
+                            msg = 'func_list elements must be functions')
 
     function(optim_param){
 
         # Check inputs
-        assertthat::assert_that(all(penalize %in% names(optim_param)), msg = 'trying to penalize parameters that are not being optimized')
+        assertthat::assert_that(length(setdiff(names(func_list), names(optim_param))) == 0,
+                                msg = 'trying to penalize parameters that are not being optimized')
 
-        # Subset the parameter fits that we want to penalize
-        to_penalize <- optim_param[names(optim_param) %in% penalize]
+        # Subset the parameter fits that we want to penalize. This vector will be used to
+        # make sure that the appropriate penalty function is applied to the param fits that
+        # are being penalized.
+        to_penalize    <- intersect(names(optim_param), names(func_list))
+        penalty_values <-  sapply(to_penalize, function(p){
+            func_list[[p]](optim_param[[p]])})
 
-        # Calucalte the -log mesa function of the paramter value based on the lower and upper boundry of the parameters.
-        penalty     <- -log(mapply(FUN = mesa, x = to_penalize,  a = lower, b = upper, sig = sig))
-
-        # Format the paramter penalty into a dataframe that can be combined with the rslt_esm_comparison and rslt_cmip_range_comparison'
-        # of the make_minimize_function so that the penalties can be applied to the over all MSE.
-        tibble::tibble(experiment = 'all',
-                       variable = names(to_penalize),
-                       value = penalty)
+        # Format the paramter penalty values into a dataframe that can be combined with the rslt_esm_comparison
+        # and rslt_cmip_range_comparison of the make_minimize_function. So that the penatly values can be
+        # incorperated into the overall MSE and returned as intermediate output if so desired.
+        data.frame(variable = names(penalty_values),
+                   value = penalty_values,
+                   row.names = NULL,
+                   stringsAsFactors = FALSE)
 
     }
 
