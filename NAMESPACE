@@ -2,6 +2,7 @@
 
 export(build_mcmc_post)
 export(calc_variance)
+export(canonicalize_expt_names)
 export(chkgates)
 export(compute_pc)
 export(concat_runs)
