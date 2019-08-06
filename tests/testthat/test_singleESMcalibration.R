@@ -79,25 +79,19 @@ test_that('make sure that parameterize_core works', {
 
 test_that('make sure that make_param_penalty_function throws errors', {
 
-    testthat::expect_error( make_param_penalty_function(penalize = data.frame(1), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penalty_function arguments must be vectors')
-    testthat::expect_error( make_param_penalty_function(penalize = 1, lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penalty_function argument param must contain strings')
-    testthat::expect_error( make_param_penalty_function(penalize = hector::ECS(), lower = 'bad', upper = 1, sig = 1),
-                            regexp = 'make_param_penalty_function lower, upper, and sig arguments must be numeric')
-    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), 'fake'), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penalty_function penalize argument contains a paramter that does not exsist in Hector')
-    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = 1, upper = 1, sig = 1),
-                            regexp = 'make_param_penalty_function penalize, lower, and upper arguments must be vectors of the same length')
-    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 1), upper = c(1, 1), sig = c(1, 1, 1)),
-                            regexp = 'make_param_penalty_function sig must have a length of 1 or the same length as penalize')
-    testthat::expect_error( make_param_penalty_function(penalize = c(hector::ECS(), hector::DIFFUSIVITY()), lower = c(1, 5), upper = c(1, 1), sig = 1),
-                            regexp = 'make_param_penalty_function lower vector must contian values that are less than the upper vector')
+    testthat::expect_error(make_param_penalty_function(func_list = c( v = 1)),
+                           regexp = 'func_list must be a list with names')
+    testthat::expect_error(make_param_penalty_function(func_list = list(1)),
+                           regexp = 'func_list must be a list with names')
+    testthat::expect_error(make_param_penalty_function(func_list = list(fake = 1)),
+                           regexp = 'func_list names must be Hector parameters')
+    testthat::expect_error(make_param_penalty_function(func_list = list(S = 1)),
+                           regexp = 'func_list elements must be functions')
 
-    # If the function is made but is trying to penalize a paramter that is not being optimized the function should throw an error.
-    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
-    optim_param <- 1
-    names(optim_param) <- hector::BETA()
+    # If the function is made but is trying to penalize a paramter that is not being optimized
+    # the function should throw an error.
+    fn          <- make_param_penalty_function(func_list = list('S' = function(x) sum(x)))
+    optim_param <- c('beta' = 1)
     testthat::expect_error(fn(optim_param), regexp = 'trying to penalize parameters that are not being optimized')
 
 })
@@ -105,34 +99,36 @@ test_that('make sure that make_param_penalty_function throws errors', {
 test_that('make sure that make_param_penalty_function works', {
 
     # Run the make_param_penalty_function
-    fn <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
+    xx    <- list('S' = function(x){ x * 3})
+    fn          <- make_param_penalty_function(xx)
+    optim_param <- c('S' = 1)
+    rslt        <- fn(optim_param)
 
-    # Run the function returned by the make_param_penalty_function and check the data frame.
-    optim_param        <- 1
-    names(optim_param) <- hector::ECS()
-    penalty <- fn(optim_param)
+    # Make sure that the function returns a data frame with the
+    # expected output strucutre and values.
+    testthat::expect_equal(nrow(rslt), 1)
+    testthat::expect_equal(ncol(rslt), 2)
+    testthat::expect_equal(rslt$value, xx$S(optim_param[[1]]))
 
-    testthat::expect_true(is.data.frame(penalty))
-    testthat::expect_equal(nrow(penalty), 1)
-    testthat::expect_true(is.numeric(penalty$value))
+    # Make sure that the function returns the correct values
+    # regardless of the number / order of the paramters being optimized.
+    optim_param <- c('S' = 1, 'beta' = 9)
+    rslt2       <- fn(optim_param)
+    testthat::expect_equal(rslt, rslt2)
 
-    # Does the funciton return the correct value?
-    expected <- -log(mesa(x = 1, a = 0, b = 5, sig = 0.05))
-    testthat::expect_equal(expected, penalty$value)
+    optim_param <- c('beta' = 9, 'S' = 1)
+    rslt3       <- fn(optim_param)
+    testthat::expect_equal(rslt, rslt3)
 
-    # If we add another parameter it should not change
-    optim_param        <- c(5, 1)
-    names(optim_param) <- c(hector::DIFFUSIVITY(), hector::ECS())
-    penalty2 <- fn(optim_param)
-    testthat::expect_equal(penalty$value, penalty2$value)
+    # Test capability with mulitple penalty functions.
+    xx <- list(S = function(x) x * 3,
+               beta = function(x) x * 9)
+    fn          <- make_param_penalty_function(xx)
+    optim_param <- c('S' = 1, 'beta' = 1)
+    rslt        <- fn(optim_param)
 
-    # If the ECS is outside the boundaries then the penalty score should be larger.
-    optim_param        <- 5.5
-    names(optim_param) <- hector::ECS()
-    penalty3 <- fn(optim_param)
-    testthat::expect_gt(penalty3$value, penalty2$value)
-
-
+    testthat::expect_equal(dim(rslt), c(2, 2))
+    testthat::expect_equal(rslt$value, c(xx$S(1), xx$beta(1)))
 
 })
 
@@ -262,12 +258,18 @@ test_that('make_minimize_function works with clim parameters', {
     testthat::expect_equal(fn_shifted(param), shift_by)
 
     # Run the make_param_penalty_function
-    penalty <- make_param_penalty_function(penalize = hector::ECS(), lower = 0, upper = 5, sig = 0.05)
-    fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
-                                                   normalize = norm, param = param, cmip_range = NULL, param_penalty = penalty, n = 1)
+    func_list <- list('S' = function(x) x * 8)
+    penalty   <- make_param_penalty_function(func_list)
+    fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores,
+                                                   esm_data = comp_data_shifted,
+                                                   normalize = norm,
+                                                   param = param,
+                                                   cmip_range = NULL,
+                                                   param_penalty = penalty,
+                                                   n = 1)
     # Since output is compared with the shifted comparison data for two experiments that are weighted equally figure out
     # the expected peanlized weighted MSE.
-    expected_penalized_MSE <- mean(c(1, 1, penalty(param)[['value']]))
+    expected_penalized_MSE <- mean(c(1, 1, func_list$S(param['S'])))
     testthat::expect_equal(expected_penalized_MSE, fn_shifted_penalized(param))
 
 })
