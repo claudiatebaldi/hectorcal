@@ -2,24 +2,19 @@
 % Please edit documentation in R/singleESMcalibration.R
 \name{make_param_penalty_function}
 \alias{make_param_penalty_function}
-\title{Make a paramter pentalty function}
+\title{Make the parameter pentalty function}
 \usage{
-make_param_penalty_function(penalize, lower, upper, sig)
+make_param_penalty_function(func_list)
 }
 \arguments{
-\item{penalize}{A vector of the Hector parameter names to penalize.}
-
-\item{lower}{A vector of the lower boundries for the parmeters listed in penalize}
-
-\item{upper}{A vector of the upper boundries for the parmeters listed in penalize}
-
-\item{sig}{A vector of the parameter controlling the steepness of the rolloff at the boundaries}
+\item{func_list}{a list of named functions contain the penalty function for the parameters to penalize.}
 }
 \value{
-A function that will return a tibble containing the -log mesa penalty for the Hector parameter by epxeriment and variable or parameter in this case.
+A function that will return a tibble containing the penalty for each penalized Hector parameter
+in a data frame.
 }
 \description{
-Create a function that will penalize mean squared error between Hector and ESM CMIP5 output data based on the
-certain parameter values. The function returned by \code{make_param_penalty_function} is used within the \code{make_minimize_function}.
-This function judges Hector paramter fits based on the - log \code{mesa} function.
+Create the parameter pentalty function that is used to penalize the optmized value in the single ESM
+calibration for specific parameter values. The function returned by \code{make_param_penalty_function}
+is used within the \code{make_minimize_function}.
 }
