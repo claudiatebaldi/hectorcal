@@ -80,9 +80,9 @@ test_that('make sure that parameterize_core works', {
 test_that('make sure that make_param_penalty_function throws errors', {
 
     testthat::expect_error(make_param_penalty_function(func_list = c( v = 1)),
-                           regexp = 'func_list must be a named list')
+                           regexp = 'func_list must be a list with names')
     testthat::expect_error(make_param_penalty_function(func_list = list(1)),
-                           regexp = 'func_list must be a named list')
+                           regexp = 'func_list must be a list with names')
     testthat::expect_error(make_param_penalty_function(func_list = list(fake = 1)),
                            regexp = 'func_list names must be Hector parameters')
     testthat::expect_error(make_param_penalty_function(func_list = list(S = 1)),

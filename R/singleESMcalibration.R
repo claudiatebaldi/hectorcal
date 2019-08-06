@@ -55,8 +55,8 @@ translate_variable_name <- function(input){
 #' @export
 make_param_penalty_function <- function(func_list){
 
-    assertthat::assert_that(is.list(func_list) & all(!is.null(names(func_list))),
-                            msg = 'func_list must be a named list')
+    assertthat::assert_that(is.list(func_list) && !is.null(names(func_list)) && all(!is.na(names(func_list))),
+                            msg = 'func_list must be a list with names')
     check_hector_params <- suppressWarnings(tryCatch({sapply(names(func_list), hector::getunits)},
                                                      error = function(e){NA}))
     assertthat::assert_that(all(!is.na(check_hector_params)),
