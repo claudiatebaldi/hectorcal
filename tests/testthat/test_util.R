@@ -53,3 +53,9 @@ test_that('Run configurations are decoded correctly.', {
     expect_equal(rslt$meanflag, ansmean)
     expect_equal(rslt$debugflag, ansdbg)
 })
+
+test_that('cononicalize_expt_names converts names.', {
+    expt_names <- c('rcp85', 'esmrcp85', 'esmHistorical', 'RCP85')
+    cnames <- canonicalize_expt_names(expt_names)
+    expect_equal(cnames, c('rcp85', 'rcp85', 'historical', 'rcp85'))
+})

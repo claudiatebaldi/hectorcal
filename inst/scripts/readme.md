@@ -21,7 +21,7 @@ Once you have installed the package, you are ready to start running
 Monte Carlo jobs.  To submit a job with the default settings
 
 ```
-jobscript=`Rscript -e "cat(system.file('scripts/production-runs-conc.zsh', package='hectorcal'))"`
+jobscript=`Rscript -e "cat(system.file('scripts/mc-runs-conc.zsh', package='hectorcal'))"`
 sbatch -a 0 $jobscript
 ```
 
@@ -70,8 +70,7 @@ job:
   
 To set an environment variable in bash (or bash-derived shells), use
 (for example) `export hectorcalNSAMP=10000`.  If you're using a
-C-shell variant, use (again, for example) `setenv hectorcalNAME
-myruns`.
+C-shell variant, use (again, for example) `setenv hectorcalNAME myruns`.
 
 ### Arguments to sbatch
 
