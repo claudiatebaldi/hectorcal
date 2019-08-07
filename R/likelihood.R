@@ -61,6 +61,7 @@ build_mcmc_post <- function(comp_data, inifiles,
         q10mu=2.0, q10sig=2.0,
         c0mu=285, c0sig=14.0,
         sigtscale=1.0,
+        sighfscale=1.0,
         sigco2scale=10.0,
         sigpscale=1.0,
         sigmscale=0.25)
