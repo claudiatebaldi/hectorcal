@@ -2,6 +2,7 @@
 
 #SBATCH -N 1
 #SBATCH -t 60
+#SBATCH -c 4
 #SBATCH -A GCAM
 
 echo "start:  " `date`
@@ -33,15 +34,22 @@ else
     ofname="hectorcal"
 fi
 
-program=`Rscript -e 'cat(system.file("scripts", "production-runs-conc.R", package="hectorcal"))'`
+program=`Rscript -e 'cat(system.file("scripts", "mc-runs-conc.R", package="hectorcal"))'`
 outfile="$ofname-$nsamp"
 
 runid=$SLURM_ARRAY_TASK_ID
 
-echo "Run command:"
-echo "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+if [[ -n $hectorcalRESTART ]]; then
+    echo "Run command:"
+    echo "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
 
-Rscript -e "source('$program'); production_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+    Rscript -e "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc, restart='$hectorcalRESTART')"
+else
+    echo "Run command:"
+    echo "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+
+    Rscript -e "source('$program'); mc_run_conc($runid, $nsamp, '$outfile', npc=$npc)"
+fi
 
 echo "end:  "  `date`
 

@@ -9,8 +9,8 @@
 \usage{
 make_logprior(pprior, use_lnorm_ecs)
 
-make_loglikelihood(inifiles, verbose, cal_mean, comp_data, smoothing,
-  hicol, lowcol, pcs, hflux_year, hflux_expt_regex, hflux_smoothing)
+make_loglikelihood(inifiles, verbose, cal_mean, comp_data, hicol, lowcol,
+  pcs, hflux_year, hflux_expt_regex)
 
 make_logpost(lprior, llik, verbose)
 }
@@ -33,8 +33,6 @@ experiments unless they are the only experiments present.}
 \item{comp_data}{Observed comparison data, in summary format (see, for
 example, \code{\link{esm_comparison}}.}
 
-\item{smoothing}{Smoothing factor.}
-
 \item{hicol}{Name of the column with the high edge of the window.}
 
 \item{lowcol}{Name of the column with the low edge of the window.}
@@ -44,10 +42,7 @@ compared directly.}
 
 \item{hflux_year}{Year at which to evaluate ocean heat flux for comparison.}
 
-\item{hflux_expt_regex}{Regular expression identifying the experiment to}
-
-\item{hflux_smoothing}{Smoothing factor for heat flux. (Because it is likely to
-be less well sampled than other vars)
+\item{hflux_expt_regex}{Regular expression identifying the experiment to
 get heat flux from.}
 
 \item{lprior}{Function that computes the log-prior}

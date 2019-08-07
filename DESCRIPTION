@@ -1,6 +1,6 @@
 Package: hectorcal
 Title: Support code for the Hector calibration project
-Version: 0.1.1.9000
+Version: 0.2.1
 Authors@R: c(person("Robert", "Link", email="robert.link@pnnl.gov", role = "aut"),
           person("Kalyn", "Dorheim", 
           email = "kalyn.dorheim@pnnl.gov", 

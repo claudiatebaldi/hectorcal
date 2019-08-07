@@ -5,8 +5,8 @@
 \title{Make the function to minimize}
 \usage{
 make_minimize_function(hector_cores, esm_data, normalize, param,
-  cmip_range = NULL, n = NULL, showMessages = FALSE,
-  intermediateOutput = FALSE)
+  cmip_range = NULL, param_penalty = NULL, n = NULL,
+  showMessages = FALSE, intermediateOutput = FALSE)
 }
 \arguments{
 \item{hector_cores}{A list of Hector cores that will be used.}
@@ -20,6 +20,9 @@ make_minimize_function(hector_cores, esm_data, normalize, param,
 \item{cmip_range}{Default set to NULL and the make_minim_function will only look at the error between esm_data and Hector data.
 But if cmip_range is set to a dataframe containing columns (variable, year, sig, lower, and upper) then the minimize function will also
 minimize the value returned by the -log of the mesa function.}
+
+\item{param_penalty}{Default is set to NULL but can be set to a function that will return a tibble of experiment / variable / value to penalize the
+mean squared error for "unreal" paramter values.}
 
 \item{n}{The number of cores to parallelize the Hector runs over, unless sepcified will use the number of cores detected by \code{detectCores}}
 

@@ -84,13 +84,22 @@ concat_runs <- function(bruns, cruns, output_dir = NULL, name_stem = 'hectorcal_
     codaobjs <- list()
 
     for(run in names(bruns$mcobjs)) {
-        base <- bruns$mcobjs[[run]]
-        contin <- cruns$mcobjs[[run]]
-        full <- metrosamp::concat(base, contin)
-        stat <- proc_mc_helper(full, codasize)
-        runstats[[run]] <- stat[[1]]
-        mcobjs[[run]] <- full
-        codaobjs[[run]] <- stat[[2]]
+        if(run %in% names(cruns$mcobjs)) {
+            ## concatenate runs that have continuations.
+            base <- bruns$mcobjs[[run]]
+            contin <- cruns$mcobjs[[run]]
+            full <- metrosamp::concat(base, contin)
+            stat <- proc_mc_helper(full, codasize)
+            runstats[[run]] <- stat[[1]]
+            mcobjs[[run]] <- full
+            codaobjs[[run]] <- stat[[2]]
+        }
+        else {
+            ## copy any runs that don't have continuations
+            runstats[[run]] <- bruns$runstats[[run]]
+            mcobjs[[run]] <- bruns$mcobjs[[run]]
+            codaobjs[[run]] <- bruns$codaobjs[[run]]
+        }
     }
 
     if(!is.null(output_dir)) {

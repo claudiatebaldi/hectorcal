@@ -225,3 +225,16 @@ load_mc_output <- function(pcsflag, hfflag, meanflag, debugflag, dir='.',
 
     load_matching_mcout(runids, dir, filestem, niter)
 }
+
+
+#' Convert experiment names to canonical form
+#'
+#' To convert to canonical form, we delete the 'esm' prefix, if any, and
+#' we convert all letters to lower case.
+#'
+#' @param expts Vector of experiment names
+#' @export
+canonicalize_expt_names <- function(expts)
+{
+    tolower(sub('^esm', '', expts))
+}

@@ -77,6 +77,61 @@ test_that('make sure that parameterize_core works', {
 
 })
 
+test_that('make sure that make_param_penalty_function throws errors', {
+
+    testthat::expect_error(make_param_penalty_function(func_list = c( v = 1)),
+                           regexp = 'func_list must be a list with names')
+    testthat::expect_error(make_param_penalty_function(func_list = list(1)),
+                           regexp = 'func_list must be a list with names')
+    testthat::expect_error(make_param_penalty_function(func_list = list(fake = 1)),
+                           regexp = 'func_list names must be Hector parameters')
+    testthat::expect_error(make_param_penalty_function(func_list = list(S = 1)),
+                           regexp = 'func_list elements must be functions')
+
+    # If the function is made but is trying to penalize a paramter that is not being optimized
+    # the function should throw an error.
+    fn          <- make_param_penalty_function(func_list = list('S' = function(x) sum(x)))
+    optim_param <- c('beta' = 1)
+    testthat::expect_error(fn(optim_param), regexp = 'trying to penalize parameters that are not being optimized')
+
+})
+
+test_that('make sure that make_param_penalty_function works', {
+
+    # Run the make_param_penalty_function
+    xx    <- list('S' = function(x){ x * 3})
+    fn          <- make_param_penalty_function(xx)
+    optim_param <- c('S' = 1)
+    rslt        <- fn(optim_param)
+
+    # Make sure that the function returns a data frame with the
+    # expected output strucutre and values.
+    testthat::expect_equal(nrow(rslt), 1)
+    testthat::expect_equal(ncol(rslt), 2)
+    testthat::expect_equal(rslt$value, xx$S(optim_param[[1]]))
+
+    # Make sure that the function returns the correct values
+    # regardless of the number / order of the paramters being optimized.
+    optim_param <- c('S' = 1, 'beta' = 9)
+    rslt2       <- fn(optim_param)
+    testthat::expect_equal(rslt, rslt2)
+
+    optim_param <- c('beta' = 9, 'S' = 1)
+    rslt3       <- fn(optim_param)
+    testthat::expect_equal(rslt, rslt3)
+
+    # Test capability with mulitple penalty functions.
+    xx <- list(S = function(x) x * 3,
+               beta = function(x) x * 9)
+    fn          <- make_param_penalty_function(xx)
+    optim_param <- c('S' = 1, 'beta' = 1)
+    rslt        <- fn(optim_param)
+
+    testthat::expect_equal(dim(rslt), c(2, 2))
+    testthat::expect_equal(rslt$value, c(xx$S(1), xx$beta(1)))
+
+})
+
 test_that('make_minimize_function throws errors', {
 
     # Subset the individual cmip data set to use in the minimize functions.
@@ -201,6 +256,21 @@ test_that('make_minimize_function works with clim parameters', {
     fn_shifted    <- make_minimize_function(hector_cores = new_cores, esm_data = comp_data_shifted,
                                             normalize = norm, param, n = 1)
     testthat::expect_equal(fn_shifted(param), shift_by)
+
+    # Run the make_param_penalty_function
+    func_list <- list('S' = function(x) x * 8)
+    penalty   <- make_param_penalty_function(func_list)
+    fn_shifted_penalized <- make_minimize_function(hector_cores = new_cores,
+                                                   esm_data = comp_data_shifted,
+                                                   normalize = norm,
+                                                   param = param,
+                                                   cmip_range = NULL,
+                                                   param_penalty = penalty,
+                                                   n = 1)
+    # Since output is compared with the shifted comparison data for two experiments that are weighted equally figure out
+    # the expected peanlized weighted MSE.
+    expected_penalized_MSE <- mean(c(1, 1, func_list$S(param['S'])))
+    testthat::expect_equal(expected_penalized_MSE, fn_shifted_penalized(param))
 
 })
 
@@ -449,14 +519,55 @@ test_that('make_minimize_function uses the cmip_range correctly', {
 
 })
 
-test_that('generate_inital_guess throws errors', {
+test_that('generate_inital_guess works', {
 
-    testthat::expect_error(generate_inital_guess(comparison_data = NULL, param_names = 'fake'),
-                           regexp = 'param_names can only contain S, alpha, volscl, diff, S, alpha, volscl, diff, C0, q10_rh, beta')
+    # Test to make sure that generate_inital_guess runs.
+    comparison_data <- head(hector_conc_ensemble$historical)
+    S_only <- generate_inital_guess(comparison_data, 'S')
+    testthat::expect_equal(length(S_only), 1)
+    S_diff <- generate_inital_guess(comparison_data, c('S', 'diff'))
+    testthat::expect_equal(length(S_diff), 2)
 
-    comparison_data <- dplyr::select(hector_conc_ensemble$historical, year, experiment)
-    testthat::expect_error(generate_inital_guess(comparison_data, 'S'),
-                           regexp = 'comparison_data must contain columns named value, variable, experiment, year')
+
+    # Test the generate_inital_guess works, returns the expected results
+    # for the emission driven and the concentration driven ensmble.
+
+    # Select a run from the emission driven ensemble and use it as comparison data. If the
+    # generate_inital_guess functions works then it should return parameter values for the
+    # same run.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE(), hector::PREINDUSTRIAL_CO2(), hector::Q10_RH())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_emiss_ensemble$params[which(hector_emiss_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_emiss_ensemble$esmrcp85, hector_emiss_ensemble$esmHistorical) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        emiss_comparison_data
+
+    best_guess <- generate_inital_guess(emiss_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
+
+
+    # Repeate the test with the concentraiton driven experiments.
+    find_params <- c(hector::ECS(), hector::DIFFUSIVITY(), hector::AERO_SCALE())
+
+    # Make sure that generate_inital_guess returns the parameter values for the emisison driven runid 2.
+    # Runid 2 was selected arbitrarily.
+    this_id <- 2
+    expected_param_values <- hector_conc_ensemble$params[which(hector_conc_ensemble$params$runid == this_id), ]
+    expected_param_values <- expected_param_values[names(expected_param_values) %in% find_params]
+
+    dplyr::bind_rows(hector_conc_ensemble$rcp26, hector_conc_ensemble$rcp85) %>%
+        filter(runid == this_id) %>%
+        select(value, variable, year, experiment) ->
+        conc_comparison_data
+
+    best_guess <- generate_inital_guess(conc_comparison_data, find_params)
+    testthat::expect_true(setequal(best_guess, expected_param_values))
 
 })
 
@@ -511,5 +622,4 @@ test_that('generate_inital_guess works', {
     testthat::expect_true(setequal(best_guess, expected_param_values))
 
 })
-
 
