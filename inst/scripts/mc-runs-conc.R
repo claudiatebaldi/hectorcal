@@ -18,10 +18,11 @@ hfexpt <- 'rcp85'
 ### Bit 7: Debug flag
 
 ### To use a restart file, specify the file stem up through the number of samples
-### For example, 'testrun-1000'
+### For example, 'testrun-1000'.  Everything including and after the runid will be
+### added automatically.
 
 mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
-                        plotfile=TRUE, npc=10, restart=NULL)
+                        plotfile=TRUE, npc=10, restart=NULL, warmup=1000)
 {
     runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
@@ -92,7 +93,7 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
             scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
             scale[1,2] <- scale[2,1] <- 0.85
             scale <- cor2cov(scale, sclfac)
-            pnames <- c(pnames, 'sig')
+            pnames <- c(pnames, 'sigp')
         }
         else {
             if(is.null(restart)) {
@@ -121,7 +122,7 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
             if(is.null(restart)) {
                 p0 <- c(p0, 5.0)
             }
-            hfscl <- 1e-1  
+            hfscl <- 1e-1
             if(is.matrix(scale)) {
                 newscale <- matrix(0, nrow=nrow(scale)+1, ncol=ncol(scale)+1)
                 newscale[1:nrow(scale), 1:ncol(scale)] <- scale
@@ -133,6 +134,14 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
             }
             pnames <- c(pnames, 'sighf')
         }
+    }
+    else {
+        ## Envelope calibration: Add the sigma parameter for the mesa function.
+        if(is.null(restart)) {
+            p0 <- c(p0, 0.1)
+        }
+        pnames <- c(pnames, 'sigm')
+        scale <- c(scale, 0.05)
     }
     if(is.null(restart)) {
         names(p0) <- pnames
@@ -149,6 +158,11 @@ mc_run_conc <- function(runid, nsamp, filestem='hectorcal',
     registerDoParallel(cores=4)
     set.seed(867-5309 + serialnumber)
 
+    if(warmup > 0 && is.null(restart)) {
+        ## Perform warmup samples if requested.  Ignore if continuing from
+        ## a previous run
+        p0 <- metrosamp(lpf, p0, warmup, 1, scale, debug=debugflag)
+    }
     ms <- metrosamp(lpf, p0, nsamp, 1, scale, debug=debugflag)
 
     ## save output and make some diagnostic plots
