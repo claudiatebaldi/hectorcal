@@ -10,11 +10,11 @@ library(ggthemes)
 ## Run from repository top level
 datadir_conc <- file.path('analysis','mcmc','conc', 'calibration')   # XXX Temporary, replace with final runs when available
 mcruns_conc <- proc_mc_rslts(datadir_conc, 'hectorcal-conc')
-datadir_emiss <- file.path('analysis','mcmc','conc', 'calibration')   # XXX Temporary, replace with final runs when available
+datadir_emiss <- file.path('analysis','mcmc','emiss', 'calibration')   # XXX Temporary, replace with final runs when available
 mcruns_emiss <- proc_mc_rslts(datadir_emiss, 'hectorcal-emiss')
 figdir <- file.path('analysis', 'figs-paper2')
 
-## Four panels in the pairs plot
+#### Four panels in the pairs plot
 pairplot_conc_env_A <- pairplot(mcruns_conc$mcobjs$`48`) + theme_bw(base_size=8) + labs(tag='A', title='Protocol 48')
 pairplot_conc_env_B <- pairplot(mcruns_conc$mcobjs$`16`) + theme_bw(base_size=8) + labs(tag='B', title='Protocol 16')
 pairplot_conc_env_C <- pairplot(mcruns_conc$mcobjs$`32`) + theme_bw(base_size=8) + labs(tag='C', title='Protocol 32')
@@ -86,3 +86,25 @@ plt_va <- ggplot(data=vatbl, aes(x=alpha, y=volscl, color=PCA, shape=meancal)) +
 ggsave(file.path(figdir,'ev_sk_conc.pdf'), plot=plt_sk, device='pdf', width=4, height=3, units='in')
 ggsave(file.path(figdir,'ev_va_conc.pdf'), plot=plt_va, device='pdf', width=4, height=3, units='in')
 
+#### Pairs plots for emissions driven
+pairplot_emiss_env_A <- pairplot(mcruns_emiss$mcobjs$`48`) + theme_bw(base_size=8) + labs(tag='A', title='Protocol 48')
+pairplot_emiss_env_B <- pairplot(mcruns_emiss$mcobjs$`16`) + theme_bw(base_size=8) + labs(tag='B', title='Protocol 16')
+pairplot_emiss_env_C <- pairplot(mcruns_emiss$mcobjs$`32`) + theme_bw(base_size=8) + labs(tag='C', title='Protocol 32')
+pairplot_emiss_env_D <- pairplot(mcruns_emiss$mcobjs$`0`) + theme_bw(base_size=8) + labs(tag='D', title='Protocol 0')
+
+ggsave(file.path(figdir,'pairplot_conc_env_A.pdf'), plot=pairplot_conc_env_A, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_env_B.pdf'), plot=pairplot_conc_env_B, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_env_C.pdf'), plot=pairplot_conc_env_C, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_env_D.pdf'), plot=pairplot_conc_env_D, device='pdf', width=4, height=4, units='in')
+
+
+#### Pairs plot for mean calibration runs for emissions driven
+pairplot_emiss_mean_A <- pairplot(mcruns_emiss$mcobjs$`112`) + theme_bw(base_size=8) + labs(tag='A', title='Protocol 112')
+pairplot_emiss_mean_B <- pairplot(mcruns_emiss$mcobjs$`80`) + theme_bw(base_size=8) + labs(tag='B', title='Protocol 80')
+pairplot_emiss_mean_C <- pairplot(mcruns_emiss$mcobjs$`96`) + theme_bw(base_size=8) + labs(tag='C', title='Protocol 96')
+pairplot_emiss_mean_D <- pairplot(mcruns_emiss$mcobjs$`64`) + theme_bw(base_size=8) + labs(tag='D', title='Protocol 64')
+
+ggsave(file.path(figdir,'pairplot_conc_mean_A.pdf'), plot=pairplot_conc_mean_A, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_mean_B.pdf'), plot=pairplot_conc_mean_B, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_mean_C.pdf'), plot=pairplot_conc_mean_C, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_conc_mean_D.pdf'), plot=pairplot_conc_mean_D, device='pdf', width=4, height=4, units='in')
