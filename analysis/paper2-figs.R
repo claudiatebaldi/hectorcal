@@ -92,10 +92,10 @@ pairplot_emiss_env_B <- pairplot(mcruns_emiss$mcobjs$`16`) + theme_bw(base_size=
 pairplot_emiss_env_C <- pairplot(mcruns_emiss$mcobjs$`32`) + theme_bw(base_size=8) + labs(tag='C', title='Protocol 32')
 pairplot_emiss_env_D <- pairplot(mcruns_emiss$mcobjs$`0`) + theme_bw(base_size=8) + labs(tag='D', title='Protocol 0')
 
-ggsave(file.path(figdir,'pairplot_conc_env_A.pdf'), plot=pairplot_conc_env_A, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_env_B.pdf'), plot=pairplot_conc_env_B, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_env_C.pdf'), plot=pairplot_conc_env_C, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_env_D.pdf'), plot=pairplot_conc_env_D, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_env_A.pdf'), plot=pairplot_emiss_env_A, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_env_B.pdf'), plot=pairplot_emiss_env_B, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_env_C.pdf'), plot=pairplot_emiss_env_C, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_env_D.pdf'), plot=pairplot_emiss_env_D, device='pdf', width=4, height=4, units='in')
 
 
 #### Pairs plot for mean calibration runs for emissions driven
@@ -104,7 +104,7 @@ pairplot_emiss_mean_B <- pairplot(mcruns_emiss$mcobjs$`80`) + theme_bw(base_size
 pairplot_emiss_mean_C <- pairplot(mcruns_emiss$mcobjs$`96`) + theme_bw(base_size=8) + labs(tag='C', title='Protocol 96')
 pairplot_emiss_mean_D <- pairplot(mcruns_emiss$mcobjs$`64`) + theme_bw(base_size=8) + labs(tag='D', title='Protocol 64')
 
-ggsave(file.path(figdir,'pairplot_conc_mean_A.pdf'), plot=pairplot_conc_mean_A, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_mean_B.pdf'), plot=pairplot_conc_mean_B, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_mean_C.pdf'), plot=pairplot_conc_mean_C, device='pdf', width=4, height=4, units='in')
-ggsave(file.path(figdir,'pairplot_conc_mean_D.pdf'), plot=pairplot_conc_mean_D, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_mean_A.pdf'), plot=pairplot_emiss_mean_A, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_mean_B.pdf'), plot=pairplot_emiss_mean_B, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_mean_C.pdf'), plot=pairplot_emiss_mean_C, device='pdf', width=4, height=4, units='in')
+ggsave(file.path(figdir,'pairplot_emiss_mean_D.pdf'), plot=pairplot_emiss_mean_D, device='pdf', width=4, height=4, units='in')

@@ -48,20 +48,20 @@ data2100 <- list()
 length(data2100) <- length(protos) * length(rcps)
 names(data2100) <- rep('', length(data2100))
 
-esmdata <- filter(esm_comparison, variable=='tas', year %in% c(2006, 2050, 2098)) %>%
+esmdata <- filter(esm_comparison, variable=='tas', year %in% seq(1860, 2100, 1)) %>%
     mutate(variable=GLOBAL_TEMP())
 
 for(rcp in rcps) {
     hcores <- setup_cores(get_infile(rcp), rcp, 8)
-    esmrcp <- filter(esmdata, experiment==rcp)
+    esmrcp <- filter(esmdata, (experiment==rcp & year>2005) | (experiment=='historical' & year < 2006))
     for(proto in protos) {
 
         lindx <- lindx + 1
         plt <- spaghetti_plot(mcruns_conc$mcobjs[[proto]], 1000, hcores, pnames, GLOBAL_TEMP()) +
             ylab('Global Mean Temperature') +
             theme_bw(base_size=12) +
-            geom_errorbar(data=esmrcp, mapping=aes(x=year, ymin=mina, ymax=maxb),
-                          color='#B0B08C', size=1.25, linetype=1, inherit.aes=FALSE, width=0.5) +
+            geom_ribbon(data=esmrcp, mapping=aes(x=year, ymin=mina, ymax=maxb),
+                          fill='grey10', inherit.aes=FALSE, alpha=0.5) +
             labs(title=paste('Protocol', proto), tag=letters[lindx]) +
             theme(strip.background = element_blank(), strip.text = element_blank())
         basefile <- paste0('spaghetti_', rcp, '_', proto, '.pdf')
