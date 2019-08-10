@@ -7,7 +7,7 @@ library(dplyr)
 
 ## Load MCMC data
 ## XXX Using data from pilot runs.  Update to full when available
-datadir_conc <- file.path('analysis','mcmc','conc', 'calibration')   # XXX Temporary, replace with final runs when available
+datadir_conc <- file.path('analysis','mcmc','conc', 'primary')   # XXX Temporary, replace with final runs when available
 mcruns_conc <- proc_mc_rslts(datadir_conc, 'hectorcal-conc')
 
 figdir <- file.path('analysis', 'figs-paper2')
