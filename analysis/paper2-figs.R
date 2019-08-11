@@ -86,6 +86,59 @@ plt_va <- ggplot(data=vatbl, aes(x=alpha, y=volscl, color=PCA, shape=meancal)) +
 ggsave(file.path(figdir,'ev_sk_conc.pdf'), plot=plt_sk, device='pdf', width=4, height=3, units='in')
 ggsave(file.path(figdir,'ev_va_conc.pdf'), plot=plt_va, device='pdf', width=4, height=3, units='in')
 
+#### Expectation values and CIs for emissions driven runs
+ptbl_emiss <- bind_rows(lapply(protos, protostats, mcruns=mcruns_emiss))
+ptbl_emiss_round <- bind_rows(lapply(protos, protostats, mcruns=mcruns_emiss, round=TRUE))
+map_emiss <- spread(select(ptbl_emiss_round, parm, protocol, MAP), parm, MAP)
+ev_emiss <- spread(select(ptbl_emiss_round, parm, protocol, EV), parm, EV)
+ci_emiss <- mutate(ptbl_emiss_round, CI=paste(CI025, CI975, sep='--')) %>% select(parm, protocol, CI) %>%
+    spread(protocol, CI)
+
+Stbl_emiss <- filter(ptbl_emiss, parm=='S') %>% rename(S=EV, Smin=CI025, Smax=CI975)
+Ktbl_emiss <- filter(ptbl_emiss, parm=='diff') %>% rename(diff=EV, dmin=CI025, dmax=CI975)
+SKtbl_emiss <- bind_cols(Stbl_emiss, Ktbl_emiss)
+plt_sk_emiss <- ggplot(data=SKtbl_emiss, aes(x=S, y=diff, color=PCA, shape=meancal, group=protocol)) + geom_point(size=2.5) +
+    geom_errorbar(mapping=aes(ymin=dmin, ymax=dmax), alpha=0.5) +
+    geom_errorbarh(mapping=aes(xmin=Smin, xmax=Smax), alpha=0.5) +
+    xlab(TeX('$S$')) + ylab(TeX('$\\kappa$')) +
+    scale_color_colorblind() +
+    theme_bw(base_size = 12)
+
+alphatbl_emiss <- filter(ptbl_emiss, parm=='alpha') %>% rename(alpha=EV, amin=CI025, amax=CI975)
+voltbl_emiss <- filter(ptbl_emiss, parm=='volscl') %>% rename(volscl=EV, vmin=CI025, vmax=CI975)
+vatbl_emiss <- bind_cols(alphatbl_emiss, voltbl_emiss)
+plt_va_emiss <- ggplot(data=vatbl_emiss, aes(x=alpha, y=volscl, color=PCA, shape=meancal)) + geom_point(size=2.5) +
+    geom_errorbar(mapping=aes(ymin=vmin, ymax=vmax), alpha=0.5) +
+    geom_errorbarh(mapping=aes(xmin=amin, xmax=amax), alpha=0.5) +
+    xlab(TeX('$\\alpha_a$')) + ylab(TeX('$\\alpha_v$')) +
+    scale_color_colorblind() +
+    theme_bw(base_size = 12)
+
+## Geez, we really should have made a function to do these plots.
+betatbl_emiss <- filter(ptbl_emiss, parm=='beta') %>% rename(beta=EV, bmin=CI025, bmax=CI975)
+q10tbl_emiss <- filter(ptbl_emiss, parm=='q10_rh') %>% rename(q10=EV, qmin=CI025, qmax=CI975)
+bqtbl_emiss <- bind_cols(betatbl_emiss, q10tbl_emiss)
+plt_bq_emiss <- ggplot(data=bqtbl_emiss, aes(x=beta, y=q10, color=PCA, shape=meancal)) + geom_point(size=2.5) +
+    geom_errorbar(mapping=aes(ymin=qmin, ymax=qmax), alpha=0.5, width=0) +
+    geom_errorbarh(mapping=aes(xmin=bmin, xmax=bmax), alpha=0.5) +
+    xlab(TeX('$\\beta$')) + ylab(TeX('$\\Q_{10}$')) +
+    scale_color_colorblind() +
+    theme_bw(base_size = 12)
+
+## We have one odd parameter left.
+c0tbl_emiss <- filter(ptbl_emiss, parm=='C0') %>% rename(C0=EV, c0min=CI025, c0max=CI975)
+plt_c0_emiss <- ggplot(data=c0tbl_emiss, aes(x=factor(protocol), y=C0, color=PCA, shape=meancal)) + geom_point(size=2.5)+
+    geom_errorbar(mapping=aes(ymin=c0min, ymax=c0max), alpha=0.5, width=0) +
+    xlab('Protocol') + ylab(TeX('$C_0')) +
+    scale_color_colorblind() +
+    theme_bw(base_size = 12)
+
+ggsave(file.path(figdir,'ev_sk_emiss.pdf'), plot=plt_sk_emiss, device='pdf', width=4, height=3, units='in')
+ggsave(file.path(figdir,'ev_va_emiss.pdf'), plot=plt_va_emiss, device='pdf', width=4, height=3, units='in')
+ggsave(file.path(figdir,'ev_bq_emiss.pdf'), plot=plt_bq_emiss, device='pdf', width=4, height=3, units='in')
+ggsave(file.path(figdir,'ev_c0_emiss.pdf'), plot=plt_c0_emiss, device='pdf', width=4, height=3, units='in')
+
+
 #### Pairs plots for emissions driven
 pairplot_emiss_env_A <- pairplot(mcruns_emiss$mcobjs$`48`) + theme_bw(base_size=8) + labs(tag='A', title='Protocol 48')
 pairplot_emiss_env_B <- pairplot(mcruns_emiss$mcobjs$`16`) + theme_bw(base_size=8) + labs(tag='B', title='Protocol 16')
@@ -108,3 +161,26 @@ ggsave(file.path(figdir,'pairplot_emiss_mean_A.pdf'), plot=pairplot_emiss_mean_A
 ggsave(file.path(figdir,'pairplot_emiss_mean_B.pdf'), plot=pairplot_emiss_mean_B, device='pdf', width=6, height=6, units='in')
 ggsave(file.path(figdir,'pairplot_emiss_mean_C.pdf'), plot=pairplot_emiss_mean_C, device='pdf', width=6, height=6, units='in')
 ggsave(file.path(figdir,'pairplot_emiss_mean_D.pdf'), plot=pairplot_emiss_mean_D, device='pdf', width=6, height=6, units='in')
+
+#### Plot the mesa function
+fmesa <- function(x) {mesa(x, -1, 1, 0.1)}
+plt_mesa <- ggplot(data.frame(x=c(-2,2)), aes(x)) + stat_function(fun=fmesa, color='MidnightBlue', size=1) +
+    ylab('M(x)') +
+    theme_bw(base_size = 12)
+ggsave(file.path(figdir, 'mesaplot.pdf'), plot=plt_mesa, device='pdf', width=6, height=4, units='in')
+
+#### Make the plot of the esm comparison data
+colors <- c('#424242', solarized_pal()(4))
+scens <- c('historical','rcp26','rcp45', 'rcp60', 'rcp85')
+names(colors) <- scens
+esmcmp <- filter(esm_comparison, experiment %in% scens,
+                 variable=='tas',
+                 (experiment=='historical' & year<2006) | year > 2005)
+plt_cmpdata <-
+    ggplot(data=esmcmp, aes(x=year, color=experiment, fill=experiment)) +
+    geom_line(mapping=aes(y=cmean), size=1.25) +
+    geom_ribbon(mapping=aes(ymin=mina, ymax=maxb), alpha=0.5, size=0.1) +
+    xlab('Temperature (\u00B0C)')
+    theme_bw(base_size=12) +
+    scale_color_manual(values=colors, aesthetics=c('color','fill'))
+ggsave(file.path(figdir, 'cmpdata.pdf'), plot=plt_cmpdata, device='pdf', width=6, height=4, units='in')
