@@ -180,7 +180,7 @@ plt_cmpdata <-
     ggplot(data=esmcmp, aes(x=year, color=experiment, fill=experiment)) +
     geom_line(mapping=aes(y=cmean), size=1.25) +
     geom_ribbon(mapping=aes(ymin=mina, ymax=maxb), alpha=0.5, size=0.1) +
-    xlab('Temperature (\u00B0C)')
+    xlab('Temperature (\u00B0C)') +
     theme_bw(base_size=12) +
     scale_color_manual(values=colors, aesthetics=c('color','fill'))
 ggsave(file.path(figdir, 'cmpdata.pdf'), plot=plt_cmpdata, device='pdf', width=6, height=4, units='in')
