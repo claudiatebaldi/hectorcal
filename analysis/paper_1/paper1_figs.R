@@ -8,16 +8,21 @@ library(ggplot2);  library(ggthemes)
 library(dplyr);    library(tidyr)
 library(hector);   library(hectorcal)
 library(cowplot);  library(knitr)
-library(kableExtra)
+library(kableExtra); library(scales)
 library(assertthat)
+library(GGally)
 
 # Define the directories
 BASE_DIR   <- getwd()
 OUTPUT_DIR <- file.path(BASE_DIR, 'output')
 FIGS_DIR   <- file.path(BASE_DIR, 'figs')
 
-# Define the default script plotting options.
-COLOR_THEME  <- c('cmip' = 'grey', 'hector' = "#56B4E9")
+# Define the default script plotting options, based on the color blind palette with grey.
+COLOR_THEME  <- c('cmip' = 'grey',
+                  'hector' = "#56B4E9",
+                  'MRI-CGCM3' = "#E69F00",
+                  'GFDL-CM3' = "#56B4E9",
+                  'CMCC-CESM' = "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 SCRIPT_THEME <- theme_bw(base_size = 10) +
     theme(legend.title = element_blank())
 FIG_WIDTH  <- 8   #in
@@ -112,26 +117,37 @@ summary(temp_hf_fits$diff)
 summary(temp_hf_fits$alpha)
 summary(temp_hf_fits$volscl)
 
-## 3. Parameter Dot Plots -------------------------------------------------------------------------------------------
+## 3.A Parameter Dot Plots -------------------------------------------------------------------------------------------
 # Make the multi panneled dot plots of the different parameter fits from the concentration driven experiments.
+mround <- function(x,base){
+    base*round(x/base)
+}
+mround(14,5)
+
 
 # Temperature - only calibration fits
 fits %>%
-    filter(S <= 30 & method == 'temp') %>%
+    filter(method == 'temp') %>%
     ggplot(aes(S)) +
+    geom_rect(aes(xmin=1.5, xmax=4.5, ymin=0, ymax=Inf), fill = '#D3D3D3') +
     geom_dotplot() +
     labs(x = expression(~italic(S)~' ('~degree~'C)'),
          y = 'Frequency') +
-    SCRIPT_THEME ->
+    SCRIPT_THEME +
+    scale_x_continuous(trans = 'log10',
+                       breaks = trans_breaks("log10", function(x) signif(10^x, digits = 1))) +
+    annotation_logticks(sides = 'b') ->
     S_temp_plot
 
 fits %>%
-    filter(diff <= 30  & method == 'temp') %>%
+    filter(method == 'temp') %>%
     ggplot(aes(diff)) +
+    geom_rect(aes(xmin=1e-8, xmax=Inf, ymin=0, ymax=Inf), fill = '#D3D3D3') +
     geom_dotplot() +
     labs(x = expression(kappa~' ('~cm^2/'m)'),
          y = 'Frequency') +
-    SCRIPT_THEME ->
+    SCRIPT_THEME +
+    scale_x_log10(breaks = scales::trans_breaks("log10", function(x){10^x})) ->
     diff_temp_plot
 
 fits %>%
@@ -153,14 +169,14 @@ fits %>%
     volscl_temp_plot
 
 # Format the four climate paramter dot pltos into a single plot with mulitple pannels.
-temp_param_dotplot <- plot_grid(alpha_temp_plot, volscl_temp_plot, S_temp_plot, diff_temp_plot,
-                              labels = c('A', 'B', 'C', 'D'),
-                              label_size = 10)
+temp_param_dotplot <- plot_grid(S_temp_plot, diff_temp_plot,
+                                labels = c('A', 'B'),
+                                label_size = 10)
 
 # Save the figure
 ggsave(temp_param_dotplot,
        filename = file.path(FIGS_DIR, 'conc_temp_param_dotplots.pdf'),
-       device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
+       device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO,
        dpi = FIG_DPI * 2, units = 'in')
 
 
@@ -203,15 +219,91 @@ fits %>%
 
 
 tempHF_param_plots <- plot_grid(alpha_tempHF_plot,
-                              volscl_tempHF_plot,
-                              S_tempHF_plot,
-                              diff_tempHF_plot, labels = c('A', 'B', 'C', 'D'),
-                              label_size = 10)
+                                volscl_tempHF_plot,
+                                S_tempHF_plot,
+                                diff_tempHF_plot, labels = c('A', 'B', 'C', 'D'),
+                                label_size = 10)
 
-ggsave(tempHF_param_plots,
-       filename = file.path(FIGS_DIR, 'conc_tempHF_param_dotplots.pdf'),
-       device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
-       dpi = FIG_DPI * 2, units = 'in')
+## 3.B Change in Parameter Plots --------------------------------------------------------------------
+
+CHANGE_PLOT_COLORS <- c('temp' = 'grey',
+                        'temp heatflux' = COLOR_THEME[[2]])
+
+
+fits$model <- factor(x = fits$model, levels = sort(unique(fits$model), decreasing = TRUE), ordered = TRUE)
+
+fits %>%
+    select(model, alpha, method) %>%
+    spread(method, alpha) %>%
+    mutate(change = if_else(temp < `temp heatflux`, 'increase', 'decrease')) %>%
+    select(model, change) %>%
+    left_join(fits, by = 'model') ->
+    fits
+
+ggplot(data = fits) +
+    geom_point(aes(y = model, x = S, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = S),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL)  +
+    coord_cartesian(xlim = c(0, 15)) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(~italic(S)~' ('~degree~'C)')) ->
+    change_fitted_S
+
+ggplot(data = fits) +
+    geom_point(aes(y = model, x = diff, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = diff),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    coord_cartesian(xlim = c(-1, 20)) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(kappa~' ('~cm^2/'s)')) ->
+    change_fitted_diff
+
+ggplot(data = fits) +
+    geom_point(aes(y = model, x = alpha, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = alpha),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS)+
+    coord_cartesian(xlim = c(-.5, 2)) +
+    labs(x = expression(alpha[a])) ->
+    change_fitted_alpha
+
+ggplot(data = fits) +
+    geom_point(aes(y = model, x = volscl, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = volscl),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    coord_cartesian(xlim = c(-.5, 2)) +
+    labs(x = expression(alpha[v])) ->
+    change_fitted_volscl
+
+
+change_param_plot <- plot_grid(change_fitted_S + theme(legend.position = 'none'),
+                               change_fitted_diff + theme(legend.position = 'none'),
+                               change_fitted_alpha + theme(legend.position = 'none'),
+                               change_fitted_volscl + theme(legend.position = 'none'),
+                                labels = c('A', 'B', 'C', 'D'),
+                                label_size = 10)
+
+legend <- get_legend(change_fitted_S + theme(legend.box.margin = margin(0, 0, 0, 12)))
+
+final_change_param_plot <- plot_grid(change_param_plot, legend, ncol = 1, rel_heights = c(4, .25))
+# Save the figure
+ggsave(final_change_param_plot,
+       filename = file.path(FIGS_DIR, 'change_fitted_param.pdf'),
+       device = 'pdf', width = FIG_WIDTH , height = FIG_WIDTH ,
+       dpi = FIG_DPI * 3, units = 'in')
 
 
 ## 4. Fitted Parameter Table -------------------------------------------------------------------------------------------
@@ -245,7 +337,8 @@ fits %>%
 fits %>%
     filter(comp_data == 'temp') %>%
     mutate(dif_mean = abs(min_value - mean(min_value))) %>%
-    filter(min_value == min(min_value) | min_value == max(min_value) | dif_mean == min(dif_mean)) ->
+    filter(min_value == min(min_value) | min_value == max(min_value) | dif_mean == min(dif_mean)) %>%
+    arrange(min_value) ->
     extreme_temp_fits
 
 # Create a tibble of the ini files / scenario names to run.
@@ -298,16 +391,52 @@ hector_temp_output %>%
     gather(source, value, hector, cmip) ->
     hector_cmip
 
-ggplot(data = hector_cmip) +
-    geom_line(data = hector_cmip %>% filter(source == 'cmip'),
-              aes(year, value, color = source, group = interaction(model, experiment, ensemble, source))) +
-    geom_line(data = hector_cmip %>% filter(source == 'hector'),
-              aes(year, value, color = source, group = interaction(model, experiment, ensemble, source))) +
-    facet_wrap('model') +
-    scale_color_manual(values = COLOR_THEME) +
-    SCRIPT_THEME +
-    labs(x = 'Year',
-         y = expression('Temperature Anomaly '~degree~'C')) +
+# Plot each of the Hector vs CMIP ESM output data separately.
+split(hector_cmip, hector_cmip$model, drop = TRUE) %>%
+    lapply(function(data){
+
+        ggplot() +
+            geom_line(data = data %>% filter(source == 'cmip'),
+                      aes(year, value, color = source, group = interaction(model, experiment, ensemble, source)),
+                      size = 0.25,
+                      alpha = 0.75) +
+            geom_line(data = data %>% filter(source == 'hector'),
+                      aes(year, value, color = source, group = interaction(model, experiment, ensemble, source)),
+                      size = 0.75) +
+            scale_color_manual(values = COLOR_THEME) +
+            SCRIPT_THEME +
+            labs(x = 'Year',
+                 y = expression('Temperature Anomaly '~degree~'C')) +
+            geom_text(data = tibble(x=min(data$year),
+                                    y = max(data$value),
+                                    label = unique(data$model)),
+                      aes(x, y, label = label, hjust = 'left'))
+    }) ->
+    plots
+
+
+# Arrange the plots in a list in a grid based on the MSE value.
+arranged_plot_list <- list()
+for(i in 1:length(extreme_temp_fits$model)){
+
+    name <- names(plots)[i]
+    arranged_plot_list[[name]] <- plots[[name]] + theme(legend.position = 'none')
+
+    if(i > 1){
+
+        arranged_plot_list[[name]] <- arranged_plot_list[[name]] + labs(y = NULL)
+
+    }
+
+
+}
+arranged_plots <- plot_grid(plotlist = arranged_plot_list, nrow = 1)
+
+# Extract the legend from one of the plots, so that there is a universal plot.
+legend <- get_legend(plots$`CMCC-CESM` + theme(legend.box.margin = margin(0, 0, 0, 12)))
+
+# Add the legend to the row we made earlier and save.
+plot_grid(arranged_plots, legend, rel_widths = c(4, .5))+
     ggsave(filename = file.path(FIGS_DIR, 'conc_selected_temp_comparison.pdf'),
            device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO,
            dpi = FIG_DPI, units = 'in')
@@ -335,8 +464,8 @@ lapply(X = split(fits, interaction(fits$model, fits$method, drop = TRUE)), FUN =
     param_names   <- c(ECS(), DIFFUSIVITY(), AERO_SCALE(), VOLCANIC_SCALE())
     params        <- input[names(input) %in% param_names]
     names(params) <- param_names
-print(input)
-print('1')
+    print(input)
+    print('1')
     lapply(core_list, FUN = parameterize_core, params = params)
     print('2')
     lapply(core_list, reset)
@@ -409,11 +538,11 @@ lapply(append(heatflux_models_paths, heatfluxR_models_paths), function(input){
 
     if(object$optim_rslt$convergence == 0){
 
-     object$MSE$method <- 'temp heatflux'
-     object$MSE
+        object$MSE$method <- 'temp heatflux'
+        object$MSE
 
     }
-    }) %>%
+}) %>%
     bind_rows() ->
     heatflux_MSE
 
@@ -446,10 +575,9 @@ fits %>%
 
 S_kappa_temp   <- read.csv(list.files(path = file.path(OUTPUT_DIR, 'conc_S_kappa_temp'), '.csv', full.names = TRUE), stringsAsFactors = FALSE)
 S_kappa_tempHF <- read.csv(list.files(path = file.path(OUTPUT_DIR, 'conc_S_kappa_tempHF'), '.csv', full.names = TRUE), stringsAsFactors = FALSE)
-S_kappa        <- bind_rows(S_kappa_temp, S_kappa_fits_tempHF)
+S_kappa        <- bind_rows(S_kappa_temp, S_kappa_tempHF)
 
-S_kappa_temp %>%
-    bind_rows(S_kappa_fits_tempHF) %>%
+S_kappa %>%
     mutate(comp_data = if_else(comp_data == 'temp', 'Temp-Only', 'Temp-Heat Flux')) %>%
     filter(comp_data =='Temp-Only') ->
     S_kappa
@@ -462,6 +590,7 @@ ggplot(data = S_kappa, aes(kappa, min, color = model, shape = comp_data)) +
          x = expression(kappa~'('~cm^2*s^-1~')')) +
     coord_cartesian(ylim = c(0, 0.4)) +
     guides(shape = FALSE) +
+    scale_color_manual(values = COLOR_THEME) +
     theme(legend.position = c(0,1),
           legend.justification = c(0,1),
           legend.background = element_rect(color = 'black')) ->
@@ -475,6 +604,7 @@ ggplot(data = S_kappa, aes(kappa, S, color = model, shape = comp_data)) +
     labs(y = expression(~italic(S)~' ('~degree~'C)'),
          x = expression(kappa~'('~cm^2*s^-1~')')) +
     guides(shape = FALSE) +
+    scale_color_manual(values = COLOR_THEME) +
     theme(legend.position = c(0,1),
           legend.justification = c(0,1),
           legend.background = element_rect(color = 'black')) ->
@@ -482,8 +612,8 @@ ggplot(data = S_kappa, aes(kappa, S, color = model, shape = comp_data)) +
 
 
 conc_S_kapp_sym_plot_final <- plot_grid(conc_S_kappa_sym_plot,
-                                conc_S_kappa_trade_off, labels = c('A', 'B'),
-                                label_size = 10)
+                                        conc_S_kappa_trade_off, labels = c('A', 'B'),
+                                        label_size = 10)
 
 ggsave(conc_S_kapp_sym_plot_final,
        filename = file.path(FIGS_DIR, 'conc_S_kappa_sym_plot.pdf'),
@@ -502,12 +632,12 @@ logmesaplt <- function(a,b,sig) {
 }
 
 ggplot(data=data.frame(x=c(-1.5, 1.5)),
-       aes(x)) + stat_function(fun=logmesaplt(-1,1,0.15), size=1.1) +
-    ylab('Log(x)') +
+       aes(x)) + stat_function(fun=logmesaplt(-1,1,0.15), size=0.50) +
+    ylab('L(x)') +
     SCRIPT_THEME ->
     mesaplt
 
 ggsave(mesaplt,
        filename = file.path(FIGS_DIR, 'log_mesa_plot.pdf'),
-       device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
+       device = 'pdf', width = FIG_WIDTH / 2 , height = (FIG_WIDTH / FIG_RATIO)  ,
        dpi = FIG_DPI * 2, units = 'in')
