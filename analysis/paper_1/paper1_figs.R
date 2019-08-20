@@ -22,7 +22,10 @@ COLOR_THEME  <- c('cmip' = 'grey',
                   'hector' = "#56B4E9",
                   'MRI-CGCM3' = "#E69F00",
                   'GFDL-CM3' = "#56B4E9",
-                  'CMCC-CESM' = "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+                  'CMCC-CESM' = "#009E73",
+                  'CanESM2' = "#56B4E9",
+                  'CESM1-BGC' = "#0072B2",
+                  'GFDL-ESM2G' = "#D55E00", "#CC79A7")
 SCRIPT_THEME <- theme_bw(base_size = 10) +
     theme(legend.title = element_blank())
 FIG_WIDTH  <- 8   #in
@@ -144,7 +147,7 @@ fits %>%
     ggplot(aes(diff)) +
     geom_rect(aes(xmin=1e-8, xmax=Inf, ymin=0, ymax=Inf), fill = '#D3D3D3') +
     geom_dotplot() +
-    labs(x = expression(kappa~' ('~cm^2/'m)'),
+    labs(x = expression(kappa~' ('~cm^2/'s)'),
          y = 'Frequency') +
     SCRIPT_THEME +
     scale_x_log10(breaks = scales::trans_breaks("log10", function(x){10^x})) ->
@@ -225,12 +228,12 @@ tempHF_param_plots <- plot_grid(alpha_tempHF_plot,
                                 label_size = 10)
 
 ## 3.B Change in Parameter Plots --------------------------------------------------------------------
-
-CHANGE_PLOT_COLORS <- c('temp' = 'grey',
+# For the change in parameter value plots use the colors from the script theme.
+CHANGE_PLOT_COLORS <- c('temp' = COLOR_THEME[[1]],
                         'temp heatflux' = COLOR_THEME[[2]])
-
-
-fits$model <- factor(x = fits$model, levels = sort(unique(fits$model), decreasing = TRUE), ordered = TRUE)
+# Add a factor to the fits data frame so that the models will be plotted in alphabetical order.
+fits$model <- factor(x = fits$model, levels = sort(unique(fits$model), decreasing = TRUE),
+                     ordered = TRUE)
 
 fits %>%
     select(model, alpha, method) %>%
@@ -272,7 +275,7 @@ ggplot(data = fits) +
     labs(y = NULL) +
     SCRIPT_THEME +
     scale_color_manual(values = CHANGE_PLOT_COLORS)+
-    coord_cartesian(xlim = c(-.5, 2)) +
+    coord_cartesian(xlim = c(0, 2.25)) +
     labs(x = expression(alpha[a])) ->
     change_fitted_alpha
 
@@ -293,8 +296,8 @@ change_param_plot <- plot_grid(change_fitted_S + theme(legend.position = 'none')
                                change_fitted_diff + theme(legend.position = 'none'),
                                change_fitted_alpha + theme(legend.position = 'none'),
                                change_fitted_volscl + theme(legend.position = 'none'),
-                                labels = c('A', 'B', 'C', 'D'),
-                                label_size = 10)
+                               labels = c('A', 'B', 'C', 'D'),
+                               label_size = 10)
 
 legend <- get_legend(change_fitted_S + theme(legend.box.margin = margin(0, 0, 0, 12)))
 
@@ -586,7 +589,7 @@ ggplot(data = S_kappa, aes(kappa, min, color = model, shape = comp_data)) +
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
-    labs(y = expression('Temp MSE ('~degree~'C'^2~')'),
+    labs(y = expression('Optmial Value'),
          x = expression(kappa~'('~cm^2*s^-1~')')) +
     coord_cartesian(ylim = c(0, 0.4)) +
     guides(shape = FALSE) +
@@ -620,6 +623,65 @@ ggsave(conc_S_kapp_sym_plot_final,
        device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
        dpi = FIG_DPI * 2, units = 'in')
 
+## Now make the symetry plot with the temperature heat flux data
+S_kappa %>%
+    mutate(comp_data = if_else(comp_data == 'temp', 'Temp-Only', 'Temp-Heat Flux')) %>%
+    filter(comp_data !='Temp-Only') ->
+    S_kappa
+
+S_kappa_tempHF %>%
+    mutate(comp_data = 'Temp-Heat Flux') ->
+    S_kappa_HF
+
+
+ggplot(data = S_kappa_HF, aes(kappa, min, color = model, shape = comp_data)) +
+    geom_line() +
+    geom_point(size = 2.5) +
+    SCRIPT_THEME +
+    labs(y = expression('Optmial Value'),
+         x = expression(kappa~'('~cm^2*s^-1~')')) +
+    coord_cartesian(ylim = c(0, 0.6)) +
+    guides(shape = FALSE) +
+    scale_color_manual(values = COLOR_THEME) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
+    conc_S_kappa_sym_plot_HF
+
+
+ggplot(data = S_kappa_HF, aes(kappa, S, color = model, shape = comp_data)) +
+    geom_line() +
+    geom_point(size = 2.5) +
+    SCRIPT_THEME +
+    labs(y = expression(~italic(S)~' ('~degree~'C)'),
+         x = expression(kappa~'('~cm^2*s^-1~')')) +
+    guides(shape = FALSE) +
+    scale_color_manual(values = COLOR_THEME) +
+    coord_cartesian(ylim = c(0, 7)) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
+    conc_S_kappa_trade_off_HF
+
+
+conc_S_kapp_sym_plot_final_HF <- plot_grid(conc_S_kappa_sym_plot_HF,
+                                           conc_S_kappa_trade_off_HF, labels = c('A', 'B'),
+                                           label_size = 10)
+
+ggsave(conc_S_kapp_sym_plot_final_HF,
+       filename = file.path(FIGS_DIR, 'conc_S_kappa_sym_plot_HF.pdf'),
+       device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / FIG_RATIO * 2,
+       dpi = FIG_DPI * 2, units = 'in')
+
+
+
+
+
+
+
+
+
+
 ## 8. Log Mesa Plot ---------------------------------------------------------------------------------------------
 # For the section of the paper that introduces the idea of the mesa function we would like to include a figure
 # to help facilitate our explanation of what is going on.
@@ -641,3 +703,397 @@ ggsave(mesaplt,
        filename = file.path(FIGS_DIR, 'log_mesa_plot.pdf'),
        device = 'pdf', width = FIG_WIDTH / 2 , height = (FIG_WIDTH / FIG_RATIO)  ,
        dpi = FIG_DPI * 2, units = 'in')
+
+#################################################################################################################
+### B. Emission Driven Results
+#################################################################################################################
+## 1. Import Fits -----------------------------------------------------------------------------------------------------
+# Import the fits from the temperature-heat flux-co2 calibration experiment.
+list.files(file.path(OUTPUT_DIR, 'emiss_temp_heatflux_co2', 'final'), '.rds', full.names = TRUE) %>%
+    lapply(function(input){
+
+        object <- readRDS(input)
+
+        if(object$optim_rslt$convergence == 0){
+
+            data.frame(matrix(data = object$optim_rslt$par, nrow = 1,
+                              dimnames = list(NULL, names(object$optim_rslt$par)))) %>%
+                mutate(min_value = object$optim_rslt$value,
+                       model = unique(object$MSE$model))
+
+        }
+    }) %>%
+    bind_rows() %>%
+    mutate(method = 'Temp-Heat Flux-CO2') ->
+    fits_emiss
+
+# Import the fits from the temperature-heat flux-co2 calibration experiment with the penalty.
+list.files(file.path(OUTPUT_DIR, 'emiss_temp_heatflux_co2_penalty', 'calibrationBeta'), '.rds', full.names = TRUE) %>%
+    lapply(function(input){
+
+        object <- readRDS(input)
+
+        if(object$optim_rslt$convergence == 0){
+
+            data.frame(matrix(data = object$optim_rslt$par, nrow = 1,
+                              dimnames = list(NULL, names(object$optim_rslt$par)))) %>%
+                mutate(min_value = object$optim_rslt$value,
+                       model = unique(object$MSE$model))
+
+        }
+    }) %>%
+    bind_rows() %>%
+    mutate(method = 'Temp-Heat Flux-CO2 Penalty') ->
+    fits_emiss_penalty
+
+
+fits_emiss <- bind_rows(fits_emiss_penalty, fits_emiss)
+
+## 2. Run Hector with Fits -----------------------------------------------------------------------------------------------------
+ini  <- system.file('input/hector_rcp85.ini', package = 'hector')
+core <- newcore(ini)
+
+
+split(fits_emiss, interaction(fits_emiss$model, fits_emiss$method), drop = TRUE) %>%
+    lapply(function(input){
+
+        params <- select(input, c(ECS(), DIFFUSIVITY(), VOLCANIC_SCALE(), AERO_SCALE(), PREINDUSTRIAL_CO2(),
+                                  BETA(), Q10_RH()))
+        parameterize_core(params = params, core = core)
+        reset(core)
+        run(core, runtodate = 2100)
+        fetchvars(core, 1850:2100, c(HEAT_FLUX(), GLOBAL_TEMP(), ATMOSPHERIC_CO2())) %>%
+            select(year, variable, value, units) %>%
+            mutate(model = input[['model']],
+                   method = input[['method']])
+
+    }) %>%
+    bind_rows() ->
+    hector_emiss_output
+
+
+
+## 3. Plot Hector vs Comp Data ---------------------------------------------------------
+
+# The plots for the calibration method that does not use the penalty function
+hector_emiss_output %>%
+    filter(method == 'Temp-Heat Flux-CO2') %>%
+    rename(hector_value = value) %>%
+    mutate(variable = if_else(variable == 'Tgav', 'tas', variable),
+           variable = if_else(variable == 'Ca', 'co2', variable),
+           experiment = if_else(year <= 2005, 'esmHistorical', 'esmrcp85')) %>%
+    filter(!(variable == 'heatflux' & experiment == 'esmHistorical')) %>%
+    inner_join(cmip_individual %>%
+                   rename(cmip_value = value),
+               by = c("year", "variable", "model", "experiment")) %>%
+    split(., interaction(.$model, .$variable), drop = TRUE) ->
+    to_plot
+
+
+lapply(to_plot, function(input){
+
+    ggplot(data = input) +
+        geom_line(aes(year, cmip_value, group = interaction(model, ensemble), color = 'cmip'),
+                  size = 0.75,
+                  alpha = 0.5) +
+        geom_line(aes(year, hector_value, color = 'hector'),  size = 1, linetype = 2) +
+        scale_color_manual(values = COLOR_THEME) +
+        SCRIPT_THEME +
+        labs(x = 'Year',
+             y = unique(input$units)) +
+        geom_text(data = tibble(x=1850,
+                                y = max(input$hector_value, input$cmip_value),
+                                label = unique(input$model)),
+                  aes(x, y, label = label, hjust = 'left')) +
+        coord_cartesian(xlim = c(1850, 2100))
+}) ->
+    comparison_plots
+
+plot_list <- list(comparison_plots$CanESM2.co2 +
+                      theme(legend.position = 'none') + labs(y = expression('ppmv CO'[2])),
+                  comparison_plots$`CESM1-BGC.co2` +
+                      theme(legend.position = 'none') + labs(y = expression('ppmv CO'[2])),
+                  comparison_plots$`GFDL-ESM2G.co2`+
+                      theme(legend.position = 'none') + labs(y = expression('ppmv CO'[2])),
+                  comparison_plots$CanESM2.heatflux +
+                      theme(legend.position = 'none') + labs(y = expression(Wm^-2)),
+                  comparison_plots$`CESM1-BGC.heatflux` +
+                      theme(legend.position = 'none') + labs(y = expression(Wm^-2)),
+                  comparison_plots$`GFDL-ESM2G.heatflux` +
+                      theme(legend.position = 'none') + labs(y = expression(Wm^-2)),
+                  comparison_plots$CanESM2.tas +
+                      theme(legend.position = 'none') + labs(y = expression(degree~C)),
+                  comparison_plots$`CESM1-BGC.tas`+
+                      theme(legend.position = 'none') + labs(y = expression(degree~C)),
+                  comparison_plots$`GFDL-ESM2G.tas`+
+                      theme(legend.position = 'none') + labs(y = expression(degree~C)))
+
+arranged_plots <- plot_grid(plotlist = plot_list, ncol = 3, nrow = 3, labels = LETTERS[1:length(plot_list)])
+
+# Extract the legend from one of the plots, so that there is a universal plot.
+legend <- get_legend(comparison_plots$`GFDL-ESM2G.tas` + theme(legend.box.margin = margin(0, 0, 0, 12)))
+
+# Add the legend to the row we made earlier and save.
+plot_grid(arranged_plots, legend, rel_widths = c(4, .5)) +
+    ggsave(filename = file.path(FIGS_DIR, 'emiss_hector_cmip_comparison.pdf'),
+           device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH,
+           dpi = FIG_DPI, units = 'in')
+
+
+## 4. Difference Between Emission Output ------------------------------------------------
+hector_emiss_output %>%
+    mutate(method = if_else(method == "Temp-Heat Flux-CO2", 'no', 'penalty')) %>%
+    spread(method, value) %>%
+    na.omit %>%
+    mutate(SE = (no - penalty)^2) %>%
+    group_by(variable) %>%
+    summarise(RMSE = sqrt(mean(SE))) %>%
+    ungroup ->
+    change_emiss_results
+
+
+## 3. Symmetry Between Beta and Q10 --------------------------------------------------------------------------
+beta_q10 <- read.csv(list.files(file.path(OUTPUT_DIR, 'emiss_beta_q10'), '.csv', full.names = TRUE))
+
+ggplot(data = beta_q10, aes(q10, min_value, color = model)) +
+    geom_line() +
+    geom_point(size = 2.5) +
+    SCRIPT_THEME +
+    labs(y = expression('Optmial Value'),
+         x = expression(Q[10])) +
+    guides(shape = FALSE) +
+    coord_cartesian(ylim = c(0, 1.5)) +
+    scale_color_manual(values = COLOR_THEME) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
+    emiss_q10_min_plot
+
+
+ggplot(data = beta_q10, aes(q10, beta, color = model)) +
+    geom_line() +
+    geom_point(size = 2.5) +
+    SCRIPT_THEME +
+    labs(y = expression(beta),
+         x = expression(Q[10])) +
+    guides(shape = FALSE) +
+    scale_color_manual(values = COLOR_THEME) +
+    theme(legend.position = c(0,1),
+          legend.justification = c(0,1),
+          legend.background = element_rect(color = 'black')) ->
+    emiss_beta_q10
+
+emiss_beta_q10_sym_final <- plot_grid(emiss_q10_min_plot,
+                                      emiss_beta_q10, labels = c('A', 'B'),
+                                      label_size = 10)
+
+
+# Add the legend to the row we made earlier and save.
+ ggsave(emiss_beta_q10_sym_final,
+           filename = file.path(FIGS_DIR, 'emiss_beta_q10.pdf'),
+           device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH,
+           dpi = FIG_DPI, units = 'in')
+
+
+ # What happens with the beta parameter penalty?
+ beta_q10_penalty <- read.csv(list.files(file.path(OUTPUT_DIR, 'emiss_beta_q10_penaltyBetaPrior'), '.csv', full.names = TRUE))
+
+ ggplot(data = beta_q10_penalty, aes(q10_rh, min_value, color = model)) +
+     geom_line() +
+     geom_point(size = 2.5) +
+     SCRIPT_THEME +
+     labs(y = expression('Optmial Value'),
+          x = expression(Q[10])) +
+     guides(shape = FALSE) +
+     coord_cartesian(ylim = c(0, 0.75)) +
+     scale_color_manual(values = COLOR_THEME) +
+     theme(legend.position = c(0,1),
+           legend.justification = c(0,1),
+           legend.background = element_rect(color = 'black')) ->
+     emiss_q10_min_plot
+
+
+ ggplot(data = beta_q10_penalty, aes(q10_rh, beta, color = model)) +
+     geom_line() +
+     geom_point(size = 2.5) +
+     SCRIPT_THEME +
+     labs(y = expression(beta),
+          x = expression(Q[10])) +
+     guides(shape = FALSE) +
+     scale_color_manual(values = COLOR_THEME) +
+     theme(legend.position = c(0,1),
+           legend.justification = c(0,1),
+           legend.background = element_rect(color = 'black')) ->
+     emiss_beta_q10
+
+ emiss_beta_q10_sym_final <- plot_grid(emiss_q10_min_plot,
+                                       emiss_beta_q10, labels = c('A', 'B'),
+                                       label_size = 10)
+
+
+ # Add the legend to the row we made earlier and save.
+ ggsave(emiss_beta_q10_sym_final,
+        filename = file.path(FIGS_DIR, 'emiss_beta_q10.pdf'),
+        device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH / 2,
+        dpi = FIG_DPI, units = 'in')
+
+
+
+
+
+## 4. Change in paramter fits -----------------------
+
+CHANGE_PLOT_COLORS <- c("Temp-Heat Flux-CO2" = COLOR_THEME[[1]],
+                        "Temp-Heat Flux-CO2 Penalty" = COLOR_THEME[[2]])
+# Add a factor to the fits data frame so that the models will be plotted in alphabetical order.
+fits_emiss$model <- factor(x = fits_emiss$model, levels = sort(unique(fits_emiss$model), decreasing = TRUE),
+                     ordered = TRUE)
+
+fits_emiss$method <- factor(x = fits_emiss$method,
+                            levels = c("Temp-Heat Flux-CO2", "Temp-Heat Flux-CO2 Penalty"),
+                            ordered = TRUE)
+
+fits_emiss %>%
+    arrange(method) ->
+    fits_emiss
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = S, color = method),
+               size = 2.5) +
+   geom_path(aes(y = model, x = S),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL)  +
+    coord_cartesian(xlim = c(0, 10)) +
+    SCRIPT_THEME +
+   scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(~italic(S)~' ('~degree~'C)')) ->
+    change_fitted_S
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = diff, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = diff),
+            arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    coord_cartesian(xlim = c(-1, 20)) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(kappa~' ('~cm^2/'s)')) ->
+    change_fitted_diff
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = alpha, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = alpha),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS)+
+    labs(x = expression(alpha[a])) ->
+    change_fitted_alpha
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = volscl, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = volscl),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    coord_cartesian(xlim = c(-.5, 2)) +
+    labs(x = expression(alpha[v])) ->
+    change_fitted_volscl
+
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = beta, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = beta),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+      scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(beta)) ->
+    change_fitted_beta
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = q10_rh, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = q10_rh),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+     scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    #  coord_cartesian(xlim = c(-.5, 2)) +
+    labs(x = expression(Q[10])) ->
+    change_fitted_q10
+
+
+ggplot(data = fits_emiss) +
+    geom_point(aes(y = model, x = C0, color = method),
+               size = 2.5) +
+    geom_path(aes(y = model, x = C0),
+              arrow = arrow(length=unit(0.20,"cm"))) +
+    labs(y = NULL) +
+    SCRIPT_THEME +
+    scale_color_manual(values = CHANGE_PLOT_COLORS) +
+    labs(x = expression(C[0]~(ppmv~CO[2]))) ->
+    change_fitted_C0
+
+
+change_param_plot <- plot_grid(change_fitted_S + theme(legend.position = 'none'),     change_fitted_beta + theme(legend.position = 'none'),
+                               change_fitted_diff + theme(legend.position = 'none'),           change_fitted_q10 + theme(legend.position = 'none'),
+                               change_fitted_alpha + theme(legend.position = 'none'),                                change_fitted_C0 + theme(legend.position = 'none'),
+                               change_fitted_volscl + theme(legend.position = 'none'),
+                               get_legend(change_fitted_S),
+                               labels = c('A', 'E',
+                                          'B', 'F',
+                                          'C', 'G',
+                                          'D'),
+                               label_size = 10,
+                               ncol = 2 )
+# Save the figure
+ggsave(change_param_plot,
+       filename = file.path(FIGS_DIR, 'emiss_change_fitted_param.pdf'),
+       device = 'pdf', width = FIG_WIDTH , height = FIG_WIDTH ,
+       dpi = FIG_DPI * 3, units = 'in')
+
+
+## 5. Fitted Parameter Table -------------------------------------------------------------------------------------------
+# Create the bones for the table of the fitted paratmers for latex, some additional editing will have to be done in
+# latex but this makes something that can be copied and pasted into the LaTex document.
+fits_emiss %>%
+    select(S, diff, voscl, alpha, CO0, beta, q10_rh, model, method) %>%
+    gather(param, value, S, diff, alpha, volscl, beta, q10_rh, C0) %>%
+    select(model, method, param, value) ->
+    df
+
+#df$param <- factor(df$param,
+#                   levels = c('S', 'diff', 'alpha', 'volscl', 'beta', 'q10_rh', 'C0'),
+#                   ordered = TRUE)
+#df$method <- factor(df$method,
+#                    levels = c('Temp-Heat Flux-CO2', 'Temp-Heat Flux-CO2 Penalty'),
+#                    ordered = TRUE)
+
+df %>%
+    mutate(method = if_else(method == 'Temp-Heat Flux-CO2', 1, 2)) %>%
+    mutate(param = if_else(param == 'S', '1', param),
+           param = if_else(param == 'diff', '2', param),
+           param = if_else(param == 'alpha', '3', param),
+           param = if_else(param == 'volscl', '4', param),
+           param = if_else(param == 'beta', '5', param),
+           param = if_else(param == 'q10_rh', '6', param),
+           param = if_else(param == 'C0', '7', param),
+           param = as.integer(param)) %>%
+    arrange(method, param) %>%
+    mutate(param = paste0(method, param)) %>%
+    select(model, param, value) %>%
+    spread(param, value) %>%
+    na.omit %>%
+    kable(format = 'latex', digits = 2, align = 'c',
+          col.names = c('Model',  'S', 'diff', 'alpha', 'volscl', 'beta', 'q10_rh', 'C0',
+                        'S', 'diff', 'alpha', 'volscl', 'beta', 'q10_rh', 'C0')) %>%
+    kable_styling(c("striped"), full_width = F) %>%
+    add_header_above(c(" " = 1, "Temperature" = 4, "Temperature & Heat Flux" = 4)) %>%
+    save_kable(file = "conc_fitted_params.pdf")
+

@@ -30,6 +30,8 @@ check_convergence <- function(output_dir){
 
         if(!is.null(object) &  object$optim_rslt$convergence == 0){
             0
+        } else {
+            1
         }
     }) %>%
         unlist ->
@@ -90,9 +92,7 @@ data_subsetExperiment %>%
 
 ## 2. Calibration 1 ---------------------------------------------------------------------
 
-
-
-OUTPUT1_DIR  <- file.path(OUTPUT_DIR, 'calibration1')
+OUTPUT1_DIR  <- file.path(OUTPUT_DIR, 'calibrationBeta')
 dir.create(OUTPUT1_DIR, recursive = TRUE, showWarnings = FALSE)
 
 fit_params <- c(ECS(), DIFFUSIVITY(), VOLCANIC_SCALE(), AERO_SCALE(),
@@ -106,7 +106,11 @@ mapply(function(data_name, comp_data){
     object     <- readRDS(list.files(file.path(BASE_DIR, 'output', 'emiss_temp_heatflux_co2', 'final'), data_name, full.names = TRUE))
     best_guess <- object$optim_rslt$par
 
-    penalty <- make_param_penatlity_function(Q10_RH(), lower = 1, upper = 4, sig = 0.10)
+    penalty <- make_param_penalty_function(list('beta' = function(x){
+        fn <- mktruncnorm(a = 0, b = Inf, mu = 0.3, sig = 0.7)
+        prod(fn(x), -1)
+
+    }))
     best_guess[7] <- 3
 
     # Calibrate to the ESM comparison data and produce the diagnostic outputs.
