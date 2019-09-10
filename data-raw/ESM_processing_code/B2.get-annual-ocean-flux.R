@@ -15,7 +15,8 @@ library(ncdf4)
 # Define the directories.
 TEMP_FILE_BASE_NAME <- "/pic/scratch/dorh012"                         # Define a place to store the interminate netcdfs created during the cdo processing.
 CDO_EXE             <- "/share/apps/netcdf/4.3.2/gcc/4.4.7/bin/cdo"   # Where the cdo lives
-setwd('/pic/projects/GCAM/Dorheim/Dorheim/hectorcal/data-raw/ESM_processing_code')
+BASE                <- '/pic/projects/GCAM/Dorheim/Dorheim/hectorcal/data-raw'
+
 # 1. Define Functions -----------------------------------------------------------------------
 # Make a netcdf of ocean weights, where cells that are land based have a value of 0 so that when we take the global average those values do not count.
 # This function will save the new netcdf as the out_nc.
@@ -60,7 +61,7 @@ calculate_ocean_heat_flux <- function(input){
     assert_that(unique(input$domain) == 'Amon', msg = 'This function can only process monthly atmopheric data')
 
     input %>%
-        disitinct %>%
+        distinct() %>%
         mutate(variable = paste0(variable, '_nc')) %>%
         spread(variable, variable_file_path) ->
         wide_cmip_data
@@ -98,16 +99,23 @@ calculate_ocean_heat_flux <- function(input){
 
     # Calculate annual ocean heat flux (gain - loss).
     total_flux_nc <- file.path(TEMP_FILE_BASE_NAME, 'total_flux.nc')
-    system2(CDO_EXE, args = c('fldmean',  paste0("-setgridarea,", weight_nc), '-yearmean', '-sub', gain_flux_nc, loss_flux_nc, total_flux_nc), stdout = TRUE, stderr = TRUE)
+    system2(CDO_EXE, args = c('fldmean',  paste0("-setgridarea,", weight_nc), '-sub', gain_flux_nc, loss_flux_nc, total_flux_nc), stdout = TRUE, stderr = TRUE)
 
     # Extract results from the netcdf and format into a data frame.
     nc  <- nc_open(total_flux_nc)
     tibble(year = as.integer(substr(x = ncvar_get(nc, 'time'), start = 1, stop = 4)),
+           month = as.integer(substr(x = ncvar_get(nc, 'time'), start = 5, stop = 6)),
            value = ncvar_get(nc, 'rsds'),
            variable = 'heatflux',
            ensemble = input_info[['ensemble']],
            model = input_info[['model']],
-           experiment = input_info[['experiment']]) ->
+           experiment = input_info[['experiment']]) %>%
+        group_by(year, variable, ensemble, model, experiment) %>%
+        summarise(value = mean(value),
+                  month_count = n_distinct(month)) %>%
+        ungroup %>%
+        filter(month_count == 12) %>%
+        select(-month_count)->
         output
 
     # Clean up the intermediate files
@@ -120,7 +128,7 @@ calculate_ocean_heat_flux <- function(input){
 
 # 2. Import Data --------------------------------------------------------------------------------
 # Import the data to process and break it up into the variable data data and the meta data.
-to_process <- read.csv('cmip_flux_data_to_process.csv', stringsAsFactors = FALSE)
+to_process <- read.csv(file.path(BASE, 'cmip_flux_data_to_process.csv'), stringsAsFactors = FALSE)
 
 # Seperate the cmip data files from the cmip meta data files.
 to_process %>%
@@ -159,16 +167,15 @@ oceanWeights_tibble <- tibble(model = for_calculating_ocean_area_weights$model,
 # 4. Calculate Ocean Heat FLux -----------------------------------------------------------------
 cmip_data_files %>%
     left_join(oceanWeights_tibble, by = 'model') %>%
-    split(., list(.$model, .$experiment, .$ensemble)) -> x
-    # Remove the entries of the list that contain 0 rows because the
-    # caclulate_ocean_heat_flux function will not work with it.
-    list.clean(fun = function(input){nrow(input) == 0}) %>%
+    split(., list(.$model, .$experiment, .$ensemble), drop = TRUE) -> x
+
+x[1:2] %>%
     lapply(calculate_ocean_heat_flux) %>%
     bind_rows ->
     heat_flux_results
 
 # Save the output
-write.csv(x = heat_flux_results, file = 'CMIP5_heat_flux.csv', row.names = FALSE)
+write.csv(x = heat_flux_results, file = file.path(BASE, 'CMIP5_heat_flux.csv'), row.names = FALSE)
 
 # Clean up
 file.remove(oceanWeights_tibble$weight_nc)

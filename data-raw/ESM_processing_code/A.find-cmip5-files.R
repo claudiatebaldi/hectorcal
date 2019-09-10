@@ -2,7 +2,7 @@
 # average tas and pco2.
 #
 # This script is set up to be run on pic with R/3.4.3, see section 0 for details on set up and section 1 for
-# decisions about which CMIP5 files to search for.
+# decisions about which CMIP5 files to search for. Should be run from the data-raw directory.
 
 
 # 0. Set Up --------
@@ -14,8 +14,8 @@ library(purrr)
 
 
 # Define the directories.
-BASE         <- "/pic/projects/GCAM/Dorheim/hector_calibration"   # The precip_var project location.
-CMIP5_DATA   <- "/pic/projects/GCAM/CMIP5-CHartin"                # Directory containing the cmip5 files to process.
+BASE         <- "/pic/projects/GCAM/Dorheim/Dorheim/hectorcal/data-raw"   # The precip_var project location.
+CMIP5_DATA   <- "/pic/projects/GCAM/CMIP5-KDorheim"                # Directory containing the cmip5 files to process.
 OUTPUT_DIR   <-  BASE                                             # Define the output directory.
 
 
@@ -26,11 +26,13 @@ OUTPUT_DIR   <-  BASE                                             # Define the o
 # will match with any variable, experiment, ensemble, domain pattern.
 
 # cmip5 search vectors
-VARIABLES       <- c("tas")                # cmip5 variables to process
-EXPERIMENTS     <- 'rcp45'                 # cmip5 experiments to process
+VARIABLES       <- c("tas", "co2")                # cmip5 variables to process
+EXPERIMENTS     <- c('rcp26', 'rcp45', 'rcp60',
+                     'rcp85', 'historical', 'esmHistorical',
+                     'esmrcp85')                # cmip5 experiments to process
 ENSEMBLES       <- "[a-zA-Z0-9-]{6}"       # search for an ensemble with p1
 DOMAINS         <- "Amon"                  # the modeling domain name
-MODELS          <- 'CESM1-BGC'                    # cmip5 models to process
+MODELS          <- NULL                    # cmip5 models to process
 
 
 # 2. Find the CMIP5 files to process ------
@@ -42,11 +44,11 @@ MODELS          <- 'CESM1-BGC'                    # cmip5 models to process
 # Return: A regex pattern
 pattern_gen <- function(vector){
 
-  if(is.null(vector)){
-    "[a-zA-Z0-9-]+"
-  } else {
-    paste(vector, collapse = "|")
-  }
+    if(is.null(vector)){
+        "[a-zA-Z0-9-]+"
+    } else {
+        paste(vector, collapse = "|")
+    }
 
 }
 
@@ -75,11 +77,12 @@ if(length(file_list) < 1) stop('Could not find any cmip files files matching ', 
 
 # Parse out the cmip5 meta data information from the file name.
 tibble(path = file_list) %>%
-  mutate(filename = basename(path)) %>%
-  separate(filename, into = c("variable", "domain", "model", "experiment",
-                              "ensemble", "date"), sep = "_", remove = FALSE) %>%
-  select(path, variable, domain, model, experiment, ensemble) ->
-  file_tibble
+    mutate(filename = basename(path)) %>%
+    separate(filename, into = c("variable", "domain", "model", "experiment",
+                                "ensemble", "date"), sep = "_", remove = FALSE) %>%
+    mutate(date = gsub(pattern = '.nc', replacement = '', x = date)) %>%
+    select(path, variable, domain, model, experiment, ensemble, date) ->
+    file_tibble
 
 
 # 5. Save output --------------

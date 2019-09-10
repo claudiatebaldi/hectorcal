@@ -20,12 +20,14 @@ fixdata <- mutate(alldata, value = if_else(variable=='co2' & value < 1, value*1e
 ## Any models for which the values here are dramatically different from the values reported
 ## for that model in the table BK provided are deemed "bogus" and dropped.
 bogusco2 <- c('BNU-ESM', 'FIO-ESM')
+
 ## Some of the models didn't run all the way to 2100, for some reason, or don't have
 ## a historical run
-bogustime <- c('GFDL-ESM2M', "bcc-csm1-1",   "bcc-csm1-1-m", "IPSL-CM5A-LR", 'MIROC4h', 'NorESM1-M',
+bogustime  <- c('GFDL-ESM2M', "bcc-csm1-1", "IPSL-CM5A-LR", 'MIROC4h', 'NorESM1-M',
                'GFDL-CM2p1')
+
 ## Hadley models have squirrelly formatting.  Drop them for now
-bogushadley <- c('HadCM3', 'HadGEM2-AO', 'HadGEM2-CC', 'HadGEM2-ES')
+bogushadley <- c('HadGEM2-ES')
 
 ## Make sure that all of the models have BOTH emission driven historical and rcp85 results
 ## for a variable.
@@ -39,6 +41,15 @@ fixdata %>%
     filter_all(any_vars(is.na(.))) %>%
     pull(model) ->
     incomplete_esm_runs
+
+## Remove the bogus heat flux inmcm4 emission data.
+fixdata %>%
+    mutate(remove = 0,
+           remove = if_else(variable == 'heatflux' & model == 'inmcm4', 1, remove)) %>%
+    filter(remove == 0) %>%
+    select(-remove) ->
+fixdata
+
 
 ## NB: some of the models seems to have bogus data in 1850 (over the whole
 ## ensemble, min(co2) = 7.5 ppm, max(co2) = 991,012 ppm).  Everything seems to
@@ -120,10 +131,11 @@ esm_comparison_range <-
     # that fall outside the range of the other models. We think that that data
     # is fine to use in the "individual cmip5 best fit exercise" we do not to
     # include it in the esm range comparison data set.
-    filter(year <= 2100 & model != 'inmcm4') %>%
+    filter(year <= 2100 & !model %in% c('inmcm4', 'bcc-csm1-1-m')) %>%
     left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
     group_by(year, variable, experiment) %>%
-    summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1), b90=quantile(value, 0.9)) %>%
+    summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1, na.rm = TRUE),
+              b90=quantile(value, 0.9, na.rm = TRUE)) %>%
     ungroup
 
 ## In order to prevent unequal weights of models in the multimodel mean find the model
@@ -131,10 +143,11 @@ esm_comparison_range <-
 ## and median.
 final_cmip5_data %>%
     left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
+    filter(year <= 2100 & !model %in% c('inmcm4', 'bcc-csm1-1-m')) %>%
     filter(keep == 1) %>%
     ## Calculate the model ensemble mean
     group_by(year, model, variable, experiment, unit) %>%
-    dplyr::summarise(value = mean(value)) %>%
+    dplyr::summarise(value = mean(value, na.rm = TRUE)) %>%
     ungroup() %>%
     ## Calculate the multi model mean and median
     group_by(year, variable, experiment) %>%
@@ -151,3 +164,4 @@ devtools::use_data(esm_comparison, overwrite=TRUE, compress='xz')
 cmip_individual <- rename(greatdata, esmbaseline=esm1850, concbaseline=conc1850) %>%
     select(-unit)
 devtools::use_data(cmip_individual, overwrite=TRUE, compress='xz')
+

@@ -15,6 +15,7 @@ library(tibble)
 # Define the directories.
 CMIP5_DATA          <- "/pic/projects/GCAM/CMIP5-KDorheim"            # The location of the cmip 5 files to process'
 CMIP5_META          <- "/pic/projects/GCAM/CMIP5-KDorheim"             # Corinne's CMIP5 directory should have the cell area and the land fraction meta data files.
+BASE                <- "/pic/projects/GCAM/Dorheim/Dorheim/hectorcal/data-raw"
 
 # Select the CMIP5 variables, experiments, ensembles, realms, and time scales to process. Any options defined in
 # in each of the following vectors will be processed.
@@ -172,4 +173,4 @@ good_cmip_files %>%
     cmip_data_to_process
 
 # Save the cmip data that should be processed in the raw-data intermeidate file.
-write.csv(cmip_data_to_process, file = 'cmip_flux_data_to_process.csv', row.names = FALSE)
+write.csv(cmip_data_to_process, file = file.path(BASE, 'cmip_flux_data_to_process.csv'), row.names = FALSE)
