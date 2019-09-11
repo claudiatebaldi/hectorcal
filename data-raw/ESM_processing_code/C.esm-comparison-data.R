@@ -131,7 +131,12 @@ esm_comparison_range <-
     # that fall outside the range of the other models. We think that that data
     # is fine to use in the "individual cmip5 best fit exercise" we do not to
     # include it in the esm range comparison data set.
-    filter(year <= 2100 & !model %in% c('inmcm4', 'bcc-csm1-1-m')) %>%
+    filter(year <= 2100 & !model %in% c('bcc-csm1-1-m')) %>%
+    ## TODO for now remove the ESM models that have the gap in co2 data and are
+    ## missing the last 10 years of the future runs.
+    mutate(keep = if_else(grepl(pattern = 'esm', experiment) & !model %in% c('inmcm4', 'NorESM1-ME', 'MRI-ESM1'), TRUE, FALSE)) %>%
+    filter(keep) %>%
+    select(-keep) %>%
     left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
     group_by(year, variable, experiment) %>%
     summarise(mina=min(value), maxb=max(value), a10=quantile(value, 0.1, na.rm = TRUE),
@@ -143,8 +148,12 @@ esm_comparison_range <-
 ## and median.
 final_cmip5_data %>%
     left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
-    filter(year <= 2100 & !model %in% c('inmcm4', 'bcc-csm1-1-m')) %>%
-    filter(keep == 1) %>%
+    filter(year <= 2100 & !model %in% c('bcc-csm1-1-m')) %>%
+    ## TODO for now remove the ESM models that have the gap in co2 data and are
+    ## missing the last 10 years of the future runs.
+    mutate(keep = if_else(grepl(pattern = 'esm', experiment) & !model %in% c('inmcm4', 'NorESM1-ME', 'MRI-ESM1'), TRUE, FALSE)) %>%
+    filter(keep) %>%
+    select(-keep) %>%
     ## Calculate the model ensemble mean
     group_by(year, model, variable, experiment, unit) %>%
     dplyr::summarise(value = mean(value, na.rm = TRUE)) %>%
