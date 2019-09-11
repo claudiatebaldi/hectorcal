@@ -21,16 +21,15 @@ library(readr)
 # 1. Import Data ------------------------------------------------------------------------------------
 # Import the heat flux data, because of some issues with the data processing there are some wonky heat
 # flux values (heat flux values that have a magnitude greater than 5).
-heat_flux <- read.csv("CMIP5_heat_flux_raw.csv", stringsAsFactors = FALSE) %>%
-    select(-X)
+heat_flux <- read.csv("CMIP5_heat_flux_raw.csv", stringsAsFactors = FALSE)
 
 # Import the monthly global fluxes, this data will be used to replace the outliers in the annual heat flux
 # time series.
-monthly_fluxes <- read_csv("CMIP5_global_flux_means.csv.zip")  %>%
+monthly_fluxes <- read_csv("CMIP5_global_flux_means.csv_og.zip")  %>%
     # Parse out the year information from the year_month column.
     rename(year_month = year) %>%
     mutate(year = as.integer(substr(year_month, 1, 4))) %>%
-    select(-'X1')
+    select(-`X1`)
 
 # 2. Calcualte Annual Heat Flux Monthly Global Means --------------------------------------------------
 
@@ -65,7 +64,6 @@ heat_flux %>%
     mutate(replace = if_else(abs(value) > 8 & experiment == 'rcp85', TRUE, replace)) %>%
     distinct ->
     heatflux_to_replace
-
 
 heatflux_to_replace %>%
     filter(replace) %>%

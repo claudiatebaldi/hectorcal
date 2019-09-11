@@ -23,8 +23,6 @@
 #' will be ignored, so it is safe to use a canoncial list of filenames.
 #' @param pcs Principal components structure.  If \code{NULL}, work directly
 #' with output values.
-#' @param smoothing Smoothing parameter for the mesa function, expressed as a
-#' fraction of the window size.
 #' @param cal_mean If true calibrate to mean; otherwise calibrate to range
 #' @param lowcol Column in comparison data to use for the low edge of the mesa
 #' function.  Ignored if cal_mean is \code{TRUE}
@@ -40,22 +38,17 @@
 #' @param hflux_expt_regex Regular expression identifying the experiment to pull the heat
 #' flux from.  There must be only one experiment in the dataset tha matches.
 #' Default is 'rcp85'.
-#' @param hflux_smoothing Smoothing parameter for heat flux.  Generally larger than
-#' the smoothing parameter for the other variables because heat flux is less
-#' well sampled than those variables are.
 #' @param verbose If \code{TRUE}, print diagnostic messages.  Otherwise,
 #' diagnostic messages will not be generated.
 #' @export
 build_mcmc_post <- function(comp_data, inifiles,
                             pcs = NULL,
-                            smoothing = 0.1,
                             cal_mean = TRUE,
                             lowcol = 'mina', hicol = 'maxb',
                             prior_params = NULL,
                             use_lnorm_ecs=TRUE,
                             hflux_year=2100,
                             hflux_expt_regex='rcp85',
-                            hflux_smoothing=0.2,
                             verbose=FALSE)
 {
     ## Prior hyperparameters
@@ -68,8 +61,10 @@ build_mcmc_post <- function(comp_data, inifiles,
         q10mu=2.0, q10sig=2.0,
         c0mu=285, c0sig=14.0,
         sigtscale=1.0,
+        sighfscale=1.0,
         sigco2scale=10.0,
-        sigscale=1.0)
+        sigpscale=1.0,
+        sigmscale=0.25)
 
     ## Check to see if user has overridden any of the parameters
     if(!is.null(prior_params)) {
@@ -88,8 +83,8 @@ build_mcmc_post <- function(comp_data, inifiles,
     logprior <- make_logprior(prior_params, use_lnorm_ecs)
 
     loglik <- make_loglikelihood(inifiles, verbose, cal_mean, comp_data,
-                                 smoothing, hicol, lowcol, pcs,
-                                 hflux_year, hflux_expt_regex, hflux_smoothing)
+                                 hicol, lowcol, pcs,
+                                 hflux_year, hflux_expt_regex)
 
     ## Return the final posterior function
     make_logpost(logprior, loglik, verbose)
@@ -124,7 +119,7 @@ make_logprior <- function(pprior, use_lnorm_ecs)
     q10prior   <- mktruncnorm(0, Inf, pprior['q10mu'], pprior['q10sig'])
 
     function(p) {
-        sigvals <- p[c('sigt','sigco2', 'sig', 'sighf')] #use these later
+        sigvals <- p[c('sigt','sigco2', 'sigp', 'sighf', 'sigm')] #use these later
 
         sum(
             ## normal priors
@@ -140,7 +135,7 @@ make_logprior <- function(pprior, use_lnorm_ecs)
             q10prior(p[hector::Q10_RH()]),
             ## half-cauchy priors for the sigvals
             ifelse(sigvals<0, -Inf, stats::dcauchy(sigvals, 0,
-                                                   pprior[c('sigtscale','sigco2scale', 'sigscale')], log=TRUE)),
+                                                   pprior[c('sigtscale','sigco2scale', 'sigpscale', 'sighfscale', 'sigmscale')], log=TRUE)),
             ## This will cause us to ignore any parameters not present
             na.rm = TRUE
             )
@@ -158,20 +153,17 @@ make_logprior <- function(pprior, use_lnorm_ecs)
 #' \code{FALSE}, calibrate to the envelope.
 #' @param comp_data Observed comparison data, in summary format (see, for
 #' example, \code{\link{esm_comparison}}.
-#' @param smoothing Smoothing factor.
 #' @param hicol Name of the column with the high edge of the window.
 #' @param lowcol Name of the column with the low edge of the window.
 #' @param pcs Principal components structure.  If \code{NULL} outputs will be
 #' compared directly.
 #' @param hflux_year Year at which to evaluate ocean heat flux for comparison.
 #' @param hflux_expt_regex Regular expression identifying the experiment to
-#' @param hflux_smoothing Smoothing factor for heat flux. (Because it is likely to
-#' be less well sampled than other vars)
 #' get heat flux from.
 #' @importFrom foreach %dopar%
 make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
-                               smoothing, hicol, lowcol, pcs,
-                               hflux_year, hflux_expt_regex, hflux_smoothing)
+                               hicol, lowcol, pcs,
+                               hflux_year, hflux_expt_regex)
 {
     ## create bindings for NSE vars
     experiment <- variable <- year <- scenario <- NULL
@@ -364,7 +356,7 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
                 assertthat::assert_that(!any(is.na(comp_data$sig)))   # If a sig parm is missing, that var must not be in the dataset
             }
             else {
-                comp_data$sig <- p[['sig']]  # Only one type of sig for pca cal
+                comp_data$sig <- p[['sigp']]  # Only one type of sig for pca cal
             }
             ll <- sum(stats::dnorm(cdata$value, mean=comp_data$cmean,
                                    sd=comp_data$sig, log=TRUE))
@@ -377,10 +369,10 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
         }
         else {
             ## Compute the mesa function.  This actually works the same for both output and pc
-            sig <- smoothing * pmax(comp_data[[hicol]] - comp_data[[lowcol]], 1e-3)
+            sig <- p['sigm'] * pmax(comp_data[[hicol]] - comp_data[[lowcol]], 1e-3)
             ll <- sum(log(mesa(cdata$value, comp_data[[lowcol]], comp_data[[hicol]], sig)))
             if(!is.null(hflux_data)) {
-                hfsig <- hflux_smoothing * pmax(hflux_data[[hicol]] - hflux_data[[lowcol]], 1e-3)
+                hfsig <- p['sigm'] * pmax(hflux_data[[hicol]] - hflux_data[[lowcol]], 1e-3)
                 ll <- ll + log(mesa(hdata$value, hflux_data[[lowcol]],
                                     hflux_data[[hicol]], hfsig))
             }

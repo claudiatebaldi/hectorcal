@@ -18,10 +18,11 @@ hfexpt <- 'rcp85'
 ### Bit 7: Debug flag
 
 ### To use a restart file, specify the file stem up through the number of samples
-### For example, 'testrun-1000'
+### For example, 'testrun-1000'.  Everything including and after the runid will be
+### added automatically.
 
 mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
-                         plotfile=TRUE, npc=10, restart=NULL)
+                         plotfile=TRUE, npc=10, restart=NULL, warmup=1000)
 {
     runid <- as.integer(runid)
     serialnumber <- bitwAnd(runid, 15)
@@ -68,19 +69,12 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     }
 
     ## Create the log-posterior function
-    lpf <- build_mcmc_post(compdata, inputfiles, pcs, smoothing = 0.5, cal_mean = meanflag,
+    lpf <- build_mcmc_post(compdata, inputfiles, pcs, cal_mean = meanflag,
                            hflux_year = hfyear, hflux_expt_regex = hfexpt)
 
     ## initial parameters
     if(is.null(restart)) {
-        if(bitwAnd(runid, 240) %in% c(64,96)) {
-            ## These runs were given different starting parameters and rerun
-            p0 <- c(3.37, 1.015, 1.1, 2.0, 0.15, 2.2, 285.85)
-        }
-        else {
-            ## starting parameters used in the rest of the runs
-            p0 <- c(3.65, 0.98, 1.65, 0.95, 0.04, 1.27, 281.6)
-        }
+        p0 <- c(3.37, 1.015, 1.1, 2.0, 0.15, 2.2, 285.85)
     }
     else {
         restartfile <- paste(restart, runid, 'mcrslt.rds', sep='-')
@@ -106,7 +100,7 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
             scale[1,2] <- scale[2,1] <- 0.9
             scale[5,6] <- scale[6,5] <- 0.9
             scale <- cor2cov(scale, sclfac)
-            pnames <- c(pnames, 'sig')
+            pnames <- c(pnames, 'sigp')
         }
         else {
             ## If we get to this point, we are either run 64 or 96
@@ -157,10 +151,32 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     }
     else {
         ## Not doing mean calibration.  Still want to add some correlation.
-        sclfac <- scale
+        if(is.null(restart)) {
+            ## We start with a larger value of sigm for the emissions runs than we did for the
+            ## concentration runs because the smaller number of runs means that we sometimes
+            ## have very narrow envelopes.  This helps us avoid our initial guesses ending up with
+            ## log-likelihoods of -Inf.
+            p0 <- c(p0, 0.5)
+        }
+        sclfac <- c(scale, 0.02)
+        pnames <- c(pnames, 'sigm')
         scale <- diag(nrow=length(sclfac), ncol=length(sclfac))
-        scale[1,2] <- scale[2,1] <- 0.95
-        scale[5,6] <- scale[6,5] <- 0.9
+        if(pcsflag) {
+            ## Mixing is easier with PCA in effect, and S-kappa correlation is less pronounced.
+            sclfac <- sclfac * 2
+            if(hfflag) {
+                skcor <- 0
+            }
+            else {
+                skcor <- 0.5
+            }
+            scale[1,2] <- scale[2,1] <- skcor
+            scale[5,6] <- scale[6,5] <- 0.6
+        }
+        else {
+            scale[1,2] <- scale[2,1] <- 0.95
+            scale[5,6] <- scale[6,5] <- 0.8
+        }
         scale <- cor2cov(scale, sclfac)
     }
 
@@ -180,6 +196,12 @@ mc_run_emiss <- function(runid, nsamp, filestem='hectorcal-emiss',
     ## Run monte carlo
     foreach::registerDoSEQ()
     set.seed(867-5309 + serialnumber)
+
+    if(warmup > 0 && is.null(restart)) {
+        ## Perform warmup samples if requested.  Ignore if we are restarting
+        ## from a previous run.
+        p0 <- metrosamp(lpf, p0, warmup, 1, scale, debug=debugflag)
+    }
 
     ms <- metrosamp(lpf, p0, nsamp, 1, scale, debug=debugflag)
 
