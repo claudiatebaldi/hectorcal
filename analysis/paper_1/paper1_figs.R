@@ -151,6 +151,17 @@ fits_temp %>%
     group_by(good) %>%
     summarise(n = n_distinct(model))
 
+# How does the number of good fits change when the heat flux is added
+
+conc_fits %>%
+    group_by(method) %>%
+    mutate(goodS = if_else(S >= 1 & S <= 6, TRUE, FALSE),
+           goodDiff = if_else(diff > 1e-6, TRUE, FALSE)) %>%
+    summarise(goodS = sum(goodS),
+              goodDiff = sum(goodDiff))
+
+
+
 
 
 # Summary about the fits for the temp-heatflux calibration experiments
@@ -482,7 +493,7 @@ ggplot(data = S_kappa, aes(kappa, optmized_value, color = model, shape = comp_da
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
-    labs(y = expression('Optmial Value'),
+    labs(y = expression(chi),
          x = expression(kappa~'('~cm^2*s^-1~')')) +
     coord_cartesian(ylim = c(0, 0.4)) +
     guides(shape = FALSE) +
@@ -528,7 +539,7 @@ ggplot(data = S_kappa_tempHF, aes(kappa, optmized_value, color = model, shape = 
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
-    labs(y = expression('Optmial Value'),
+    labs(y = expression(chi),
          x = expression(kappa~'('~cm^2*s^-1~')')) +
     coord_cartesian(ylim = c(0, 1)) +
     guides(shape = FALSE) +
@@ -1028,7 +1039,7 @@ ggplot(data = beta_q10, aes(beta, optmized_value, color = model)) +
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
-    labs(y = expression('Optmial Value'),
+    labs(y = expression(chi),
          x = expression(beta)) +
     coord_cartesian(ylim = c(0, 0.7)) +
     guides(shape = FALSE) +
@@ -1071,7 +1082,7 @@ ggplot(data = beta_q10_penalty, aes(beta, optmized_value, color = model)) +
     geom_line() +
     geom_point(size = 2.5) +
     SCRIPT_THEME +
-    labs(y = expression('Optmial Value'),
+    labs(y = expression(chi),
          x = expression(beta)) +
     coord_cartesian(ylim = c(0, 0.7)) +
     guides(shape = FALSE) +
@@ -1418,5 +1429,76 @@ plot_grid(arranged_plots, legend, rel_widths = c(4, .5)) +
     ggsave(filename = file.path(FIGS_DIR, 'summpelmental_emiss_withPen_hf.pdf'),
            device = 'pdf', width = FIG_WIDTH, height = FIG_WIDTH,
            dpi = FIG_DPI, units = 'in')
+
+
+## Supplemental Figure looking at the results from the wihtout penalty symetry run such that NPP is a result.
+hector_core <- newcore(system.file('input/hector_rcp85.ini', package = 'hector'))
+
+emiss_sym %>%
+    filter(sym_method == 'emiss_carbon') %>%
+    apply(MARGIN = 1, FUN = function(input){
+
+        params <- as.double(c(input[['S']], input[['alpha']], input[['volscl']], input[['diff']],
+                    input[['C0']], input[['q10_rh']], input[['beta']]))
+        names(params) <- c('S', 'alpha', 'volscl', 'diff', 'C0', 'q10_rh', 'beta')
+        parameterize_core(params = params, core = hector_core)
+        reset(hector_core)
+        run(hector_core, runtodate = 2100)
+
+        fetchvars(hector_core, 1850:2100, vars = c(GLOBAL_TEMP(), ATMOSPHERIC_CO2(), HEAT_FLUX(), NPP())) %>%
+            mutate(model = input[['model']],
+                  optmized_value = input[['optmized_value']],
+                  q10_rh = params[['q10_rh']],
+                  beta = params[['beta']])
+
+    }) %>%
+    bind_rows() %>%
+    filter(beta < 1) %>%
+    # Remove the historical heat flux values
+    mutate(keep = if_else(variable != 'heatflux', TRUE, FALSE)) %>%
+    mutate(keep = if_else(variable == 'heatflux' & year > 2005, TRUE, keep)) %>%
+    filter(keep) %>%
+    select(-keep) %>%
+    arrange(beta) %>%
+    mutate(beta_2 = as.character(round(beta, digits = 1))) ->
+    emiss_sym_results
+
+
+## We are going to want to make a 6 panneled plot, one looking at beta vs optimal fit
+## and a sereis of others that look at the evolution of the graph over time...
+split(emiss_sym_results, emiss_sym_results$variable) %>%
+    lapply(function(input){
+
+        input %>%
+            filter(year == 2100) ->
+            data_2100
+
+  ggplot(data = input) +
+            geom_line(aes(year, value, color = model, group = interaction(beta, model, drop = TRUE))) +
+            geom_point(data = data_2100, aes(year, value, color = model, shape = beta_2)) +
+            scale_color_manual(values = EMISS_COLORS) +
+            labs(x = 'Year')
+
+    }) ->
+    emiss_variable_plots
+
+plot_list <- list(emiss_variable_plots$Ca + labs(y = expression('ppmv CO'[2])) + theme(legend.position = 'none'),
+                  emiss_variable_plots$heatflux + labs(y = expression(Wm^-2)) + theme(legend.position = 'none'),
+                  emiss_variable_plots$Tgav + theme(legend.position = 'none') + labs(y = expression(degree~C)),
+                  emiss_variable_plots$npp + theme(legend.position = 'none') + labs(y = expression(Pg~C~yr^-1)))
+legend <- get_legend(emiss_variable_plots$Ca +
+                         theme(legend.title = element_blank()))
+
+grid1      <- plot_grid(plotlist = plot_list, labels = LETTERS[1:length(plot_list)])
+final_plot <- plot_grid(grid1, legend, rel_widths = c(3, .5))
+
+ggsave(plot = final_plot,
+       filename = file.path(FIGS_DIR, 'summpelmental_NPP_beta_sym.pdf'),
+       device = 'pdf', width = 10, height = FIG_WIDTH,
+       dpi = FIG_DPI, units = 'in')
+
+
+
+
 
 
