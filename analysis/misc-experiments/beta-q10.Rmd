@@ -1,0 +1,133 @@
+---
+title: "Identifiability of beta and Q10"
+author: "Robert Link"
+date: "5/31/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Introduction
+
+Our purpose here is to see to what extent we can trade off the $\beta$ (CO$_2$
+fertilization) parameter against the $Q_{10}$ (heterotrophic respiration enhancement)
+parameter.  Both of these parameters affect the land-atmosphere carbon flux, but don't
+(directly) affect anything else.  Therefore, if we can sterilize the effect of one of them
+on land-atmosphere carbon flux by adjusting the other, the two are not independently
+identifiable.  
+
+## Structure of land-atmosphere flux
+Write the carbon flux _from_ land _into_ atmosphere as
+\begin{equation}
+F = F_0 - N_0\beta \ln\left(\frac{C_a}{C_0}\right) + \alpha_d C_d Q_{10}^{T/10} + \alpha_s C_s Q_{10}^{\tilde{T}/10}.
+\end{equation}
+$F_0$ is the sum of the flux terms that don't involve either parameter.  $N_0$
+is the NPP in the absence of CO$_2$ fertilization.  Hector assumes this to be
+equal to the preindustrial value; it does not depend at all on the current model
+state.  $C_a$ and $C_0$ are the current and base year atmospheric CO$_2$
+concentrations.  The latter is approximately equal to the preindustrial value. 
+$C_d$ and $C_s$ are the detritus and soil _carbon pools_, in PgC.  $T$ is
+temperature, while $\tilde{T}$ is a trailing window-averaged temperature.  This
+width of this window, in Hector's current configuration, is 200 years, meaning
+that even in 2100 $\tilde{T}$ is the average temperature over the period
+1900--2100.  Finally, $\alpha_d$ and $\alpha_s$ are constants, with value 0.025
+and 0.02, respectively.  From time to time it will be convenient to write
+$F_{d0} = \alpha_d C_d$ and $F_{s0} = \alpha_s C_s$.  These are the
+detritus-atmosphere and soil-atmosphere fluxes in the absence of $Q_{10}$ enhancement.
+Unlike $N_0$, they are not literally constant, since they depend on the size of the
+carbon pools, but if the carbon pools are not changing significantly in size 
+(an assumption we can check), then we can treat them as approximately constant.
+
+From this expression we can get the partial derivatives with respect to $\beta$ and
+$Q_{10}$.
+\begin{align}
+\frac{\partial F}{\partial \beta} &= -N_0 \ln\left(\frac{C_a}{C_0}\right). \\
+\frac{\partial F}{\partial Q_{10}} &= \alpha_d C_d \frac{T}{10} Q_{10}^{T/10-1} + \alpha_s C_s \frac{\tilde{T}}{10}Q_{10}^{\tilde{T}/10-1}.
+\end{align}
+
+## Offset condition
+Set
+\begin{equation}
+\frac{\partial F}{\partial Q_{10}} \Delta Q_{10} = - \frac{\partial F}{\partial \beta} \Delta \beta.
+\end{equation}
+Now solve for the ratio of $\Delta Q_{10}$ to $\Delta \beta$.
+\begin{equation}
+\frac{\Delta Q_{10}}{\Delta \beta} = \frac{10 N_0 \ln\left(\frac{C_a}{C_0}\right)}{\alpha_d C_d T Q_{10}^{T/10-1} + \alpha_s C_s \tilde{T} Q_{10}^{\tilde{T}/10 -1}}.
+\end{equation}
+
+We can rewrite this and simplify it by considering the limiting case where $\tilde{T} = 0$.
+We get
+\begin{equation}
+\frac{\Delta Q_{10}}{\Delta \beta} = \frac{10N_0}{F_{d,0}} \frac{\ln\left(\frac{C_a}{C_0}\right)}{T}Q_{10}^{1-T/10}.
+\end{equation}
+However, if we are concerned that $\tilde{T} = 0$ is not a good approximation, we could instead
+take $\tilde{T} = T$, as it would be if we set the window length to 0.  Then, we get
+\begin{equation}
+\frac{\Delta Q_{10}}{\Delta \beta} = \frac{10N_0}{F_{d,0} + F_{s,0}} \frac{\ln\left(\frac{C_a}{C_0}\right)}{T}Q_{10}^{1-T/10}.
+\end{equation}
+Notice that the dependence on $C_a$ and $T$ is exactly the same.  These represent the
+two extremes of the windowing behavior, and so we expect them to bound the actual behavior.
+
+## Can we offset beta and Q10?
+
+The ratio of $\Delta Q_{10}$ to $\Delta \beta$ has some dependence on the atmosphere 
+state variables, so we can't _exactly_ offset the two, but we need to ask ourselves how
+close we can come.  The first term is (by an assumption that we still need to check) constant 
+or nearly so, so all the variation comes from the second term
+
+Here is a plot of the second term over time.
+
+```{r ratio}
+library('hector')
+inifile <- system.file('input/hector_rcp85.ini', package='hector')
+rfac <- function(t) 
+{
+    hcore <- newcore(inifile)
+    run(hcore, max(t))
+    c0 <- fetchvars(hcore, NA, PREINDUSTRIAL_CO2())$value
+    ca <- fetchvars(hcore, t, ATMOSPHERIC_CO2())$value
+    carbonfac <- log(ca/c0)
+    
+    temp <- fetchvars(hcore, t, GLOBAL_TEMP())$value
+    q10 <- fetchvars(hcore, NA, Q10_RH())$value
+    tempfac <- q10^(1-temp/10) / temp
+    
+    carbonfac*tempfac
+}
+curve(rfac, from=1900, to=2100)
+```
+There are some spikes in the historical period that are probably due to rapid
+changes of temperature around volcanic events.  Outside of that, the values are
+not changing a lot.
+
+Here's what it looks like over the 21st century.
+```{r ratio2}
+curve(rfac, from=2000, to=2100)
+```
+
+So, if you took a compromise value of, say, 0.45, you might sometimes be making 
+an error as high as 0.07/0.38 = 18% relative to the optimal value of $Q_{10}$
+for that time step.  That's not nothing, but that's also as big as it gets.  For 
+comparison, changing $Q_{10}$ by 18% from 2 to 2.36 results in a difference in
+atmospheric CO$_2$ _accumulated over the entire run_ of `r signif(906.3063 - 888.0929, 2)`
+ppm (906.3 as compared to 888.1).  If we assume that this error occurred entirely
+over the last 10 years (which is surely not the case), we're looking at an error of 
+`r signif((906.3063 - 888.0929)/10, 2)` ppm in each year, which I'm pretty sure
+we couldn't see in our optimization.
+
+## What next?
+We still need to do our numerical tests to see if these estimates are borne out.
+I'd be particularly interested in seeing how close our $\Delta Q_{10} / \Delta \beta$ 
+estimate was.  However, assuming the story holds up, then what do we do next?
+
+It looks to me like the only parameters that could disambiguate these two are the
+individual components of the land flux, NPP and RH, since they don't directly enter
+into any other calculations, and all of their indirect effects seem to happen through
+the atmospheric concentration.  However, given how simplistic
+Hector's calculations of NPP and RH are, I wonder to what extent we can really
+expect to match them, even assuming they are available from the ESMs in the first
+place.
+
+If we can't get NPP or RH for the ESMs, or if we can't get the model to match
+them individually, then we may have to just accept that we only really have one
+free parameter here.

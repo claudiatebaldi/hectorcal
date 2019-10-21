@@ -135,6 +135,7 @@ esm_comparison_range <-
     ## TODO for now remove the ESM models that have the gap in co2 data and are
     ## missing the last 10 years of the future runs.
     mutate(keep = if_else(grepl(pattern = 'esm', experiment) & !model %in% c('inmcm4', 'NorESM1-ME', 'MRI-ESM1'), TRUE, FALSE)) %>%
+    mutate(keep = if_else(!grepl(pattern = 'esm', experiment), TRUE, keep)) %>%
     filter(keep) %>%
     select(-keep) %>%
     left_join(complete_ensembles, by = c("model", "ensemble", "experiment")) %>%
@@ -152,6 +153,7 @@ final_cmip5_data %>%
     ## TODO for now remove the ESM models that have the gap in co2 data and are
     ## missing the last 10 years of the future runs.
     mutate(keep = if_else(grepl(pattern = 'esm', experiment) & !model %in% c('inmcm4', 'NorESM1-ME', 'MRI-ESM1'), TRUE, FALSE)) %>%
+    mutate(keep = if_else(!grepl(pattern = 'esm', experiment), TRUE, keep)) %>%
     filter(keep) %>%
     select(-keep) %>%
     ## Calculate the model ensemble mean
