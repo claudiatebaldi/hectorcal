@@ -1,0 +1,128 @@
+---
+title: "Extreme samples in Protocol 48"
+output: html_notebook
+---
+
+```{r setup}
+
+library(foreach)
+library(doParallel)
+library(hector)
+library(dplyr)
+library(metrosamp)
+library(ggplot2)
+library(ggthemes)
+
+set.seed(867-5309)
+```
+
+```{r loaddata}
+datadir_conc <- file.path('.','mcmc','conc', 'primary')
+mcruns_conc <- proc_mc_rslts(datadir_conc, 'hectorcal-conc')
+nsamp <- 1000
+proto <- '48'
+parms <- rsample(mcruns_conc$mcobjs[[proto]], nsamp)
+```
+
+```{r setup.cores}
+basefile <- 'hector_rcp85_constrained.ini'
+inidir <- system.file('input', package='hector')
+inifile <- file.path(inidir,basefile)
+ncore <- 8
+hcores <- lapply(1:ncore, function(i) {newcore(inifile=inifile, name='rcp85')})
+registerDoParallel(cores=ncore)
+```
+
+```{r setup.cores.allscens}
+rcps <- c(26,45,60,85)
+rcpstr <- paste0('rcp',rcps)
+basefiles <- paste0('hector_',rcpstr,'_constrained.ini')
+inifiles <- file.path(inidir, basefiles)
+hcores_scens <- mapply(newcore, inifile=inifiles, name=rcpstr)
+```
+
+```{r runmodels}
+mastertbl <-
+    foreach(icore=seq(1,ncore), .combine=bind_rows) %dopar% {
+        idx <- seq(1,nsamp)
+        hcore <- hcores[[icore]]
+        myidx <- idx[idx%%ncore == icore-1]
+        
+        foreach(irow=myidx, .combine=bind_rows) %do% {
+            ## Set parameters
+            for(iparm in seq_along(pnames)) {
+                setvar(hcore, NA, pnames[iparm], parms[irow,iparm],
+                       hector::getunits(pnames[iparm]))
+            }
+            reset(hcore)
+            invisible(run(hcore, 2100))
+            rslt <- fetchvars(hcore, 1850:2100, GLOBAL_TEMP())
+            rslt$isamp <- irow
+            rslt
+        }
+    }
+```
+
+Two samples in this ensemble produce very low year 2100 temperatures for the rcp85 scenario.
+
+```{r filter.samps}
+temp2100 <- filter(mastertbl, year==2100, value < 2.0)
+print(temp2100)
+print(parms[temp2100$isamp,])
+```
+
+```{r plot.rcp85lo}
+rcp85lo <- filter(mastertbl, isamp %in% temp2100$isamp) %>% mutate(isamp=factor(isamp))
+cmpdata <- filter(esm_comparison, variable=='tas', 
+                  year > 2005 & experiment=='rcp85' | year < 2006 & experiment=='historical')
+ggplot(data=rcp85lo, aes(x=year, y=value, color=isamp)) + geom_line(size=1.2) +
+    geom_ribbon(data=cmpdata, aes(x=year, ymin=mina, ymax=maxb), 
+                inherit.aes=FALSE, color='darkgrey', alpha=0.5) +
+    theme_solarized_2() + scale_color_solarized()
+```
+
+What is causing this behavior?  We can compare the PCA projections for these two models
+to the projections for the CMIP5 ensemble.
+
+```{r compare.pca}
+compdata_pca <- filter(conc_pc_comparison, variable %in% paste0('PC', seq(1,10)))
+hdata_pca <- 
+    foreach(isamp=temp2100$isamp, .combine=bind_rows) %do% {
+        hdata_allscen <- 
+            foreach(hcore=hcores_scens, .combine=bind_rows) %dopar% {
+                for(iparm in seq_along(pnames)) {
+                    setvar(hcore, NA, pnames[iparm], parms[isamp,iparm],
+                           hector::getunits(pnames[iparm]))
+                }
+                reset(hcore)
+                run(hcore, 2100)
+                hdata <- fetchvars(hcore, pc_conc$meta_data$year, GLOBAL_TEMP())
+                hdata$isamp=isamp
+                hdata
+            }
+        hcore <- hcores[[1]]
+        reset(hcore)
+        run(hcore, 2005)
+        histdata <- fetchvars(hcore, pc_conc$meta_data$histyear, GLOBAL_TEMP(), scenario = 'historical')
+        histdata$isamp=isamp
+        hdata_allscen <- bind_rows(histdata, hdata_allscen) %>% rename(experiment=scenario)
+        hdata_allscen$variable <- 'tas'
+        pcs <- project_climate(hdata_allscen, pc_conc, row_vector = FALSE)[1:10]
+        tibble(variable=paste0('PC', seq(1,10)), value=pcs, isamp=isamp)
+    }
+
+calc_excursion <- function(value, mina, maxb, isamp) {
+    sig <- parms[isamp,'sigm'] * (maxb-mina)
+    exlo <- (value - mina)/sig
+    exhi <- (value - maxb)/sig
+    if_else(value < mina, exlo,
+            if_else(value > maxb, exhi,
+                    0))
+}
+
+hdata_anly <- left_join(hdata_pca, select(compdata_pca, variable, mina, maxb), by='variable') %>%
+    mutate(excursion=calc_excursion(value, mina, maxb, isamp))
+print(select(hdata_anly, variable, isamp, value, excursion, mina, maxb))
+```
+
+For both of these models, 

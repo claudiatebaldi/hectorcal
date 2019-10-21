@@ -1,0 +1,207 @@
+---
+title: "PCA exploratory analysis"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Setup
+
+These functions provide a flexible system for running ensembles of hector runs.  The `hectorsamp` 
+function does the sampling.  You provide:
+
+  * A list of sampling functions, with the names of the variables being as the list's
+  `names` attribute.  The variable `default_dists` is an example.  This is how the sampler 
+  decides what variables to sample and how to generate them.  
+  
+  * A list of hector cores.  The number of cores must be equal to the `ncore` variable so that 
+  each parallel process gets its own core.  
+  
+  * A vector of times to keep from the hector output.  This allows us to whittle down the output in various ways so
+  that we can better understand what the principal components are detecting.
+  
+  * A vector of variables to keep from the hector output.
+  
+The result is a list of two matrices.  One has the values of the sampled parameters, and the other has the 
+values of the hector outputs for those samples.  Each row is one sample.  If hector produced an error for a 
+set of parameters, then the results on that row will be `NA`.  
+
+```{r setup}
+library(hector)
+library(hectorcal)
+library(foreach)
+
+set.seed(867-5309)
+
+ncore <- parallel::detectCores()
+doParallel::registerDoParallel(cores=ncore)
+
+default_dists <- list(function(n) {rlnorm(n, log(3), log(3))},
+                      function(n) {rnorm(n, 1.0, 1.4)},
+                      function(n) {rnorm(n, 2.3, 2.0)})
+names(default_dists) <- c(ECS(), AERO_SCALE(), DIFFUSIVITY())
+
+setup_cores <- function(baseconfig) 
+{
+    lapply(1:ncore, function(i) {newcore(baseconfig, suppresslogging=TRUE)})
+}
+
+run_sample <- function(core, idx, param_vals, keeptimes, keepvars)
+{
+    for(param in names(param_vals)) {
+        setvar(core, NA, param, param_vals[[param]][idx], getunits(param))
+    }
+    reset(core)
+    stat <- tryCatch(
+        run(core, max(keeptimes)),
+        error = function(e){NULL})
+    
+    if(is.null(stat)) {
+        ## Hector run failed, probably due to excessively high or low temperature.
+        rep(NA, length(keeptimes)*length(keepvars))
+    }
+    else {
+        rslt <- fetchvars(core, keeptimes, keepvars)
+        rslt$value
+    }    
+}
+
+hectorsamp <- function(n, hcores, keeptimes=c(1900, 2000, 2100), keepvars=c(GLOBAL_TEMP()),
+                       dists=default_dists) {
+    ## Generate matrix of outputs for hector runs sampled from the supplied distribution
+    param_vals <- lapply(dists, function(f){f(n)})
+    
+    ## Organize the runs into batches that will be run in parallel
+    stopifnot(length(hcores) == ncore)
+    nbatch <- as.integer(floor(n/ncore))
+    nextra <- as.integer(n%%ncore)
+    
+    rslt1 <-
+        foreach(k=1:nbatch, .combine=rbind) %do% {
+                    ## Run a parallel batch
+                    foreach(i=1:ncore, .combine=rbind) %dopar% {
+                                core <- hcores[[i]]
+                                idx <- (k-1)*ncore + i
+                                run_sample(core, idx, param_vals, keeptimes, keepvars)
+                            }
+                }
+    ## Get the left over values
+    if(nextra > 0) {
+        rslt2 <- foreach(i=1:nextra, .combine=rbind) %dopar% {
+            core <- hcores[[i]]
+            idx <- nbatch*ncore + i
+            run_sample(core, idx, param_vals, keeptimes, keepvars)
+        }
+        rslt <- rbind(rslt1, rslt2)
+    }
+    else {
+        rslt <- rslt1
+    }
+    row.names(rslt) <- NULL
+    list(rslt=rslt, params=do.call(cbind, param_vals))
+}
+
+filtererr <- function(m) 
+{
+    ## Filter out the rows of a result matrix that are NA due to hector errors.
+    goodvals <- apply(m, 1, function(x){!any(is.na(x))})
+    m[goodvals,]
+}
+
+```
+
+## Temperature-only results
+
+Here we set up the hector cores and run the sampler.  We're going to look at just the temperature
+parameters and just the temperature outputs for RCP8.5.  In principle we should run 
+concentration-driven runs for this, but I don't have the input files handy, and for just getting
+and idea of how the principal components behave, it shouldn't make too much difference.
+
+```{r run_hector1}
+indir <- system.file('input',package = 'hector')
+hcores <- setup_cores(file.path(indir, 'hector_rcp85.ini'))
+years <- seq(1860,2100, 10)
+samps1 <- hectorsamp(250, hcores, keeptimes = years)
+```
+```{r analysis1}
+rslts1 <- filtererr(samps1$rslt)
+pc1 <- prcomp(rslts1)             # default is to center but not scale.
+fvar <- cumsum(pc1$sdev^2)/sum(pc1$sdev^2)
+plot(fvar,ylab='Fraction of variance captured', xlab='Number of PCs')
+print(fvar)
+```
+
+As expected, most of the action is in the first couple of PCs.  Arguably there are only two degrees of freedom in this 
+data set, maybe three at the most.
+
+```{r pcs1}
+n <- nrow(pc1$rotation)
+pcv1 <- pc1$rotation[,1] * sign(pc1$rotation[n,1])
+pcv2 <- pc1$rotation[,2] * sign(pc1$rotation[n,2])
+pcv3 <- pc1$rotation[,3] * sign(pc1$rotation[n,3])
+plot(pcv1, type='l', lty=1, xlab='index', ylab='PC value', ylim=c(-1,1))
+lines(pcv2, lty=2)
+lines(pcv3, lty=3)
+```
+
+The solid line is PC1, the dashed is PC2, and the dotted is PC3.
+
+PC1 contains a very low weight for the early times, and a higher weight for
+later times. To a reasonable approximation, we can see this as telling us
+something about final temperature that the run reached (i.e. $k Y_f + 0 Y_0
+\approx k Y_f$ -- $Y$ here is temperature because I use $T$ for something else
+later).  Setting a gate on this PC is _approximately_ like setting a gate on
+final temperature.
+
+PC2 is similar to PC1 at the beginning and end, but it has _negative_ weightings
+in the middle.  Thus, it is responding to something like 
+$k_1 Y_f - k_2 Y_{1/2}$.  This is capturing something related to the amount of temperature
+change that occurred in the second half of the run.
+
+Finally, PC3 has nearly zero weighting at the beginning, positive weightings at the end 
+and about halfway through the run, and negative weightings between the halfway mark and 
+the end.  So, this is something like $k_1 Y_f + k_2 Y_{1/2} - k_3 Y_{3/4}$. This one is a
+little harder to interpret, but I _think_ it is telling us something about the change in
+warming rate between the first and second half of the runs.  That is, you get a large
+response on this component if you warm rapidly in the first half of the run, then slow your
+warming rate in the second half.  (You'd get an even larger response if the warming reversed
+in the second half, but I doubt that ever happens in our runs.)  In any case, as you can
+see from the `fvar` values above, the third component is a _very_ small contributor. 
+
+Astute readers will have observed that this looks a _lot_ like the series of 
+Chebychev polynomials hanging in my office. The first one is approximately
+linear (like the $T_1(x)$ Chebychev polynomial -- there is no $T_0(x)$ component
+because we centered the data, so the mean is zero). The second one has a single
+loop and thus responds to something that looks (approximately) like a quadratic
+curvature (i.e., an accelerating trend), and the third has two loops, making it
+respond to a trend where the trend rate changes non-monotonically.  The last
+time we talked about the principal components, I had speculated that they might
+turn out this way.  Not a bad bit of conjecturing, that.  Sometimes I even amaze
+myself.
+
+## What next?
+
+These results used just one variable and just one scenario.  Presumably, when we add
+additional scenarios, we will get a larger number of principal components contributing
+to the results, as we should have components representing different combinations of 
+behavior for the scenarios.  Alternatively, one could imagine that the PCA would separate
+the scenarios entirely, so that we would have components that represented different types
+of behavior in one scenario, while being indifferent to the other, and others that do 
+the opposite.  However, I don't really expect that because we believe that to some extent
+the responses in the different scenarios are going to be at least partially correlated.
+
+Likewise, if we add CO$_2$ (which only makes sense to do in the emissions driven runs), 
+we should expect additional components representing different kinds of relationships 
+between temperature and CO$_2$ concentration.  Either way, I expect this would bring 
+the number of viable components more into line with what the MAGICC team found in their
+runs.
+
+In other words, there is a lot more to explore here.  However, I think that this exercise
+has given us at least a basic understanding of what kinds of features the principal components
+are detecting.  The main things that remain to be seen are, 
+
+1. Does the story hold up when we extend to more scenarios or more variables?
+
+2. Can we used this to build a credible argument that our mesa function methodology makes
+as much sense in the principal components coordinate system as it does in the natural
+coordinate system?
