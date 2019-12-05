@@ -309,7 +309,10 @@ make_minimize_function <- function(hector_cores, esm_data, normalize, param, cmi
 
             }
 
-
+        # Replace Inf values a large number
+        intermediateRslt %>%
+            dplyr::mutate(value = if_else(is.infinite(value), 8675309, value)) ->
+            intermediateRslt
         # Clean up partallel clusters.
         doParallel::stopImplicitCluster()
 
