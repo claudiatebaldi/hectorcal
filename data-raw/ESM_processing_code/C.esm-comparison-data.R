@@ -73,7 +73,7 @@ baseline1850 <- function(d)
         group_by(model) %>%
         summarise(esm1850=mean(esmHistorical, na.rm=TRUE), conc1850=mean(historical, na.rm=TRUE))
 
-    ## GFDL starts its runs in 1861, presumably because they think James Buchanan was a chump.
+    ## GFDL starts its runs in 1861
     gfdldata <- filter(d, year < 1870, experiment %in% c('historical', 'esmHistorical'), variable=='tas',
                        model %in% c('GFDL-CM3', 'GFDL-ESM2G')) %>%
         group_by(model, ensemble, experiment) %>%
@@ -168,11 +168,12 @@ final_cmip5_data %>%
 
 ## Combine the esm comparion range and the mulit model mean information into one tibble.
 esm_comparison <- left_join(esm_comparison_range,  esm_comaprison_mean, by = c('year', 'variable', 'experiment'))
-devtools::use_data(esm_comparison, overwrite=TRUE, compress='xz')
 
 ## Save the full table of model data for use in producing parameters for
 ## emulating individual models.
 cmip_individual <- rename(greatdata, esmbaseline=esm1850, concbaseline=conc1850) %>%
     select(-unit)
-devtools::use_data(cmip_individual, overwrite=TRUE, compress='xz')
 
+## Write the results into the package data.
+usethis::use_data(esm_comparison, overwrite=TRUE, compress='xz')
+usethis::use_data(cmip_individual, overwrite=TRUE, compress='xz')
