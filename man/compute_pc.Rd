@@ -18,11 +18,14 @@ Elements of scenlist not matching one of these strings will be dropped.}
 \item{variables}{Vector of Hector output variables to include in the analysis.}
 
 \item{years}{Vector of years to include in experiments using \emph{future}
-runs.  Generally these will be the various RCP pathways.}
+runs.  Generally these will be the various RCP pathways.  If different variables
+have different years, then this argument may be a named list of the form
+\code{list(var1=var1years, var2=var2years, ...)}}
 
 \item{histyears}{Vector of years to include in experiments using \emph{past}
 runs.  Any experiment with ``historical'' or ``Historical'' in the name is
-considered to be a past run.}
+considered to be a past run.  Different groups of years may be specified for
+different variables as described for the \code{years} parameter.}
 
 \item{retx}{Flag indicating whether to retain the projections of the ensemble
 runs onto the principal components.}

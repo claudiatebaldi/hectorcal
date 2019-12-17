@@ -222,15 +222,15 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
     ## Figure out which years we will need for comparison
     if(is.null(pcs)) {
         compyears <- unique(comp_data$year)
-        histyears <- compyears[compyears <= 2005]
-        futyears <- compyears[compyears >= 2006]
+        histyears <- chk_yrlist(hvar2esmvar(compvars), compyears[compyears <= 2005])
+        futyears <- chk_yrlist(hvar2esmvar(compvars), compyears[compyears >= 2006])
     }
     else {
         histyears <- pcs$meta_data$histyear
         futyears <- pcs$meta_data$year
     }
-    histyrmax <- max(histyears)
-    futyrmax <- max(futyears)
+    histyrmax <- max(sapply(histyears, max))
+    futyrmax <- max(sapply(futyears, max))
 
     ## We don't need to run the historical experiment separately, unless it's
     ## the only one, since we can get it from any of the other runs.
@@ -288,7 +288,11 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
                     hf <- NULL
                 }
                 dplyr::bind_rows(hf,
-                                 hector::fetchvars(hcore, futyears, compvars))
+                                 lapply(compvars, function(hvar) {
+                                     hector::fetchvars(hcore,
+                                                       futyears[[hvar2esmvar(hvar)]],
+                                                       hvar)
+                                 }))
             }
         },
         error = errhandler)
@@ -307,11 +311,15 @@ make_loglikelihood <- function(inifiles, verbose, cal_mean, comp_data,
             ## that has hassles of its own.  For now, explicitly reset the
             ## parameters and rerun the core.
             parameterize_core(parm, hcores[[1]])
-            hector::run(hcores[[1]], max(histyears))
+            hector::run(hcores[[1]], histyrmax)
             ## This loop should only execute once, but we try to cover our bases
             for(expt in histexpts) {
                 hdata <- dplyr::bind_rows(hdata,
-                                          hector::fetchvars(hcores[[1]], histyears, compvars, scenario = expt))
+                                          lapply(compvars, function(hvar) {
+                                              hector::fetchvars(hcores[[1]],
+                                                                histyears[[hvar2esmvar(hvar)]],
+                                                                hvar, scenario = expt)
+                                          }))
             }
         }
 
