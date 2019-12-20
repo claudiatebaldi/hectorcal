@@ -238,3 +238,32 @@ canonicalize_expt_names <- function(expts)
 {
     tolower(sub('^esm', '', expts))
 }
+
+#' For a given experiment, find all of the common years for each variable.
+#'
+#' "Common years" are the years that are present in all models and ensemble members
+#' in the dataset.
+#'
+#' @param df Data frame of model runs.  Should have same format as \code{\link{cmip_individual}}.
+#' @param expt Name of the experiment (i.e., scenario) to examine.
+#' @return Named list of common years by variable
+#' (i.e., \code{list(tas=tas_years, co2=co2_years, ...)})
+#' @export
+find_common_years <- function(df, expt)
+{
+    df <- dplyr::filter(df, experiment == expt)
+    spldf <- split(df, df$variable)
+    lapply(spldf, common_year_single)
+}
+
+## Helper function for find_common_years.  Find common years in a data frame containing
+## only a single experiment and variable
+common_year_single <- function(df)
+{
+    commonyrs <- seq(min(df$year), max(df$year))
+    yrsplt <- split(df$year, list(df$model, df$ensemble), drop=TRUE)
+    for(yrs in yrsplt) {
+        commonyrs <- intersect(commonyrs, yrs)
+    }
+    commonyrs
+}
