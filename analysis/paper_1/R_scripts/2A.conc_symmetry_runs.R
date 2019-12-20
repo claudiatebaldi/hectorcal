@@ -12,16 +12,16 @@ library(hectorcal)
 
 # Set up the script directories, note the base working directory should be set up to
 # hectorcal/analysis/paper_1.
-BASE_DIR <- getwd()
-OUTPUT_DIR <- file.path(BASE_DIR,'output', '2A.symmetry_test_results')
-
+BASE_DIR   <- here::here('analysis', 'paper_1')
+OUTPUT_DIR <- file.path(BASE_DIR,'output', '2A.symmetry_poster_results')
+dir.create(OUTPUT_DIR)
 
 # The models we want to look at, I selected these models to be consistent with the other plots from the
 # Hector calibration paper 1.
 models_to_fit <- c('CCSM4', 'GFDL-CM3', 'MRI-CGCM3') #c('CMCC-CESM', 'GFDL-CM3', 'MRI-CGCM3')
 
 # The kappa values to fix and the other non kappa values to solve for.
-kappa_values <- seq(from = 0.05, to = 5, length.out = 10)
+kappa_values <- seq(from = 0.05, to = 8, length.out = 15)
 fit_params   <- c(ECS(), AERO_SCALE(), VOLCANIC_SCALE())
 
 
@@ -99,9 +99,6 @@ mapply(function(data_name, comp_data){
     })
 
 
-
-
-    stop()
     if(!file.exists(file.path(TEMP_OUTPUT_DIR, paste0('conc_', data_name, '.rds')))){
 
 
@@ -122,8 +119,8 @@ mapply(function(data_name, comp_data){
     }
 
 },
-data_name = names(temp_comparison_data[3]),
-comp_data = temp_comparison_data[3])
+data_name = names(temp_comparison_data),
+comp_data = temp_comparison_data)
 
 
 # Import and format the temperature-only calibration results.
@@ -137,8 +134,8 @@ list.files(TEMP_OUTPUT_DIR, pattern = '.rds', full.names = TRUE) %>%
         if(any("convergence" %in% names(object))){
 
             df <- data.frame(matrix(object$par, nrow = 1, dimnames = list(NULL, names(object$par))))
-            df$model <-kappa_model[2]
-            df$kappa <- as.numeric(kappa_model[1])
+            df$model <-kappa_model[1]
+            df$kappa <- as.numeric(kappa_model[2])
             df$min   <- object$value
 
             df
@@ -210,13 +207,23 @@ mapply(function(data_name, comp_data){
                                      normalize = center_scale,
                                      param = best_guess,
                                      cmip_range = cmip_range,
-                                     n = 2,
+                                     n = 1,
                                      showMessages = TRUE,
                                      intermediateOutput = FALSE)
 
             # Use optim to minimize the MSE between Hector and ESM output data
             rslt <- stats::optim(par = best_guess, fn = fn, control = list('maxit' = 800))
 
+            table_fn <- make_minimize_function(hector_cores = core_list,
+                                               esm_data = comp_data,
+                                               normalize = center_scale,
+                                               param = best_guess,
+                                               cmip_range = cmip_range,
+                                               n = 1,
+                                               showMessages = TRUE,
+                                               intermediateOutput = TRUE)
+
+            rslt$table <- table_fn(rslt$par)
 
         # Save output
         rslt$diff <- kappa
@@ -226,25 +233,27 @@ mapply(function(data_name, comp_data){
     })
 
 
-}, data_name = names(temp_heatflux_comparison), comp_data = temp_heatflux_comparison)
+},
+data_name = names(temp_heatflux_comparison)[2:3],
+comp_data = temp_heatflux_comparison[2:3])
 
 # Import and format the temperature-heat flux calibration results.
 list.files(TEMPHF_OUTPUT_DIR, pattern = '.rds', full.names = TRUE) %>%
     lapply(function(input){
 
         object <- readRDS(input)
-
+print(input)
         kappa_model <- unlist(strsplit(gsub(x = basename(input), pattern = 'conc_|.rds', replacement = ''), split = '_'))
 
         if(!is.null(object)){
 
             df <- data.frame(matrix(object$par, nrow = 1, dimnames = list(NULL, names(object$par))))
-            df$model     <- kappa_model[2]
-            df$kappa     <- as.numeric(kappa_model[1])
+            df$model     <- kappa_model[1]
+            df$kappa     <- as.numeric(kappa_model[2])
             df$min_total <- object$value
 
-            object$MSE %>%
-                filter(variable == GLOBAL_TEMP()) %>%
+            object$table %>%
+                dplyr::filter(variable == GLOBAL_TEMP()) %>%
                 group_by(experiment) %>%
                 summarise(value = mean(value)) %>%
                 ungroup %>%
@@ -253,6 +262,7 @@ list.files(TEMPHF_OUTPUT_DIR, pattern = '.rds', full.names = TRUE) %>%
                 temp_MSE
 
             df$min <- temp_MSE
+            df$value <- object$value
             df
 
         } else {
@@ -263,7 +273,7 @@ list.files(TEMPHF_OUTPUT_DIR, pattern = '.rds', full.names = TRUE) %>%
         }
     }) %>%
     bind_rows() %>%
-    select(model, kappa, S, min) %>%
+    select(model, kappa, S, min, value) %>%
     arrange(model, kappa) %>%
     na.omit ->
     S_kappa_fits_tempHF
