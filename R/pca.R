@@ -128,7 +128,7 @@ reconstruct_climate <- function(projected_climate, principal_components, ncomp=N
 chk_yrlist <- function(variables, years)
 {
   if(is.list(years)) {
-    assertthat::assert_that(setequal(names(years), variables))
+    assertthat::assert_that(all(variables %in% names(years)))
     years
   }
   else {
@@ -195,8 +195,8 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
 {
     variable <- year <- experiment <- runid <- NULL # silence warnings about NSE
 
-    chk_yrlist(variables, years)
-    chk_yrlist(variables, histyears)
+    years <- chk_yrlist(variables, years)
+    histyears <- chk_yrlist(variables, histyears)
 
     ## Drop the scenarios that we won't be using (this allows us to pass the same
     ## list every time)
