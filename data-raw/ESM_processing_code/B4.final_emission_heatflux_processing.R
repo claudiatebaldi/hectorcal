@@ -1,35 +1,21 @@
-## When we made the intial plots of the CMIP5 ocean heat flux that we cauclated we noticed that there
-## were some outlier points (values with heat flux up to a magnitude of 400 W/m2). It is unclear what
-## is causing this to happen but it looks like some of the netcdf files when processed with the cdo
-## code are return multiple values for the same month (this is happening inconsistently across models /
-## ensembles / variables / years). If we discard the entires with mulitple monthly values and then
-## calcualte the heat flux with these values we can use these values to replace the unrealistic ones.
-##
-## What is causing this problem is not clear and we are not going to spend time trying to resolve it
-## right now but this method replaces the unrealistic values with reasonable and presumably accurate
-## values.
-##
-## This script should be run with the working directory set to hectorcal/data-raw it requires that
-## B2 and B3 have already been run.
-
+## Process annual and the monhtly ocean emission driven heat flux data for the
 # 0. Set Up ----------------------------------------------------------------------------------------
 library(dplyr)
 library(tidyr)
-library(readr)
-
 
 # 1. Import Data ------------------------------------------------------------------------------------
-# Import the heat flux data, because of some issues with the data processing there are some wonky heat
-# flux values (heat flux values that have a magnitude greater than 5).
-heat_flux <- read.csv("CMIP5_heat_flux_raw.csv", stringsAsFactors = FALSE)
+heat_flux <- read.csv("CMIP5_emission_yr_ocean-heat-flux.csv", stringsAsFactors = FALSE) %>%
+    filter(is.na(problem)) %>%
+    select(-problem)
+
 
 # Import the monthly global fluxes, this data will be used to replace the outliers in the annual heat flux
 # time series.
-monthly_fluxes <- read_csv("CMIP5_global_flux_means.csv_og.zip")  %>%
+monthly_fluxes <- read.csv("CMIP5_emission_global_monthly_flux.csv")  %>%
     # Parse out the year information from the year_month column.
     rename(year_month = year) %>%
-    mutate(year = as.integer(substr(year_month, 1, 4))) %>%
-    select(-`X1`)
+    mutate(year = as.integer(substr(year_month, 1, 4)))
+
 
 # 2. Calcualte Annual Heat Flux Monthly Global Means --------------------------------------------------
 
@@ -80,8 +66,10 @@ heatflux_to_replace %>%
     final_heat_flux
 
 
-# 4. Save Output ------------------------------------------------------------------------------------
-write.csv(x = final_heat_flux, file = 'CMIP5_heat_flux_final.csv', row.names = FALSE)
+# Upon final inspection it looks like there is an issue with the CanESM2 r3i1p1 heat flux output,
+# remove that ensemble member from the data set.
+final_heat_flux %>%
+    filter(!(model == 'CanESM2' & ensemble == 'r3i1p1')) ->
+    final_heat_flux
 
-
-
+write.csv(x = final_heat_flux, file = 'CMIP5_emission_heat_flux_final.csv', row.names = FALSE)
