@@ -45,10 +45,10 @@ test_that('make sure that parameterize_core works', {
     new_dif  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::DIFFUSIVITY())[['value']]})
     new_vol  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::VOLCANIC_SCALE())[['value']]})
 
-    testthat::expect(all(new_cs == temp_param[[hector::ECS()]]))
-    testthat::expect(all(new_aero == temp_param[[hector::AERO_SCALE()]]))
-    testthat::expect(all(new_dif == temp_param[[hector::DIFFUSIVITY()]]))
-    testthat::expect(all(new_vol == temp_param[[hector::VOLCANIC_SCALE()]]))
+    testthat::expect_true(all(new_cs == temp_param[[hector::ECS()]]))
+    testthat::expect_true(all(new_aero == temp_param[[hector::AERO_SCALE()]]))
+    testthat::expect_true(all(new_dif == temp_param[[hector::DIFFUSIVITY()]]))
+    testthat::expect_true(all(new_vol == temp_param[[hector::VOLCANIC_SCALE()]]))
 
     # Check to make sure that the climate and the carbon parameters are reest correctly.
     temp_carbon_param        <- seq(from = 25, by = 5, length.out = 7)
@@ -66,13 +66,13 @@ test_that('make sure that parameterize_core works', {
     new_pre  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::PREINDUSTRIAL_CO2())[['value']]})
     new_vol  <- lapply(out, function(x){hector::fetchvars(core = x, dates = NA, vars = hector::VOLCANIC_SCALE())[['value']]})
 
-    testthat::expect(all(new_ecs == temp_carbon_param[[hector::ECS()]]))
-    testthat::expect(all(new_aero == temp_carbon_param[[hector::AERO_SCALE()]]))
-    testthat::expect(all(new_dif == temp_carbon_param[[hector::DIFFUSIVITY()]]))
-    testthat::expect(all(new_beta == temp_carbon_param[[hector::BETA()]]))
-    testthat::expect(all(new_q10 == temp_carbon_param[[hector::Q10_RH()]]))
-    testthat::expect(all(new_pre == temp_carbon_param[[hector::PREINDUSTRIAL_CO2()]]))
-    testthat::expect(all(new_vol == temp_carbon_param[[hector::VOLCANIC_SCALE()]]))
+    testthat::expect_true(all(new_ecs == temp_carbon_param[[hector::ECS()]]))
+    testthat::expect_true(all(new_aero == temp_carbon_param[[hector::AERO_SCALE()]]))
+    testthat::expect_true(all(new_dif == temp_carbon_param[[hector::DIFFUSIVITY()]]))
+    testthat::expect_true(all(new_beta == temp_carbon_param[[hector::BETA()]]))
+    testthat::expect_true(all(new_q10 == temp_carbon_param[[hector::Q10_RH()]]))
+    testthat::expect_true(all(new_pre == temp_carbon_param[[hector::PREINDUSTRIAL_CO2()]]))
+    testthat::expect_true(all(new_vol == temp_carbon_param[[hector::VOLCANIC_SCALE()]]))
 
 
 })
