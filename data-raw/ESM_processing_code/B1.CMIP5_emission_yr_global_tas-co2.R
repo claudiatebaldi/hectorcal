@@ -17,9 +17,9 @@ CDO_EXE     <- "/share/apps/netcdf/4.3.2/gcc/4.4.7/bin/cdo"  # Define the path t
 # Import the csv containing the information about the CMIP 5 monthly nc files to process.
 '/pic/projects/GCAM/CMIP5-KDorheim/cmip5_index.csv' %>%
     read.csv(stringsAsFactors = FALSE) %>%
-    filter(variable %in% c('tas', 'co2')) %>%
+    filter(variable %in% c('tas', 'co2') & domain == 'Amon') %>%
     filter(experiment %in% c('esmHistorical', 'esmrcp85')) %>%
-    rename(path = file) ->
+    rename(path = file)  ->
     to_process
 
 
@@ -106,13 +106,12 @@ annual_global_avg <- function(df, CDO_EXE = CDO_EXE, temp_dir = TEMP, output_dir
 # 2. Calculate annual global average ---------------------------------------------------------------------------------------------------
 
 # Calculate the annual global average.
-input         <- split(to_process, interaction(to_process$model, to_process$variable, to_process$ensemble, to_process$experiment))
+input         <- split(to_process, interaction(to_process$model, to_process$variable, to_process$ensemble, to_process$experiment), drop = TRUE)
 global_avg_nc <- lapply(input, annual_global_avg, CDO_EXE = CDO_EXE, temp_dir = TEMP, output_dir = OUTPUT, showMessages = TRUE, cleanUp = TRUE)
 
 
 # Format the output into a single data frame
-files <- list.files(OUTPUT, '.nc', full.names = TRUE)
-files <- files[grepl(pattern = 'esm', x = files)]
+files <- unlist(global_avg_nc)
 
 # For all of the final output netcdfs extract the data and concatenate together.
 lapply(files, function(file){
@@ -169,7 +168,7 @@ lapply(files, function(file){
 write.csv(output, file = file.path(BASE, 'CMIP5_emission_yr_global_tas-co2.csv'), row.names = FALSE)
 
 
-
+file.remove(files)
 
 
 
