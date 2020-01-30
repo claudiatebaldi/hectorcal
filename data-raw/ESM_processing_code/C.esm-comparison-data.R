@@ -99,7 +99,48 @@ sufficent_emission_data %>%
     filter(!(variable == 'tas' & value <= 100)) ->
     emissions_without_0padding
 
+# In some instances there are duplicate values for the models that split up
+# data for a single experiment into mulitple netcdf files. Here we are going
+# to discard those values and replace them inerploated values is an only if
+# these duplicated files are for co2 data.
+emissions_without_0padding %>%
+    group_by(year, variable, ensemble, model, experiment) %>%
+    summarise(n = n()) %>%
+    filter(n != 1) %>%
+    ungroup %>%
+    select(year, ensemble, model, experiment, variable) %>%
+    mutate(replace = TRUE) ->
+    co2_to_interpolate
 
+list <- split(co2_to_interpolate, co2_to_interpolate$model, drop = FALSE)
+for(i in seq_along(list)) {
+
+    info <- list[[i]]
+
+    assertthat::assert_that(unique(co2_to_interpolate$variable) == 'co2')
+    assertthat::assert_that(nrow(info) == 1)
+
+    emissions_without_0padding %>%
+        filter(model == info[['model']] & variable == 'co2' & experiment == info[['experiment']]) %>%
+        left_join(info, by = c("year", "variable", "ensemble", "model", "experiment")) %>%
+        mutate(replace = if_else(is.na(replace), FALSE, TRUE),
+               value = if_else(replace, NA_real_, value)) %>%
+        select(-replace) %>%
+        distinct ->
+        with_NAs
+
+    with_NAs %>%
+        arrange(year) %>%
+        mutate(value = zoo::na.approx(value)) ->
+        good_co2
+
+    emissions_without_0padding %>%
+        filter(!c(model == info[['model']] & variable == 'co2' & experiment == info[['experiment']])) %>%
+        bind_rows(good_co2) ->
+        emissions_without_0padding
+
+
+}
 
 ## MRI-ESM is missing a chunk of time so interplaote the data.
 # Is missing a chunk of year so interpolate the data.
@@ -120,10 +161,31 @@ MRI_missing %>%
     mutate(value = zoo::na.approx(value)) ->
     good_MRI_co2
 
+## MIROC-ESM is missing a chunk of time so interplaote the data.
+# Is missing a single year of data and we need to replace is.
+MIROC_co2 <- filter(emissions_without_0padding, model == 'MIROC-ESM' & variable == 'co2')
+MIROC_co2 %>%
+    bind_rows(tibble::tibble(year = setdiff(years, MIROC_co2$year),
+                             value = NA,
+                             model = 'MIROC-ESM',
+                             variable = 'co2',
+                             ensemble = 'r1i1p1',
+                             experiment = 'esmHistorical')) %>%
+    arrange(year) ->
+    MIROC_missing
+
+MIROC_missing %>%
+    arrange(year) %>%
+    mutate(value = zoo::na.approx(value)) ->
+    good_MIROC_co2
+
 emissions_without_0padding %>%
     # Replace the MRI-ESM1 data
     filter(!(variable == 'co2' & model == "MRI-ESM1")) %>%
     bind_rows(good_MRI_co2) %>%
+    # Replace the MIROC co2 data
+    filter(!(model == 'MIROC-ESM' & variable == 'co2')) %>%
+    bind_rows(good_MIROC_co2) %>%
     filter(!(variable == 'heatflux' & experiment == 'esmHistorical'))  ->
     final_emission_data
 
@@ -187,6 +249,54 @@ greatdata %>%
     distinct ->
     final_cmip5_data
 
+## Check the quailty of the data that will be used to calculate the ensemble range information.
+assertthat::assert_that({
+
+    ## Final data quality checks before calculating the cmip range.
+    ## Make sure that there are not duplicates of data.
+    final_cmip5_data %>%
+        group_by(year, model, variable, experiment, ensemble) %>%
+        summarise(n = n()) %>%
+        ungroup %>%
+        filter(n != 1) %>%
+        select(model, experiment, variable) %>%
+        distinct() ->
+        rep_years
+
+    rep_years_check <- nrow(rep_years) == 0
+
+    ## Make sure that the data is continuous for all of the years.
+    split(final_cmip5_data,
+          interaction(final_cmip5_data$experiment,
+                      final_cmip5_data$ensemble,
+                      final_cmip5_data$variable,
+                      final_cmip5_data$model), drop = TRUE) %>%
+
+        lapply(function(input){
+
+            input %>%
+                arrange(year) %>%
+                pull(year) %>%
+                diff %>%
+                unique ->
+                gaps
+
+            tibble::tibble(gap = gaps) %>%
+                mutate(model = unique(input[['model']]),
+                       variable = unique(input[['variable']]),
+                       ensemble = unique(input[['ensemble']]),
+                       experiment = unique(input[['experiment']]))
+
+        }) %>%
+        bind_rows() ->
+        gaps
+
+        gap_years_check <- nrow(filter(gaps, gap != 1)) == 0
+
+        all(rep_years_check, gap_years_check)
+    })
+
+
 ## Reduce ESM data for use in Bayesian calibration.  For each year, variable,
 ## and each experiment (i.e. type of run), produce the min and max values (for
 ## consensus calibration), 10 and 90 percentiles (an alternate definition of
@@ -219,8 +329,57 @@ esm_comparison <- left_join(esm_comparison_range,  esm_comaprison_mean, by = c('
 
 ## Save the full table of model data for use in producing parameters for
 ## emulating individual models.
-cmip_individual <- rename(greatdata, esmbaseline=esm1850, concbaseline=conc1850) %>%
+cmip_individual <- rename(final_cmip5_data, esmbaseline=esm1850, concbaseline=conc1850) %>%
     select(-unit)
+
+
+## Check the quailty of the data that is going to be cmip individual comparison data.
+assertthat::assert_that({
+
+    ## Final data quality checks before calculating the cmip range.
+    ## Make sure that there are not duplicates of data.
+    cmip_individual %>%
+        group_by(year, model, variable, experiment, ensemble) %>%
+        summarise(n = n()) %>%
+        ungroup %>%
+        filter(n != 1) %>%
+        select(model, experiment, variable) %>%
+        distinct() ->
+        rep_years
+
+    rep_years_check <- nrow(rep_years) == 0
+
+    ## Make sure that the data is continuous for all of the years.
+    split(cmip_individual,
+          interaction(cmip_individual$experiment,
+                      cmip_individual$ensemble,
+                      cmip_individual$variable,
+                      cmip_individual$model), drop = TRUE) %>%
+
+        lapply(function(input){
+
+            input %>%
+                arrange(year) %>%
+                pull(year) %>%
+                diff %>%
+                unique ->
+                gaps
+
+            tibble::tibble(gap = gaps) %>%
+                mutate(model = unique(input[['model']]),
+                       variable = unique(input[['variable']]),
+                       ensemble = unique(input[['ensemble']]),
+                       experiment = unique(input[['experiment']]))
+
+        }) %>%
+        bind_rows() ->
+        gaps
+
+    gap_years_check <- nrow(filter(gaps, gap != 1)) == 0
+
+    all(rep_years_check, gap_years_check)
+})
+
 
 ## Write the results into the package data.
 usethis::use_data(esm_comparison, overwrite=TRUE, compress='xz')
