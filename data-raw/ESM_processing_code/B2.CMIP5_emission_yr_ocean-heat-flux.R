@@ -31,7 +31,7 @@ EXPERIMENTS     <- c("esmHistorical", 'esmrcp85')                   # experiment
     filter(variable %in% VARIABLES) %>%
     filter(experiment %in% EXPERIMENTS) %>%
     # Make sure that we are only looking at the monthly data.
-    filter(domain %in% 'Amon') ->
+    filter(domain == 'Amon') ->
     flux_files
 
 # Make sure that a model / experiment / ensemble / time netcdf has as
@@ -236,14 +236,13 @@ cmip_data_files %>%
     left_join(oceanWeights_tibble, by = 'model') %>%
     filter(!is.na(file) & !is.na(weight_nc)) %>%
     rename(variable_file_path = file)  %>%
-    filter(model %in% c('bcc-csm1-1', 'MIROC-ESM', 'GFDL-ESM2G', 'NorESM1-ME')) %>%
     split(., list(.$model, .$experiment, .$ensemble), drop = TRUE) %>%
     lapply(calculate_ocean_heat_flux) %>%
     bind_rows ->
     heat_flux_results
 
 # Save the output
-write.csv(x = heat_flux_results, file = file.path(BASE, 'CMIP5_emission_yr_ocean-heat-flux-missing.csv'), row.names = FALSE)
+write.csv(x = heat_flux_results, file = file.path(BASE, 'CMIP5_emission_yr_ocean-heat-flux.csv'), row.names = FALSE)
 
 # Clean up
 file.remove(oceanWeights_tibble$weight_nc)
