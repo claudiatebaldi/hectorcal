@@ -4,10 +4,7 @@ library(dplyr)
 library(tidyr)
 
 # 1. Import Data ------------------------------------------------------------------------------------
-heat_flux <- read.csv("CMIP5_emission_yr_ocean-heat-flux.csv", stringsAsFactors = FALSE) %>%
-    filter(is.na(problem)) %>%
-    select(-problem)
-
+heat_flux <- read.csv("CMIP5_emission_yr_ocean-heat-flux.csv", stringsAsFactors = FALSE)
 
 # Import the monthly global fluxes, this data will be used to replace the outliers in the annual heat flux
 # time series.
