@@ -332,6 +332,34 @@ esm_comparison <- left_join(esm_comparison_range,  esm_comaprison_mean, by = c('
 cmip_individual <- rename(final_cmip5_data, esmbaseline=esm1850, concbaseline=conc1850) %>%
     select(-unit)
 
+## The CESM1-BGC model has a weirdly low value in 2031 for the emissions-driven run.  Replace
+## it with a spline interpolation
+do_interp <- function(master_table, mod, ens, expt, var, interp_years)
+{
+    yrstrt <- min(interp_years)-5
+    yrend <- max(interp_years)+5
+    working_data <- dplyr::filter(master_table, model==mod, ensemble==ens, experiment==expt,
+                                  variable==var, year >= yrstrt, year <= yrend, !(year %in% interp_years))
+    x <- working_data$year
+    y <- working_data$value
+    ys <- spline(x, y, xout=interp_years)
+    locs <- which(master_table$model==mod & master_table$ensemble==ens &
+                      master_table$experiment==expt & master_table$variable==var &
+                      master_table$year %in% interp_years)
+    ## These locations probably correspond to the interpolation years in order, but we can't guarantee that,
+    ## so match up the years from the table to the interpolation years
+    tbl_yrs <- dplyr::pull(master_table[locs,], 'year')
+    locperm <- match(interp_years, tbl_yrs)
+    for(i in seq_along(interp_years)) {
+        il <- locs[locperm[i]]
+        message('Year = ', interp_years[i], ' loc = ', il, ' Replacement= ', ys$y[i],  ' Data=\n',
+                paste(format(master_table[il,]), collapse='\n'))
+        master_table[il, 'value'] <- ys$y[i]
+        message('Replaced data:\n', paste(format(master_table[il, ]), collapse='\n'))
+    }
+    master_table
+}
+cmip_individual <- do_interp(cmip_individual, 'CESM1-BGC', 'r1i1p1', 'esmrcp85', 'co2', 2031)
 
 ## Check the quailty of the data that is going to be cmip individual comparison data.
 assertthat::assert_that({
