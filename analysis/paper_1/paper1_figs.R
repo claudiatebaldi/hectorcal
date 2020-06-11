@@ -14,7 +14,7 @@ library(assertthat)
 library(GGally)
 
 # Define the directories
-BASE_DIR   <- getwd()
+BASE_DIR   <- here::here('analysis', 'paper_1')
 INPUT_DIR  <- file.path(BASE_DIR, 'output')
 FIGS_DIR   <- file.path(BASE_DIR, 'figs')
 
@@ -1496,6 +1496,8 @@ ggsave(plot = final_plot,
        filename = file.path(FIGS_DIR, 'summpelmental_NPP_beta_sym.pdf'),
        device = 'pdf', width = 10, height = FIG_WIDTH,
        dpi = FIG_DPI, units = 'in')
+
+
 
 
 
