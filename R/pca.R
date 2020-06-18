@@ -51,15 +51,20 @@ project_climate <- function(climate_data, principal_components, row_vector=TRUE)
                         variable %in% principal_components$meta_data$variable)
     ishist <- grepl('[Hh]istorical', cd$experiment)
 
-    ## Handle the filtering by year separately for historical and future, since
-    ## some of the CMIP inputs have overlapping years for the two types.
+    ## Handle the filtering by year separately for historical and future and for each variable,
+    ## since some of the CMIP inputs have overlapping years for the two types, and each
+    ## variable might have different years.
     cd <-
-        dplyr::bind_rows(
-            dplyr::filter(cd,
-                          ishist & year %in% principal_components$meta_data$histyear),
-            dplyr::filter(cd,
-                          !ishist & year %in% principal_components$meta_data$year)) %>%
-          dplyr::arrange(experiment, variable, year)
+      dplyr::bind_rows(
+        lapply(principal_components$meta_data$variable,
+               function(var) {
+                 dplyr::bind_rows(
+                   dplyr::filter(cd, variable==var,
+                                 ishist & year %in% principal_components$meta_data$histyear[[var]]),
+                   dplyr::filter(cd, variable==var,
+                                 !ishist & year %in% principal_components$meta_data$year[[var]]))
+               })) %>%
+      dplyr::arrange(experiment, variable, year)
 
     assert_that(nrow(cd) == nrow(principal_components$rotation))
 
@@ -114,6 +119,43 @@ reconstruct_climate <- function(projected_climate, principal_components, ncomp=N
         dplyr::select(year, value, variable, experiment)
 }
 
+## This is a helper function for compute_pc below
+## Given a vector of years that are meant to apply to all variables, construct
+## an explicit named list of year vectors for each variable
+##
+## Alternatively, if years is already a named list, validate that it has the right
+## names and return it if it does.
+chk_yrlist <- function(variables, years)
+{
+  if(is.list(years)) {
+    assertthat::assert_that(all(variables %in% names(years)))
+    years
+  }
+  else {
+    yrlist <- vector('list', length(variables))
+    names(yrlist) <- variables
+    for(i in seq_along(yrlist)) {
+      yrlist[[i]] <- years
+    }
+    yrlist
+  }
+}
+
+## Another helper function for compute_pc
+## Check that for each variable all years are present
+chk_year <- function(df, years, histyears)
+{
+  spldf <- split(df, df$variable)
+  yrchk <- lapply(names(spldf),
+                  function(var) {
+                    dplyr::group_by(spldf[[var]], experiment) %>%
+                      dplyr::summarise(complete =
+                                         all(years[[var]] %in% year) |
+                                         all(histyears[[var]] %in% year))
+                  })
+  vargood <- sapply(yrchk, function(df) {all(df$complete)})
+  all(vargood)
+}
 
 #' Compute principal components from an ensemble of Hector runs
 #'
@@ -138,10 +180,13 @@ reconstruct_climate <- function(projected_climate, principal_components, ncomp=N
 #' Elements of scenlist not matching one of these strings will be dropped.
 #' @param variables Vector of Hector output variables to include in the analysis.
 #' @param years Vector of years to include in experiments using \emph{future}
-#' runs.  Generally these will be the various RCP pathways.
+#' runs.  Generally these will be the various RCP pathways.  If different variables
+#' have different years, then this argument may be a named list of the form
+#' \code{list(var1=var1years, var2=var2years, ...)}
 #' @param histyears Vector of years to include in experiments using \emph{past}
 #' runs.  Any experiment with ``historical'' or ``Historical'' in the name is
-#' considered to be a past run.
+#' considered to be a past run.  Different groups of years may be specified for
+#' different variables as described for the \code{years} parameter.
 #' @param retx Flag indicating whether to retain the projections of the ensemble
 #' runs onto the principal components.
 #' @importFrom assertthat assert_that
@@ -150,7 +195,10 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
 {
     variable <- year <- experiment <- runid <- NULL # silence warnings about NSE
 
-    ## Drop the scenarios that we wont be using (this allows us to pass the same
+    years <- chk_yrlist(variables, years)
+    histyears <- chk_yrlist(variables, histyears)
+
+    ## Drop the scenarios that we won't be using (this allows us to pass the same
     ## list every time)
     if(!is.null(names(scenlist))) {
         ## Use the names as a guide to the experiments
@@ -173,8 +221,14 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
 
     ## Drop any variables and years we will not be using
     ishist <- grepl('[Hh]istorical', alldata$experiment)
-    alldata <- dplyr::filter(alldata, variable %in% variables,
-                             (ishist & year %in% histyears) | (!ishist & year %in% years))
+    alldata <-
+      dplyr::bind_rows(
+        lapply(variables,
+               function(var) {
+                 dplyr::filter(alldata, variable == var,
+                               (ishist & year %in% histyears[[var]]) |
+                                 (!ishist & year %in% years[[var]]))
+               }))
 
     ## Check that all the requested variables and years are present for all
     ## experiments.  Technically, we should group by runid too, but that will be
@@ -184,9 +238,8 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
       dplyr::summarise(complete=all(variables %in% variable))
     assert_that(all(varchk$complete))
 
-    yrchk <- dplyr::group_by(alldata, experiment, variable) %>%
-      dplyr::summarise(complete=all(years %in% year) | all(histyears %in% year))
-    assert_that(all(yrchk$complete))
+    yrchk <- chk_year(alldata, years, histyears)
+    assert_that(yrchk==TRUE)
 
     ## Now arrange the data in the order described above and split by runid
     alldata <- dplyr::arrange(alldata, runid, experiment, variable, year)
@@ -207,8 +260,10 @@ compute_pc <- function(scenlist, experiments, variables, years, histyears, retx=
     pca <- stats::prcomp(data_matrix, center=TRUE, scale.=TRUE, retx=retx)
 
     ## Add our metadata
-    pca$meta_data <- list(year=sort(years),
-                          histyear=sort(histyears),
+    srtyears <- lapply(years, sort)
+    srthistyears <- lapply(histyears, sort)
+    pca$meta_data <- list(year=srtyears,
+                          histyear=srthistyears,
                           variable=sort(variables),
                           experiment=sort(experiments),
                           scenario=sort(unique(alldata$scenario)))
@@ -247,4 +302,22 @@ summarize_pcdecomp <- function(pcdecomp, pcmax=NULL, pcselect=NULL)
                        cmean=mean(value), cmedian=median(value)) %>%
       dplyr::ungroup() %>%
       dplyr::arrange(PC)
+}
+
+#' Update PCA structure metadata to the new format
+#'
+#' The new format for PCA structures has lists instead of vectors for the years and
+#' histyears elements.  Use this function when you have a structure saved in the old
+#' format and you need to convert it to the new.
+#'
+#' @param pcastruct Old format PCA structure
+#' @return New format PCA structure
+#' @export
+update_pca_struct <- function(pcastruct)
+{
+  pcastruct$meta_data$year <- chk_yrlist(pcastruct$meta_data$variable,
+                                          pcastruct$meta_data$year)
+  pcastruct$meta_data$histyear <- chk_yrlist(pcastruct$meta_data$variable,
+                                             pcastruct$meta_data$histyear)
+  pcastruct
 }

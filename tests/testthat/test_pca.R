@@ -51,8 +51,8 @@ test_that('project_climate works', {
         ## input data is in canonical order.  We also need to filter out rows
         ## prior to the start year
         cd <- dplyr::arrange(climate_data, experiment, variable, year) %>%
-            dplyr::filter(year >= min(test_pca$meta_data$histyear),
-                          year <= max(test_pca$meta_data$year))
+            dplyr::filter(year >= min(test_pca$meta_data$histyear[[1]]),
+                          year <= max(test_pca$meta_data$year[[1]]))
         expect_equal(recon_climate$value, cd$value,
                      info=paste("Reconstructed climate not equal to input for runid=",i))
     }
@@ -134,3 +134,64 @@ test_that('summarize_pcdecomp works', {
     expect_equal(nrow(t4), 2)
     expect_equal(t4$PC, c(2,4))
 })
+
+test_that('Principal component functions work with unequal years', {
+    test_pca <- readRDS('test_pca_unequal_yr.rds')
+    ncomp <- ncol(test_pca$rotation)
+    nclim <- nrow(test_pca$rotation)   # number of climate variable data points used in the PCA
+
+    ## construct a climate data set from known PCs
+    p <- rep(0, ncomp); p[1] <- 1; p[2] <- 0.5
+
+    climdata <- reconstruct_climate(p, principal_components=test_pca)
+    expect_is(climdata, 'data.frame')
+    expect_equal(nrow(climdata), nclim)
+    expect_setequal(names(climdata), c('experiment', 'year', 'variable',
+                                       'value'))
+    expect_setequal(unique(climdata$experiment), test_pca$meta_data$experiment)
+    expect_setequal(unique(climdata$variable), test_pca$meta_data$variable)
+    for(expt in test_pca$meta_data$experiment) {
+        exptyears <-
+            if(grepl('hist', expt, ignore.case=TRUE)) {
+                test_pca$meta_data$histyear
+            }
+            else {
+                test_pca$meta_data$year
+            }
+
+        for(var in test_pca$meta_data$variable) {
+            dsub <- dplyr::filter(climdata, variable==var, experiment==expt)
+            expect_setequal(dsub$year, exptyears[[var]])
+        }
+    }
+
+    ## compute PC projection for the reconstructed climate data
+    px <- project_climate(climdata, test_pca, row_vector=FALSE)
+    expect_equal(px, p)
+
+    ## add some extra years and variables to the climate data and check that
+    ## they get filtered out when computing the projection.
+    fdat <- filter(climdata, variable==test_pca$meta_data$variable[1])
+    fdat$variable <- 'bogonflux'
+    expt <- grep('hist', test_pca$meta_data$experiment, ignore.case=TRUE,
+                 value=TRUE, invert=TRUE)[1] #  get an arbitrary non-historical experiment
+    ydat <- filter(climdata, variable==test_pca$meta_data$variable[1], experiment==expt)
+    xtrayr <- seq.int(2101, length.out=nrow(ydat))
+    expect_false(any(xtrayr %in% ydat$year))  # protect against someone changing
+                                        # the years in the test PCAs
+    ydat$year <- xtrayr
+
+    expt <- grep('hist', test_pca$meta_data$experiment, ignore.case=TRUE,
+                 value=TRUE, invert=FALSE)[1] #  get an arbitrary historical experiment
+    yhdat <- filter(climdata, variable==test_pca$meta_data$variable[1], experiment==expt)
+    xtrahyr <- seq.int(1750, length.out=nrow(yhdat))
+    expect_false(any(xtrahyr %in% yhdat$year))
+    yhdat$year <- xtrahyr
+
+    climdata2 <- dplyr::bind_rows(climdata, fdat, ydat, yhdat)
+
+    ## Finally, the real test
+    pxx <- project_climate(climdata2, test_pca, row_vector=FALSE)
+    expect_equal(pxx, p)
+})
+
