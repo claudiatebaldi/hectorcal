@@ -7,6 +7,8 @@
 
 echo "start:  " `date`
 
+#First make sure the module commands are available.
+source /etc/profile.d/modules.sh
 module load R/3.4.3
 module load gcc/8.1.0
 
